@@ -60,13 +60,13 @@ export default function ClassroomClientPage({
     title: "", body: "", category: "Pengumuman", audience: "Semua", authorName: "Admin"
   });
 
-  const TABS = [
+  const TABS: { id: Tab; label: string; icon: any; badge?: number }[] = [
     { id: "overview", label: "Overview", icon: TrendingUp },
     { id: "jadwal", label: "Jadwal", icon: CalendarDays },
     { id: "siswa", label: "Siswa", icon: Users },
     { id: "perizinan", label: "Perizinan", icon: FileText, badge: summary.pendingAbsences },
     { id: "informasi", label: "Informasi", icon: Bell },
-  ] as const;
+  ];
 
   // Group schedule by day
   const scheduleByDay = DAYS_ORDER.reduce<Record<string, any[]>>((acc, day) => {
@@ -91,11 +91,15 @@ export default function ClassroomClientPage({
   });
 
   const handleApprove = (absenceId: string) => {
-    startTransition(() => approveAbsence(absenceId, classId));
+    startTransition(() => {
+      approveAbsence(absenceId, classId);
+    });
   };
 
   const handleReject = (absenceId: string) => {
-    startTransition(() => rejectAbsence(absenceId, classId));
+    startTransition(() => {
+      rejectAbsence(absenceId, classId);
+    });
   };
 
   const handleCreatePost = async () => {
