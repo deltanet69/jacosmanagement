@@ -22,20 +22,22 @@ export async function submitApplicant(data: any) {
         nextNum = parseInt(match[1]) + 1;
       }
     }
-    const registrationNo = `${prefix}-${nextNum.toString().padStart(5, '0')}`;
+    const registrationNo = `${prefix}-${nextNum.toString().padStart(5, "0")}`;
 
     // 2. Insert into applicants
     const applicantData = {
       registration_no: registrationNo,
       student_name: data.fullName,
       birth_place: data.birthPlace,
-      birth_date: new Date(data.birthDate).toISOString(),
+      birth_date: data.birthDate ? new Date(data.birthDate).toISOString() : null,
       gender: data.gender === "Laki-laki" ? "MALE" : "FEMALE",
-      category: data.category === "Siswa Pindahan" ? "TRANSFER_STUDENT" : "NEW_STUDENT",
+      category:
+        data.category === "Pindahan" ? "TRANSFER_STUDENT" : "NEW_STUDENT",
       nisn: data.nisn || null,
       address: data.address,
-      program: data.program === "Kindergarten" ? "KINDERGARTEN" : "PRIMARY_SCHOOL",
-      status: "SUBMITTED"
+      program:
+        data.program === "Kindergarten" ? "KINDERGARTEN" : "PRIMARY_SCHOOL",
+      status: "SUBMITTED",
     };
 
     const { data: newApplicant, error: applicantError } = await supabase
@@ -46,21 +48,31 @@ export async function submitApplicant(data: any) {
 
     if (applicantError) {
       console.error("Error creating applicant:", applicantError);
-      return { success: false, message: "Gagal menyimpan data siswa: " + applicantError.message };
+      return {
+        success: false,
+        message: "Gagal menyimpan data siswa: " + applicantError.message,
+      };
     }
 
-    // 3. Insert into guardians
+    // 3. Map relation value
+    let relation = "GUARDIAN";
+    if (data.parentRelation === "ayah") relation = "FATHER";
+    else if (data.parentRelation === "ibu") relation = "MOTHER";
+
+    // 4. Insert into guardians with all fields
     const guardianData = {
       applicant_id: newApplicant.id,
       full_name: data.parentName,
-      birth_place: "-", // Form didn't have this
-      birth_date: new Date().toISOString(), // Default
+      birth_place: data.parentBirthPlace || "-",
+      birth_date: data.parentBirthDate
+        ? new Date(data.parentBirthDate).toISOString()
+        : new Date("1980-01-01").toISOString(),
       occupation: data.parentJob || "Lainnya",
-      education_level: "S1", // Default
-      address: data.address,
-      relation: data.parentRelation === "Ayah" ? "FATHER" : (data.parentRelation === "Ibu" ? "MOTHER" : "GUARDIAN"),
+      education_level: data.parentEducation || "S1",
+      address: data.parentAddress || data.address,
+      relation,
       phone: data.phone,
-      email: data.email
+      email: data.email,
     };
 
     const { error: guardianError } = await supabase
@@ -69,7 +81,10 @@ export async function submitApplicant(data: any) {
 
     if (guardianError) {
       console.error("Error creating guardian:", guardianError);
-      return { success: false, message: "Gagal menyimpan data orang tua: " + guardianError.message };
+      return {
+        success: false,
+        message: "Gagal menyimpan data orang tua: " + guardianError.message,
+      };
     }
 
     return { success: true, registrationNo };
@@ -78,4 +93,3 @@ export async function submitApplicant(data: any) {
     return { success: false, message: err.message || "Terjadi kesalahan sistem" };
   }
 }
-

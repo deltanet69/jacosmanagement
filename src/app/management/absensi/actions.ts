@@ -6,10 +6,10 @@ import { revalidatePath } from "next/cache";
 // ===============================
 // ABSENSI MASUK (RFID)
 // ===============================
-export async function processRfidScan(rfid: string) {
+export async function processRfidScan(rfid: string, expectedClassId?: string) {
   const supabase = createAdminClient();
   const today = new Date().toISOString().split('T')[0];
-  const currentTime = new Date().toTimeString().split(' ')[0];
+  const currentTime = new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   const { data: student, error: studentError } = await supabase
     .from("students")
@@ -21,6 +21,10 @@ export async function processRfidScan(rfid: string) {
     return { success: false, message: "RFID tidak terdaftar" };
   }
 
+  if (expectedClassId && student.class_id !== expectedClassId) {
+    return { success: false, message: "Siswa ini tidak terdaftar di kelas ini" };
+  }
+
   const { data: existingAttendance } = await supabase
     .from("student_attendance")
     .select("id, check_in_time, check_out_time")
@@ -29,6 +33,28 @@ export async function processRfidScan(rfid: string) {
     .single();
 
   if (existingAttendance) {
+    // Check if enough time has passed to consider it a check-out
+    const checkInDate = new Date(`${today}T${existingAttendance.check_in_time}`);
+    const now = new Date();
+    const diffMinutes = (now.getTime() - checkInDate.getTime()) / (1000 * 60);
+
+    if (diffMinutes > 5 && !existingAttendance.check_out_time) {
+      // Record check out
+      await supabase
+        .from("student_attendance")
+        .update({ check_out_time: currentTime })
+        .eq("id", existingAttendance.id);
+        
+      revalidatePath(`/absen/${expectedClassId}`);
+      return { 
+        success: true, 
+        student,
+        message: "Absensi Kepulangan Berhasil!",
+        alreadyScanned: true,
+        isCheckOut: true
+      };
+    }
+
     return { 
       success: true, 
       student,
@@ -52,13 +78,36 @@ export async function processRfidScan(rfid: string) {
     return { success: false, message: `Gagal mencatat absensi sistem: ${insertError.message}` };
   }
 
-  revalidatePath("/management/absensi");
+  revalidatePath(`/absen/${expectedClassId}`);
   return { 
     success: true, 
     student,
     message: "Absensi Kedatangan Berhasil!",
     alreadyScanned: false
   };
+}
+
+export async function getTodayAttendanceByClass(classId: string) {
+  const supabase = createAdminClient();
+  const today = new Date().toISOString().split('T')[0];
+
+  const { data } = await supabase
+    .from("student_attendance")
+    .select(`
+      id,
+      check_in_time,
+      check_out_time,
+      students (
+        id,
+        full_name,
+        profile_picture
+      )
+    `)
+    .eq("class_id", classId)
+    .eq("date", today)
+    .order("check_in_time", { ascending: false });
+
+  return data || [];
 }
 
 
