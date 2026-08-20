@@ -36,6 +36,7 @@ export default function DaftarPPDB() {
 
   // Document upload states
   const [docUploaded, setDocUploaded] = useState<Record<string, string>>({});
+  const [docFiles, setDocFiles] = useState<Record<string, File>>({});
 
   // Form State
   const [formData, setFormData] = useState({
@@ -79,7 +80,13 @@ export default function DaftarPPDB() {
         return;
       }
       setIsSubmitting(true);
-      const res = await submitApplicant(formData);
+      const formDataToSend = new FormData();
+      formDataToSend.append("data", JSON.stringify(formData));
+      Object.entries(docFiles).forEach(([key, file]) => {
+        formDataToSend.append(`file_${key}`, file);
+      });
+
+      const res = await submitApplicant(formDataToSend);
       setIsSubmitting(false);
 
       if (res.success) {
@@ -108,6 +115,7 @@ export default function DaftarPPDB() {
   ) => {
     const file = event.target.files?.[0];
     if (file) {
+      let processedFile = file;
       if (file.type.startsWith("image/")) {
         try {
           const options = {
@@ -115,12 +123,13 @@ export default function DaftarPPDB() {
             maxWidthOrHeight: 1920,
             useWebWorker: true,
           };
-          await imageCompression(file, options);
+          processedFile = await imageCompression(file, options);
         } catch (error) {
           console.error("Error compressing image:", error);
         }
       }
-      setDocUploaded((prev) => ({ ...prev, [docKey]: file.name }));
+      setDocUploaded((prev) => ({ ...prev, [docKey]: processedFile.name }));
+      setDocFiles((prev) => ({ ...prev, [docKey]: processedFile }));
     }
   };
 

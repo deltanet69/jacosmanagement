@@ -55,7 +55,7 @@ export default function ApplicantDetail({
     );
 
   const guardian =
-    data.guardians && data.guardians.length > 0 ? data.guardians[0] : null;
+    data.guardians ? (Array.isArray(data.guardians) ? data.guardians[0] : data.guardians) : null;
 
   const relationLabel = (rel: string) => {
     if (rel === "FATHER") return "Ayah";
@@ -262,7 +262,7 @@ export default function ApplicantDetail({
                     <p className="text-ink-400 text-xs mb-0.5">
                       Tanggal Daftar
                     </p>
-                    <p className="font-bold">{formatDate(data.created_at)}</p>
+                    <p className="font-bold">{formatDate(data.submitted_at || data.created_at)}</p>
                   </div>
                 </div>
               </div>
@@ -435,7 +435,7 @@ export default function ApplicantDetail({
               </div>
               <div className="flex justify-between">
                 <span className="text-ink-400">Terdaftar</span>
-                <span className="font-bold">{formatDate(data.created_at)}</span>
+                <span className="font-bold">{formatDate(data.submitted_at || data.created_at)}</span>
               </div>
             </div>
           </div>

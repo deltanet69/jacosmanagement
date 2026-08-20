@@ -11,7 +11,7 @@ export async function getApplicants() {
       *,
       guardians (*)
     `)
-    .order("created_at", { ascending: false });
+    .order("submitted_at", { ascending: false });
 
   if (error) {
     console.error("Error fetching applicants:", error);
@@ -36,7 +36,37 @@ export async function getApplicantDetail(id: string) {
     console.error("Error fetching applicant detail:", error);
     return null;
   }
+  
+  // Generate signed URLs for private documents
+  if (data?.documents && data.documents.length > 0) {
+    for (const doc of data.documents) {
+      const { data: urlData } = await supabase.storage
+        .from("admission-documents")
+        .createSignedUrl(doc.file_url, 3600);
+      if (urlData) {
+        doc.signed_url = urlData.signedUrl;
+      }
+    }
+  }
+  
   return data;
+}
+
+export async function updatePaymentStatus(applicantId: string, status: string) {
+  const supabase = createAdminClient();
+  const { error } = await supabase
+    .from("applicants")
+    .update({ payment_status: status })
+    .eq("id", applicantId);
+
+  if (error) {
+    console.error("Error updating payment status:", error);
+    return { success: false, message: error.message };
+  }
+
+  revalidatePath("/management/admisi");
+  revalidatePath(`/management/admisi/${applicantId}`);
+  return { success: true };
 }
 
 export async function getClasses() {
@@ -83,8 +113,8 @@ export async function approveAndAssignClass(applicantId: string, classId: string
   }
 
   // 3. Insert guardian into student_parents
-  if (applicant.guardians && applicant.guardians.length > 0) {
-    const guardian = applicant.guardians[0];
+  const guardian = applicant.guardians ? (Array.isArray(applicant.guardians) ? applicant.guardians[0] : applicant.guardians) : null;
+  if (guardian) {
     const parentData = {
       student_id: student.id,
       father_name: guardian.relation === "FATHER" ? guardian.full_name : null,

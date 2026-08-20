@@ -2,16 +2,20 @@
 
 import { createAdminClient } from "@/lib/supabase/server";
 
-export async function submitApplicant(data: any) {
+export async function submitApplicant(formData: FormData) {
   const supabase = createAdminClient();
 
   try {
+    const dataString = formData.get("data") as string;
+    if (!dataString) throw new Error("Data pendaftaran tidak ditemukan");
+    const data = JSON.parse(dataString);
+
     // 1. Generate Registration No
     const prefix = "JCS-" + new Date().getFullYear();
     const { data: lastApplicant } = await supabase
       .from("applicants")
       .select("registration_no")
-      .order("created_at", { ascending: false })
+      .order("submitted_at", { ascending: false })
       .limit(1);
 
     let nextNum = 1;
@@ -85,6 +89,39 @@ export async function submitApplicant(data: any) {
         success: false,
         message: "Gagal menyimpan data orang tua: " + guardianError.message,
       };
+    }
+
+    // 5. Upload Documents
+    const docKeys = ["kk", "akte", "foto4x3", "foto2x3"];
+    for (const key of docKeys) {
+      const file = formData.get(`file_${key}`) as File;
+      if (file && file.size > 0) {
+        const ext = file.name.split(".").pop();
+        const filePath = `${newApplicant.id}/${key}.${ext}`;
+        
+        const buffer = await file.arrayBuffer();
+        
+        const { error: uploadError } = await supabase.storage
+          .from("admission-documents")
+          .upload(filePath, buffer, {
+            contentType: file.type,
+          });
+          
+        if (uploadError) {
+          console.error(`Error uploading ${key}:`, uploadError);
+        } else {
+          let type = "PHOTO_4X3";
+          if (key === "kk") type = "FAMILY_CARD";
+          if (key === "akte") type = "BIRTH_CERTIFICATE";
+          if (key === "foto2x3") type = "PHOTO_2X3";
+          
+          await supabase.from("documents").insert({
+            applicant_id: newApplicant.id,
+            type,
+            file_url: filePath,
+          });
+        }
+      }
     }
 
     return { success: true, registrationNo };

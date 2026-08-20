@@ -123,78 +123,84 @@ export default function AdmisiPage() {
       ) : applicants.length === 0 ? (
         <div className="py-20 text-center text-ink-300 font-medium">Belum ada pendaftar PPDB.</div>
       ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6 lg:gap-8 pt-4">
-        {applicants.map((app) => {
-          const style = getStatusStyle(app.status);
-          const parentName = app.guardians && app.guardians.length > 0 ? app.guardians[0].full_name : "-";
-          const avatar = app.student_name ? app.student_name.substring(0, 2).toUpperCase() : "AA";
-          const formattedDate = new Date(app.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
-          
-          return (
-            <div key={app.id} className="group relative bg-white rounded-[2rem] p-1.5 shadow-[0_4px_20px_-8px_rgba(0,0,0,0.1)] hover:shadow-[0_10px_40px_-10px_rgba(14,165,233,0.2)] transition-all duration-500 hover:-translate-y-2">
-              {/* Colored side indicator / glowing border effect */}
-              <div className={`absolute inset-0 rounded-[2rem] bg-gradient-to-br ${style.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 blur-xl`} />
-              
-              <div className="relative bg-white rounded-[1.75rem] h-full flex flex-col p-6 overflow-hidden border border-ink/5">
-                {/* Decorative background shape */}
-                <div className={`absolute top-0 right-0 w-32 h-32 bg-gradient-to-br ${style.gradient} opacity-5 rounded-bl-[100px] -z-0`} />
+      <div className="bg-white rounded-3xl border border-ink/5 shadow-sm overflow-hidden mt-4">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="border-b border-ink/5 bg-cloud/50">
+                <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider">No. Registrasi</th>
+                <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider">Calon Siswa</th>
+                <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider">Program</th>
+                <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider">Pembayaran</th>
+                <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider text-right">Aksi</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-ink/5">
+              {applicants.map((app) => {
+                const style = getStatusStyle(app.status);
+                const guardian = app.guardians ? (Array.isArray(app.guardians) ? app.guardians[0] : app.guardians) : null;
+                const parentName = guardian ? guardian.full_name : "-";
+                const avatar = app.student_name ? app.student_name.substring(0, 2).toUpperCase() : "AA";
+                const formattedDate = new Date(app.submitted_at || app.created_at || new Date()).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
                 
-                {/* Card Header */}
-                <div className="flex justify-between items-start mb-6 relative z-10">
-                  <div className={`w-14 h-14 rounded-[1.1rem] bg-gradient-to-br ${style.gradient} flex items-center justify-center font-display font-extrabold text-xl text-white shadow-md shadow-${style.color.split('-')[1]}/30`}>
-                    {avatar}
-                  </div>
-                  
-                  <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold ${style.bg} ${style.color} border border-${style.color.split('-')[1]}-100`}>
-                    {style.icon}
-                    {style.label}
-                  </div>
-                </div>
+                const paymentStatus = (app as any).payment_status || "UNPAID";
+                const paymentStyle = paymentStatus === "PAID" 
+                  ? "bg-leaf-50 text-leaf-600 border-leaf-100" 
+                  : "bg-coral-50 text-coral-600 border-coral-100";
                 
-                {/* Card Body */}
-                <div className="flex-1 relative z-10 mb-6">
-                  <div className="flex items-center gap-2 mb-1.5">
-                    <p className="text-xs font-bold text-ink-300 tracking-wider uppercase">{app.registration_no || app.id.substring(0, 8)}</p>
-                    <span className="w-1 h-1 rounded-full bg-ink/20" />
-                    <p className="text-xs font-bold text-ink-300">{formattedDate}</p>
-                  </div>
-                  
-                  <h2 className="font-display text-2xl font-extrabold text-ink mb-3 group-hover:text-sky transition-colors">{app.student_name}</h2>
-                  
-                  <div className="flex flex-wrap gap-2 mb-5">
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-cloud text-ink font-semibold text-xs border border-ink/5">
-                      {app.category === "TRANSFER_STUDENT" ? "Pindahan" : "Siswa Baru"}
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-sky-50 text-sky-700 font-semibold text-xs border border-sky-100">
-                      {app.program === "KINDERGARTEN" ? "Kindergarten" : "Primary School"}
-                    </span>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 p-3 rounded-2xl bg-cloud/40 border border-ink/5">
-                    <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-ink-300 shadow-sm">
-                      <User size={14} />
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-bold text-ink-300 uppercase">Wali / Orang Tua</p>
-                      <p className="text-sm font-semibold text-ink">{parentName}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Card Footer / Action */}
-                <div className="mt-auto relative z-10">
-                  <Link href={`/management/admisi/${app.id}`}>
-                    <Button className="w-full h-12 bg-white border-2 border-ink/5 group-hover:border-sky group-hover:bg-sky text-ink group-hover:text-white font-bold rounded-xl transition-all duration-300 flex items-center justify-center gap-2 group/btn shadow-sm">
-                      <FileText size={16} className="group-hover/btn:hidden" />
-                      <span className="group-hover/btn:hidden">Detail</span>
-                      <span className="hidden group-hover/btn:inline-block">Lihat Aplikasi Penuh →</span>
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+                return (
+                  <tr key={app.id} className="hover:bg-sky-50/50 transition-colors group">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <p className="text-sm font-bold text-ink mb-1">{app.registration_no || app.id.substring(0, 8)}</p>
+                      <p className="text-xs font-medium text-ink-400">{formattedDate}</p>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 shrink-0 rounded-full bg-gradient-to-br ${style.gradient} flex items-center justify-center font-display font-bold text-white text-sm shadow-sm`}>
+                          {avatar}
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm text-ink group-hover:text-sky transition-colors">{app.student_name}</p>
+                          <p className="text-xs text-ink-400">Wali: {parentName}</p>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex flex-col gap-1 items-start">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-sky-50 text-sky-700 font-semibold text-[11px] border border-sky-100">
+                          {app.program === "KINDERGARTEN" ? "Kindergarten" : "Primary School"}
+                        </span>
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-cloud text-ink-400 font-semibold text-[11px] border border-ink/10">
+                          {app.category === "TRANSFER_STUDENT" ? "Pindahan" : "Baru"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${paymentStyle}`}>
+                        <div className={`w-1.5 h-1.5 rounded-full ${paymentStatus === "PAID" ? "bg-leaf-500" : "bg-coral-500"}`} />
+                        {paymentStatus === "PAID" ? "Lunas" : "Belum Bayar"}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${style.bg} ${style.color} border border-${style.color.split('-')[1]}-100`}>
+                        {style.icon}
+                        {style.label}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <Link href={`/management/admisi/${app.id}`}>
+                        <Button variant="ghost" size="sm" className="h-9 px-4 text-sky hover:bg-sky-50 hover:text-sky-700 font-bold rounded-full">
+                          Detail →
+                        </Button>
+                      </Link>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
       )}
     </div>
