@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { Resend } from "resend";
 import crypto from "crypto";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const getResend = () => new Resend(process.env.RESEND_API_KEY!);
 
 // ============================================================
 // UTILITY
@@ -401,7 +401,7 @@ export async function sendFormReceivedEmail(params: {
   portalPassword?: string;
 }) {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: "JACOS Admission <admission@jacos.id>",
       to: params.parentEmail,
       subject: `Formulir Pendaftaran Diterima — ${params.studentName}`,
@@ -517,7 +517,7 @@ async function sendApprovalEmail(params: {
       PRIMARY_SCHOOL: "Primary School",
     };
 
-    await resend.emails.send({
+    await getResend().emails.send({
       from: "JACOS Admission <admission@jacos.id>",
       to: params.parentEmail,
       subject: `Selamat! Pendaftaran ${params.studentName} Diterima di JACOS 🎉`,
@@ -615,7 +615,7 @@ async function sendRejectionEmail(params: {
   reason: string;
 }) {
   try {
-    await resend.emails.send({
+    await getResend().emails.send({
       from: "JACOS Admission <admission@jacos.id>",
       to: params.parentEmail,
       subject: `Update Pendaftaran ${params.studentName} di JACOS`,
