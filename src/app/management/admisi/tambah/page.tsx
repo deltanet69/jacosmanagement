@@ -46,8 +46,8 @@ export default function TambahAdmisiPage() {
     paymentNote: "",
   });
 
-  const update = (key: string, value: string) =>
-    setForm((prev) => ({ ...prev, [key]: value }));
+  const update = (key: string, value: string | null) =>
+    setForm((prev) => ({ ...prev, [key]: value || "" }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
