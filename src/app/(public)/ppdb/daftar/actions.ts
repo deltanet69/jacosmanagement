@@ -32,16 +32,30 @@ export async function submitApplicant(formData: FormData) {
     const applicantData = {
       registration_no: registrationNo,
       student_name: data.fullName,
+      preferred_name: data.preferredName,
       birth_place: data.birthPlace,
       birth_date: data.birthDate ? new Date(data.birthDate).toISOString() : null,
       gender: data.gender === "Laki-laki" ? "MALE" : "FEMALE",
-      category:
-        data.category === "Pindahan" ? "TRANSFER_STUDENT" : "NEW_STUDENT",
+      category: data.category === "Pindahan" ? "TRANSFER_STUDENT" : "NEW_STUDENT",
+      nik: data.nik || null,
       nisn: data.nisn || null,
+      religion: data.religion,
+      nationality: data.nationality,
       address: data.address,
-      program:
-        data.program === "Kindergarten" ? "KINDERGARTEN" : "PRIMARY_SCHOOL",
+      primary_language: data.primaryLanguage,
+      child_order: data.childOrder,
+      previous_school: data.previousSchool,
+      blood_type: data.bloodType,
+      allergies_special_needs: data.allergiesSpecialNeeds,
+      medical_history: data.medicalHistory,
+      program: data.program === "Preschool" ? "PRESCHOOL" : data.program === "Kindergarten" ? "KINDERGARTEN" : "PRIMARY_SCHOOL",
       status: "SUBMITTED",
+      emergency_contact_name: data.emergencyContactName,
+      emergency_contact_relation: data.emergencyContactRelation,
+      emergency_contact_phone: data.emergencyContactPhone,
+      daily_transportation: data.dailyTransportation,
+      authorized_pickup_name: data.authorizedPickup,
+      media_consent: data.mediaConsent,
     };
 
     const { data: newApplicant, error: applicantError } = await supabase
@@ -58,41 +72,56 @@ export async function submitApplicant(formData: FormData) {
       };
     }
 
-    // 3. Map relation value
-    let relation = "GUARDIAN";
-    if (data.parentRelation === "ayah") relation = "FATHER";
-    else if (data.parentRelation === "ibu") relation = "MOTHER";
-
-    // 4. Insert into guardians with all fields
-    const guardianData = {
-      applicant_id: newApplicant.id,
-      full_name: data.parentName,
-      birth_place: data.parentBirthPlace || "-",
-      birth_date: data.parentBirthDate
-        ? new Date(data.parentBirthDate).toISOString()
-        : new Date("1980-01-01").toISOString(),
-      occupation: data.parentJob || "Lainnya",
-      education_level: data.parentEducation || "S1",
-      address: data.parentAddress || data.address,
-      relation,
-      phone: data.phone,
-      email: data.email,
-    };
-
-    const { error: guardianError } = await supabase
-      .from("guardians")
-      .insert(guardianData);
-
-    if (guardianError) {
-      console.error("Error creating guardian:", guardianError);
-      return {
-        success: false,
-        message: "Gagal menyimpan data orang tua: " + guardianError.message,
-      };
+    // 3. Insert guardians (Father, Mother, Guardian if exists)
+    const guardiansToInsert = [];
+    if (data.fatherName) {
+      guardiansToInsert.push({
+        applicant_id: newApplicant.id,
+        full_name: data.fatherName,
+        nik: data.fatherNik,
+        occupation: data.fatherJob || "-",
+        relation: "FATHER",
+        phone: data.fatherPhone,
+        email: data.fatherEmail,
+      });
+    }
+    if (data.motherName) {
+      guardiansToInsert.push({
+        applicant_id: newApplicant.id,
+        full_name: data.motherName,
+        nik: data.motherNik,
+        occupation: data.motherJob || "-",
+        relation: "MOTHER",
+        phone: data.motherPhone,
+        email: data.motherEmail,
+      });
+    }
+    if (data.guardianName) {
+      guardiansToInsert.push({
+        applicant_id: newApplicant.id,
+        full_name: data.guardianName,
+        occupation: "-",
+        relation: data.guardianRelation || "GUARDIAN",
+        phone: data.guardianPhone,
+      });
     }
 
-    // 5. Upload Documents
-    const docKeys = ["kk", "akte", "foto4x3", "foto2x3"];
+    if (guardiansToInsert.length > 0) {
+      const { error: guardianError } = await supabase
+        .from("guardians")
+        .insert(guardiansToInsert);
+
+      if (guardianError) {
+        console.error("Error creating guardians:", guardianError);
+        return {
+          success: false,
+          message: "Gagal menyimpan data orang tua: " + guardianError.message,
+        };
+      }
+    }
+
+    // 4. Upload Documents
+    const docKeys = ["akte", "kk", "ktp_orangtua", "foto4x3", "kartu_imunisasi", "rapor"];
     for (const key of docKeys) {
       const file = formData.get(`file_${key}`) as File;
       if (file && file.size > 0) {
@@ -110,10 +139,13 @@ export async function submitApplicant(formData: FormData) {
         if (uploadError) {
           console.error(`Error uploading ${key}:`, uploadError);
         } else {
-          let type = "PHOTO_4X3";
-          if (key === "kk") type = "FAMILY_CARD";
+          let type = "OTHER";
           if (key === "akte") type = "BIRTH_CERTIFICATE";
-          if (key === "foto2x3") type = "PHOTO_2X3";
+          if (key === "kk") type = "FAMILY_CARD";
+          if (key === "ktp_orangtua") type = "PARENT_ID";
+          if (key === "foto4x3") type = "PHOTO_4X3";
+          if (key === "kartu_imunisasi") type = "IMMUNIZATION_CARD";
+          if (key === "rapor") type = "PREVIOUS_REPORT";
           
           await supabase.from("documents").insert({
             applicant_id: newApplicant.id,

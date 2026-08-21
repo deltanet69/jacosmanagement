@@ -20,10 +20,11 @@ import { submitApplicant } from "./actions";
 
 export default function DaftarPPDB() {
   const [currentStep, setCurrentStep] = useState(1);
-  const totalSteps = 4;
+  const totalSteps = 5;
   const stepLabels = [
     "Informasi Siswa",
-    "Data Orang Tua",
+    "Orang Tua & Wali",
+    "Kontak & Penjemputan",
     "Dokumen",
     "Review & Kirim",
   ];
@@ -40,43 +41,64 @@ export default function DaftarPPDB() {
 
   // Form State
   const [formData, setFormData] = useState({
+    // Student Info
+    program: "Primary",
     fullName: "",
-    nisn: "",
+    preferredName: "",
+    gender: "Laki-laki",
     birthPlace: "",
     birthDate: "",
-    gender: "Laki-laki",
-    category: "Siswa Baru",
+    nik: "",
+    nisn: "",
+    religion: "Islam",
+    nationality: "WNI",
     address: "",
-    program: "Primary",
-    // Parent data
-    parentName: "",
-    parentBirthPlace: "",
-    parentBirthDate: "",
-    parentJob: "",
-    parentRelation: "ayah",
-    parentEducation: "S1",
-    parentAddress: "",
-    phone: "",
-    email: "",
+    primaryLanguage: "Bahasa Indonesia",
+    childOrder: "",
+    previousSchool: "",
+    bloodType: "O",
+    allergiesSpecialNeeds: "",
+    medicalHistory: "",
+    category: "Siswa Baru",
+
+    // Parent Data - Father
+    fatherName: "",
+    fatherNik: "",
+    fatherJob: "",
+    fatherPhone: "",
+    fatherEmail: "",
+
+    // Parent Data - Mother
+    motherName: "",
+    motherNik: "",
+    motherJob: "",
+    motherPhone: "",
+    motherEmail: "",
+
+    // Guardian
+    guardianName: "",
+    guardianRelation: "",
+    guardianPhone: "",
+
+    // Emergency Contact & Pick Up
+    emergencyContactName: "",
+    emergencyContactRelation: "",
+    emergencyContactPhone: "",
+    dailyTransportation: "Antar-jemput sekolah",
+    authorizedPickup: "",
+
     agreed: false,
+    mediaConsent: false,
   });
 
   const updateForm = (key: string, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
   };
 
-  const copyStudentAddress = (checked: boolean) => {
-    if (checked) {
-      updateForm("parentAddress", formData.address);
-    } else {
-      updateForm("parentAddress", "");
-    }
-  };
-
   const nextStep = async () => {
     if (currentStep === totalSteps) {
       if (!formData.agreed) {
-        alert("Anda harus menyetujui pernyataan untuk melanjutkan.");
+        alert("Anda harus menyetujui pernyataan Kebenaran Data untuk melanjutkan.");
         return;
       }
       setIsSubmitting(true);
@@ -165,7 +187,7 @@ export default function DaftarPPDB() {
                 "repeating-linear-gradient(180deg,#D3E3FF 0 8px, transparent 8px 16px)",
             }}
           />
-          {[1, 2, 3, 4].map((step) => {
+          {[1, 2, 3, 4, 5].map((step) => {
             const isActive = step === currentStep;
             const isPast = step < currentStep;
             return (
@@ -270,12 +292,12 @@ export default function DaftarPPDB() {
                   </div>
                   <div className="flex justify-between">
                     <dt className="text-ink-400">Apply Kelas</dt>
-                    <dd className="font-bold text-right">Primary School</dd>
+                    <dd className="font-bold text-right">{formData.program} School</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-ink-400">Nama Orang Tua</dt>
+                    <dt className="text-ink-400">Nama Ayah</dt>
                     <dd className="font-bold text-right">
-                      {formData.parentName}
+                      {formData.fatherName || "-"}
                     </dd>
                   </div>
                 </dl>
@@ -354,11 +376,11 @@ export default function DaftarPPDB() {
                     </p>
                     <p className="text-sm leading-relaxed">
                       Assalamu&apos;alaikum, Bpk/Ibu{" "}
-                      <b>{formData.parentName}</b>
+                      <b>{formData.fatherName || formData.motherName || formData.guardianName}</b>
                       <br />
                       <br />
                       Pendaftaran ananda <b>{formData.fullName}</b> untuk{" "}
-                      <b>Primary School</b> JACOS telah kami terima.
+                      <b>{formData.program} School</b> JACOS telah kami terima.
                       <br />
                       <br />
                       Mohon selesaikan biaya pendaftaran:
@@ -396,12 +418,12 @@ export default function DaftarPPDB() {
                     </p>
                   </div>
                   <div className="p-5 text-sm text-ink-400 leading-relaxed">
-                    Yth. Bapak/Ibu <b className="text-ink">{formData.parentName}</b>,
+                    Yth. Bapak/Ibu <b className="text-ink">{formData.fatherName || formData.motherName || formData.guardianName}</b>,
                     <br />
                     <br />
                     Pendaftaran ananda{" "}
                     <b className="text-ink">{formData.fullName}</b> untuk{" "}
-                    <b className="text-ink">Primary School</b> di JACOS telah
+                    <b className="text-ink">{formData.program} School</b> di JACOS telah
                     kami terima. Untuk melanjutkan proses seleksi, mohon
                     selesaikan pembayaran biaya pendaftaran sebesar{" "}
                     <b className="text-ink">Rp 500.000</b> ke{" "}
@@ -460,164 +482,267 @@ export default function DaftarPPDB() {
               {currentStep === 1 && (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                   <span className="inline-block bg-sky-50 text-sky text-xs font-bold px-3 py-1 rounded-full mb-4">
-                    Informasi Siswa
+                    Informasi Siswa / Student Information
                   </span>
                   <h1 className="font-display text-3xl mb-2">
-                    Ceritakan tentang ananda.
+                    Online Admission
                   </h1>
                   <p className="text-ink-400 mb-10">
-                    Isi sesuai dokumen resmi (akte lahir / KK) ya, Bapak/Ibu.
+                    Silakan isi data calon siswa (Child&apos;s Information).
                   </p>
 
                   <div className="space-y-6">
                     <div>
                       <Label className="block text-sm font-bold mb-2">
-                        Nama Lengkap Anak
+                        Jenjang Pendaftaran / Level Applying For
                       </Label>
-                      <Input
-                        value={formData.fullName}
-                        onChange={(e) => updateForm("fullName", e.target.value)}
-                        placeholder="Contoh: Nayla Putri Ramadhani"
-                        className="h-12 rounded-2xl bg-white border-ink/10"
+                      <RadioGroup
+                        value={formData.program}
+                        onValueChange={(v) => updateForm("program", v)}
+                        className="grid grid-cols-1 sm:grid-cols-3 gap-4"
+                      >
+                        <Label className="flex items-center gap-3 rounded-2xl border-2 border-ink/10 hover:border-sky/50 bg-white px-5 py-3.5 cursor-pointer transition-colors [&:has([data-state=checked])]:border-sky [&:has([data-state=checked])]:bg-sky-50">
+                          <RadioGroupItem value="Preschool" />
+                          <span className="text-sm font-semibold">Preschool</span>
+                        </Label>
+                        <Label className="flex items-center gap-3 rounded-2xl border-2 border-ink/10 hover:border-sky/50 bg-white px-5 py-3.5 cursor-pointer transition-colors [&:has([data-state=checked])]:border-sky [&:has([data-state=checked])]:bg-sky-50">
+                          <RadioGroupItem value="Kindergarten" />
+                          <span className="text-sm font-semibold">Kindergarten</span>
+                        </Label>
+                        <Label className="flex items-center gap-3 rounded-2xl border-2 border-ink/10 hover:border-sky/50 bg-white px-5 py-3.5 cursor-pointer transition-colors [&:has([data-state=checked])]:border-sky [&:has([data-state=checked])]:bg-sky-50">
+                          <RadioGroupItem value="Primary" />
+                          <span className="text-sm font-semibold">Primary School</span>
+                        </Label>
+                      </RadioGroup>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">
+                          Nama Lengkap / Full Name
+                        </Label>
+                        <Input
+                          value={formData.fullName}
+                          onChange={(e) => updateForm("fullName", e.target.value)}
+                          placeholder="Sesuai Akte Lahir"
+                          className="h-12 rounded-2xl bg-white border-ink/10"
+                        />
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">
+                          Nama Panggilan / Preferred Name
+                        </Label>
+                        <Input
+                          value={formData.preferredName}
+                          onChange={(e) => updateForm("preferredName", e.target.value)}
+                          placeholder="Nama panggilan"
+                          className="h-12 rounded-2xl bg-white border-ink/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">
+                          Jenis Kelamin / Gender
+                        </Label>
+                        <Select
+                          value={formData.gender}
+                          onValueChange={(v) => updateForm("gender", v)}
+                        >
+                          <SelectTrigger className="h-12 w-full rounded-2xl bg-white border-ink/10">
+                            <SelectValue placeholder="Pilih..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Laki-laki">Laki-laki / Male</SelectItem>
+                            <SelectItem value="Perempuan">Perempuan / Female</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">
+                          Anak Ke / Child Order
+                        </Label>
+                        <Input
+                          value={formData.childOrder}
+                          onChange={(e) => updateForm("childOrder", e.target.value)}
+                          placeholder="Contoh: Anak ke 2 dari 5 bersaudara"
+                          className="h-12 rounded-2xl bg-white border-ink/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">
+                          Tempat Lahir / Birth Place
+                        </Label>
+                        <Input
+                          value={formData.birthPlace}
+                          onChange={(e) => updateForm("birthPlace", e.target.value)}
+                          placeholder="Kota lahir"
+                          className="h-12 rounded-2xl bg-white border-ink/10"
+                        />
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">
+                          Tanggal Lahir / Birth Date
+                        </Label>
+                        <Input
+                          type="date"
+                          value={formData.birthDate}
+                          onChange={(e) => updateForm("birthDate", e.target.value)}
+                          className="h-12 rounded-2xl bg-white border-ink/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">
+                          NIK (Sesuai KK) / National ID
+                        </Label>
+                        <Input
+                          value={formData.nik}
+                          onChange={(e) => updateForm("nik", e.target.value)}
+                          placeholder="16 Digit NIK"
+                          className="h-12 rounded-2xl bg-white border-ink/10"
+                        />
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">
+                          NISN / Student ID (Jika ada)
+                        </Label>
+                        <Input
+                          value={formData.nisn}
+                          onChange={(e) => updateForm("nisn", e.target.value)}
+                          placeholder="NISN"
+                          className="h-12 rounded-2xl bg-white border-ink/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid sm:grid-cols-2 gap-6">
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">
+                          Agama / Religion
+                        </Label>
+                        <Select
+                          value={formData.religion}
+                          onValueChange={(v) => updateForm("religion", v)}
+                        >
+                          <SelectTrigger className="h-12 w-full rounded-2xl bg-white border-ink/10">
+                            <SelectValue placeholder="Pilih..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Islam">Islam</SelectItem>
+                            <SelectItem value="Kristen">Kristen</SelectItem>
+                            <SelectItem value="Katolik">Katolik</SelectItem>
+                            <SelectItem value="Hindu">Hindu</SelectItem>
+                            <SelectItem value="Buddha">Buddha</SelectItem>
+                            <SelectItem value="Konghucu">Konghucu</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">
+                          Kewarganegaraan / Nationality
+                        </Label>
+                        <Input
+                          value={formData.nationality}
+                          onChange={(e) => updateForm("nationality", e.target.value)}
+                          placeholder="WNI / WNA"
+                          className="h-12 rounded-2xl bg-white border-ink/10"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label className="block text-sm font-bold mb-2">
+                        Alamat Rumah / Home Address
+                      </Label>
+                      <Textarea
+                        value={formData.address}
+                        onChange={(e) => updateForm("address", e.target.value)}
+                        placeholder="Alamat lengkap"
+                        className="min-h-[80px] rounded-2xl bg-white border-ink/10 p-4"
                       />
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-6">
                       <div>
                         <Label className="block text-sm font-bold mb-2">
-                          Tempat Lahir
+                          Bahasa Utama di Rumah / Primary Language
                         </Label>
-                        <Input
-                          value={formData.birthPlace}
-                          onChange={(e) =>
-                            updateForm("birthPlace", e.target.value)
-                          }
-                          placeholder="Jakarta"
-                          className="h-12 rounded-2xl bg-white border-ink/10"
-                        />
+                        <Select
+                          value={formData.primaryLanguage}
+                          onValueChange={(v) => updateForm("primaryLanguage", v)}
+                        >
+                          <SelectTrigger className="h-12 w-full rounded-2xl bg-white border-ink/10">
+                            <SelectValue placeholder="Pilih..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Bahasa Indonesia">Bahasa Indonesia</SelectItem>
+                            <SelectItem value="English">English</SelectItem>
+                            <SelectItem value="Lainnya">Lainnya</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                       <div>
                         <Label className="block text-sm font-bold mb-2">
-                          Tanggal Lahir
+                          Golongan Darah / Blood Type
                         </Label>
-                        <Input
-                          type="date"
-                          value={formData.birthDate}
-                          onChange={(e) =>
-                            updateForm("birthDate", e.target.value)
-                          }
-                          className="h-12 rounded-2xl bg-white border-ink/10"
-                        />
+                        <Select
+                          value={formData.bloodType}
+                          onValueChange={(v) => updateForm("bloodType", v)}
+                        >
+                          <SelectTrigger className="h-12 w-full rounded-2xl bg-white border-ink/10">
+                            <SelectValue placeholder="Pilih..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="A">A</SelectItem>
+                            <SelectItem value="B">B</SelectItem>
+                            <SelectItem value="AB">AB</SelectItem>
+                            <SelectItem value="O">O</SelectItem>
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
-
+                    
                     <div>
                       <Label className="block text-sm font-bold mb-2">
-                        Jenis Kelamin
+                        Asal Sekolah / Previous School (Jika ada)
                       </Label>
-                      <RadioGroup
-                        value={formData.gender}
-                        onValueChange={(v) => updateForm("gender", v)}
-                        className="grid grid-cols-2 gap-4"
-                      >
-                        <Label className="flex items-center gap-3 rounded-2xl border-2 border-ink/10 hover:border-sky/50 bg-white px-5 py-3.5 cursor-pointer transition-colors [&:has([data-state=checked])]:border-sky [&:has([data-state=checked])]:bg-sky-50">
-                          <RadioGroupItem value="Laki-laki" />
-                          <span className="text-sm font-semibold">
-                            Laki-laki
-                          </span>
-                        </Label>
-                        <Label className="flex items-center gap-3 rounded-2xl border-2 border-ink/10 hover:border-sky/50 bg-white px-5 py-3.5 cursor-pointer transition-colors [&:has([data-state=checked])]:border-sky [&:has([data-state=checked])]:bg-sky-50">
-                          <RadioGroupItem value="Perempuan" />
-                          <span className="text-sm font-semibold">
-                            Perempuan
-                          </span>
-                        </Label>
-                      </RadioGroup>
-                    </div>
-
-                    <div>
-                      <Label className="block text-sm font-bold mb-2">
-                        Kategori Pendaftaran
-                      </Label>
-                      <RadioGroup
-                        value={formData.category}
-                        onValueChange={(v) => updateForm("category", v)}
-                        className="grid grid-cols-2 gap-4"
-                      >
-                        <Label className="flex items-center gap-3 rounded-2xl border-2 border-ink/10 hover:border-sky/50 bg-white px-5 py-3.5 cursor-pointer transition-colors [&:has([data-state=checked])]:border-sky [&:has([data-state=checked])]:bg-sky-50">
-                          <RadioGroupItem value="Siswa Baru" />
-                          <span className="text-sm font-semibold">
-                            Siswa Baru
-                          </span>
-                        </Label>
-                        <Label className="flex items-center gap-3 rounded-2xl border-2 border-ink/10 hover:border-sky/50 bg-white px-5 py-3.5 cursor-pointer transition-colors [&:has([data-state=checked])]:border-sky [&:has([data-state=checked])]:bg-sky-50">
-                          <RadioGroupItem value="Pindahan" />
-                          <span className="text-sm font-semibold">
-                            Pindahan
-                          </span>
-                        </Label>
-                      </RadioGroup>
-                    </div>
-
-                    {/* NISN — only shown for Pindahan */}
-                    {formData.category === "Pindahan" && (
-                      <div className="animate-in fade-in duration-200">
-                        <Label className="block text-sm font-bold mb-2">
-                          NISN{" "}
-                          <span className="text-ink-300 font-medium">
-                            (dari sekolah asal)
-                          </span>
-                        </Label>
-                        <Input
-                          value={formData.nisn}
-                          onChange={(e) => updateForm("nisn", e.target.value)}
-                          placeholder="10 digit NISN"
-                          className="h-12 rounded-2xl bg-white border-ink/10"
-                        />
-                        <p className="text-xs text-ink-300 mt-2">
-                          Wajib diisi untuk siswa pindahan — cek di buku rapor
-                          atau ijazah sekolah asal.
-                        </p>
-                      </div>
-                    )}
-
-                    <div>
-                      <Label className="block text-sm font-bold mb-2">
-                        Alamat Lengkap Siswa
-                      </Label>
-                      <Textarea
-                        value={formData.address}
-                        onChange={(e) => updateForm("address", e.target.value)}
-                        placeholder="Sesuai KK / tempat tinggal saat ini"
-                        className="min-h-[100px] rounded-2xl bg-white border-ink/10 p-4"
+                      <Input
+                        value={formData.previousSchool}
+                        onChange={(e) => updateForm("previousSchool", e.target.value)}
+                        placeholder="Nama sekolah asal"
+                        className="h-12 rounded-2xl bg-white border-ink/10"
                       />
                     </div>
 
                     <div>
                       <Label className="block text-sm font-bold mb-2">
-                        Apply untuk Sekolah
+                        Alergi & Kebutuhan Khusus / Allergies & Special Needs
                       </Label>
-                      <RadioGroup
-                        value={formData.program}
-                        onValueChange={(v) => updateForm("program", v)}
-                        className="grid grid-cols-2 gap-4"
-                      >
-                        <Label className="flex items-center gap-3 rounded-2xl border-2 border-sky bg-sky-50 px-5 py-3.5 cursor-pointer">
-                          <RadioGroupItem value="Primary" />
-                          <span className="text-sm font-semibold">
-                            Primary School
-                          </span>
-                        </Label>
-                        <Label className="flex items-center gap-3 rounded-2xl border-2 border-ink/10 px-5 py-3.5 opacity-50 cursor-not-allowed">
-                          <RadioGroupItem value="Kindergarten" disabled />
-                          <span className="text-sm font-semibold">
-                            Kindergarten{" "}
-                            <span className="block text-[10px] font-medium text-ink-300">
-                              Segera hadir
-                            </span>
-                          </span>
-                        </Label>
-                      </RadioGroup>
+                      <Textarea
+                        value={formData.allergiesSpecialNeeds}
+                        onChange={(e) => updateForm("allergiesSpecialNeeds", e.target.value)}
+                        placeholder="Tuliskan jika ada alergi atau kebutuhan khusus..."
+                        className="min-h-[80px] rounded-2xl bg-white border-ink/10 p-4"
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label className="block text-sm font-bold mb-2">
+                        Riwayat Penyakit / Medical History
+                      </Label>
+                      <Textarea
+                        value={formData.medicalHistory}
+                        onChange={(e) => updateForm("medicalHistory", e.target.value)}
+                        placeholder="Tuliskan riwayat penyakit (jika ada)..."
+                        className="min-h-[80px] rounded-2xl bg-white border-ink/10 p-4"
+                      />
                     </div>
                   </div>
                 </div>
@@ -627,198 +752,250 @@ export default function DaftarPPDB() {
               {currentStep === 2 && (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                   <span className="inline-block bg-sky-50 text-sky text-xs font-bold px-3 py-1 rounded-full mb-4">
-                    Data Orang Tua
+                    Orang Tua & Wali / Parent & Guardian
                   </span>
                   <h1 className="font-display text-3xl mb-2">
-                    Data orang tua / wali.
+                    Informasi Orang Tua
                   </h1>
                   <p className="text-ink-400 mb-10">
-                    Kontak utama yang akan kami hubungi terkait proses admisi.
+                    Mohon lengkapi data Ayah, Ibu, atau Wali.
                   </p>
 
-                  <div className="space-y-6">
-                    <div>
-                      <Label className="block text-sm font-bold mb-2">
-                        Nama Lengkap Orang Tua / Wali
-                      </Label>
-                      <Input
-                        value={formData.parentName}
-                        onChange={(e) =>
-                          updateForm("parentName", e.target.value)
-                        }
-                        placeholder="Contoh: Ahmad Ramadhan"
-                        className="h-12 rounded-2xl bg-white border-ink/10"
-                      />
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="block text-sm font-bold mb-2">
-                          Tempat Lahir
-                        </Label>
-                        <Input
-                          value={formData.parentBirthPlace}
-                          onChange={(e) =>
-                            updateForm("parentBirthPlace", e.target.value)
-                          }
-                          placeholder="Bandung"
-                          className="h-12 rounded-2xl bg-white border-ink/10"
-                        />
-                      </div>
-                      <div>
-                        <Label className="block text-sm font-bold mb-2">
-                          Tanggal Lahir
-                        </Label>
-                        <Input
-                          type="date"
-                          value={formData.parentBirthDate}
-                          onChange={(e) =>
-                            updateForm("parentBirthDate", e.target.value)
-                          }
-                          className="h-12 rounded-2xl bg-white border-ink/10"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid sm:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="block text-sm font-bold mb-2">
-                          Pekerjaan
-                        </Label>
-                        <Input
-                          value={formData.parentJob}
-                          onChange={(e) =>
-                            updateForm("parentJob", e.target.value)
-                          }
-                          placeholder="Contoh: Wiraswasta"
-                          className="h-12 rounded-2xl bg-white border-ink/10"
-                        />
-                      </div>
-                      <div>
-                        <Label className="block text-sm font-bold mb-2">
-                          Hubungan dengan Anak
-                        </Label>
-                        <Select
-                          value={formData.parentRelation}
-                          onValueChange={(v) => updateForm("parentRelation", v)}
-                        >
-                          <SelectTrigger className="h-12 w-full rounded-2xl bg-white border-ink/10">
-                            <SelectValue placeholder="Pilih..." />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="ayah">Ayah</SelectItem>
-                            <SelectItem value="ibu">Ibu</SelectItem>
-                            <SelectItem value="wali">Wali</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-
-                    <div>
-                      <Label className="block text-sm font-bold mb-2">
-                        Pendidikan Terakhir
-                      </Label>
-                      <Select
-                        value={formData.parentEducation}
-                        onValueChange={(v) => updateForm("parentEducation", v)}
-                      >
-                        <SelectTrigger className="h-12 w-full rounded-2xl bg-white border-ink/10">
-                          <SelectValue placeholder="Pilih pendidikan..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="SD">SD</SelectItem>
-                          <SelectItem value="SMP">SMP</SelectItem>
-                          <SelectItem value="SMA/SMK">SMA/SMK</SelectItem>
-                          <SelectItem value="D3">D3</SelectItem>
-                          <SelectItem value="S1">S1</SelectItem>
-                          <SelectItem value="S2">S2</SelectItem>
-                          <SelectItem value="S3">S3</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <Label className="block text-sm font-bold">
-                          Alamat Lengkap
-                        </Label>
-                        <label className="flex items-center gap-2 text-xs font-semibold text-sky cursor-pointer">
-                          <input
-                            type="checkbox"
-                            className="accent-sky w-3.5 h-3.5"
-                            onChange={(e) =>
-                              copyStudentAddress(e.target.checked)
-                            }
+                  <div className="space-y-8">
+                    {/* FATHER INFO */}
+                    <div className="space-y-4">
+                      <h3 className="font-display text-lg text-sky border-b pb-2">Data Ayah / Father&apos;s Info</h3>
+                      <div className="grid sm:grid-cols-2 gap-6">
+                        <div>
+                          <Label className="block text-sm font-bold mb-2">Nama Ayah</Label>
+                          <Input
+                            value={formData.fatherName}
+                            onChange={(e) => updateForm("fatherName", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
                           />
-                          Sama dengan alamat siswa
-                        </label>
+                        </div>
+                        <div>
+                          <Label className="block text-sm font-bold mb-2">NIK Ayah</Label>
+                          <Input
+                            value={formData.fatherNik}
+                            onChange={(e) => updateForm("fatherNik", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
+                        <div>
+                          <Label className="block text-sm font-bold mb-2">Pekerjaan / Instansi</Label>
+                          <Input
+                            value={formData.fatherJob}
+                            onChange={(e) => updateForm("fatherJob", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
+                        <div>
+                          <Label className="block text-sm font-bold mb-2">No. HP/WA</Label>
+                          <Input
+                            value={formData.fatherPhone}
+                            onChange={(e) => updateForm("fatherPhone", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <Label className="block text-sm font-bold mb-2">Email Ayah</Label>
+                          <Input
+                            type="email"
+                            value={formData.fatherEmail}
+                            onChange={(e) => updateForm("fatherEmail", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
                       </div>
-                      <Textarea
-                        value={formData.parentAddress}
-                        onChange={(e) =>
-                          updateForm("parentAddress", e.target.value)
-                        }
-                        placeholder="Sesuai KTP / tempat tinggal saat ini"
-                        className="min-h-[100px] rounded-2xl bg-white border-ink/10 p-4"
-                      />
                     </div>
 
-                    <div className="grid sm:grid-cols-2 gap-6">
-                      <div>
-                        <Label className="block text-sm font-bold mb-2">
-                          Nomor WhatsApp
-                        </Label>
-                        <Input
-                          value={formData.phone}
-                          onChange={(e) => updateForm("phone", e.target.value)}
-                          placeholder="08xx-xxxx-xxxx"
-                          className="h-12 rounded-2xl bg-white border-ink/10"
-                        />
+                    {/* MOTHER INFO */}
+                    <div className="space-y-4">
+                      <h3 className="font-display text-lg text-sky border-b pb-2">Data Ibu / Mother&apos;s Info</h3>
+                      <div className="grid sm:grid-cols-2 gap-6">
+                        <div>
+                          <Label className="block text-sm font-bold mb-2">Nama Ibu</Label>
+                          <Input
+                            value={formData.motherName}
+                            onChange={(e) => updateForm("motherName", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
+                        <div>
+                          <Label className="block text-sm font-bold mb-2">NIK Ibu</Label>
+                          <Input
+                            value={formData.motherNik}
+                            onChange={(e) => updateForm("motherNik", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
+                        <div>
+                          <Label className="block text-sm font-bold mb-2">Pekerjaan / Instansi</Label>
+                          <Input
+                            value={formData.motherJob}
+                            onChange={(e) => updateForm("motherJob", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
+                        <div>
+                          <Label className="block text-sm font-bold mb-2">No. HP/WA</Label>
+                          <Input
+                            value={formData.motherPhone}
+                            onChange={(e) => updateForm("motherPhone", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <Label className="block text-sm font-bold mb-2">Email Ibu</Label>
+                          <Input
+                            type="email"
+                            value={formData.motherEmail}
+                            onChange={(e) => updateForm("motherEmail", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
                       </div>
-                      <div>
-                        <Label className="block text-sm font-bold mb-2">
-                          Email
-                        </Label>
-                        <Input
-                          type="email"
-                          value={formData.email}
-                          onChange={(e) => updateForm("email", e.target.value)}
-                          placeholder="nama@email.com"
-                          className="h-12 rounded-2xl bg-white border-ink/10"
-                        />
+                    </div>
+
+                    {/* GUARDIAN INFO */}
+                    <div className="space-y-4">
+                      <h3 className="font-display text-lg text-sky border-b pb-2">Data Wali / Guardian (Jika Ada)</h3>
+                      <div className="grid sm:grid-cols-3 gap-6">
+                        <div>
+                          <Label className="block text-sm font-bold mb-2">Nama Wali</Label>
+                          <Input
+                            value={formData.guardianName}
+                            onChange={(e) => updateForm("guardianName", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
+                        <div>
+                          <Label className="block text-sm font-bold mb-2">Hubungan Wali</Label>
+                          <Input
+                            value={formData.guardianRelation}
+                            onChange={(e) => updateForm("guardianRelation", e.target.value)}
+                            placeholder="Contoh: Paman/Bibi"
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
+                        <div>
+                          <Label className="block text-sm font-bold mb-2">No. HP Wali</Label>
+                          <Input
+                            value={formData.guardianPhone}
+                            onChange={(e) => updateForm("guardianPhone", e.target.value)}
+                            className="h-12 rounded-2xl bg-white border-ink/10"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* ===== STEP 3: DOKUMEN ===== */}
+              {/* ===== STEP 3: KONTAK DARURAT & PENJEMPUTAN ===== */}
               {currentStep === 3 && (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                   <span className="inline-block bg-sky-50 text-sky text-xs font-bold px-3 py-1 rounded-full mb-4">
-                    Dokumen
+                    Kontak & Penjemputan / Contact & Pick Up
                   </span>
                   <h1 className="font-display text-3xl mb-2">
-                    Unggah dokumen pendukung.
+                    Situasi Darurat & Penjemputan
                   </h1>
                   <p className="text-ink-400 mb-10">
-                    Format JPG, PNG, atau PDF — maksimal 5MB per file.
+                    Informasi tambahan untuk keamanan dan kenyamanan siswa.
+                  </p>
+
+                  <div className="space-y-6">
+                    <h3 className="font-display text-lg text-sky border-b pb-2">Kontak Darurat / Emergency Contact</h3>
+                    <div className="grid sm:grid-cols-3 gap-6">
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">Nama Kontak</Label>
+                        <Input
+                          value={formData.emergencyContactName}
+                          onChange={(e) => updateForm("emergencyContactName", e.target.value)}
+                          className="h-12 rounded-2xl bg-white border-ink/10"
+                        />
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">Hubungan</Label>
+                        <Input
+                          value={formData.emergencyContactRelation}
+                          onChange={(e) => updateForm("emergencyContactRelation", e.target.value)}
+                          className="h-12 rounded-2xl bg-white border-ink/10"
+                        />
+                      </div>
+                      <div>
+                        <Label className="block text-sm font-bold mb-2">No HP/WA Darurat</Label>
+                        <Input
+                          value={formData.emergencyContactPhone}
+                          onChange={(e) => updateForm("emergencyContactPhone", e.target.value)}
+                          className="h-12 rounded-2xl bg-white border-ink/10"
+                        />
+                      </div>
+                    </div>
+
+                    <h3 className="font-display text-lg text-sky border-b pb-2 mt-8">Transportasi / Pick Up Information</h3>
+                    <div>
+                      <Label className="block text-sm font-bold mb-4">
+                        Mode Transportasi Harian / Daily Transportation
+                      </Label>
+                      <RadioGroup
+                        value={formData.dailyTransportation}
+                        onValueChange={(v) => updateForm("dailyTransportation", v)}
+                        className="grid grid-cols-1 sm:grid-cols-2 gap-4"
+                      >
+                        {[
+                          "Antar-jemput sekolah",
+                          "Jemputan sekolah",
+                          "Jemputan pribadi",
+                          "Jemputan orang tua",
+                          "Lainnya"
+                        ].map((option) => (
+                          <Label key={option} className="flex items-center gap-3 rounded-2xl border-2 border-ink/10 hover:border-sky/50 bg-white px-5 py-3.5 cursor-pointer transition-colors [&:has([data-state=checked])]:border-sky [&:has([data-state=checked])]:bg-sky-50">
+                            <RadioGroupItem value={option} />
+                            <span className="text-sm font-semibold">{option}</span>
+                          </Label>
+                        ))}
+                      </RadioGroup>
+                    </div>
+
+                    <div>
+                      <Label className="block text-sm font-bold mb-2">
+                        Pihak Berwenang Menjemput / Authorized Person to Pick Up
+                      </Label>
+                      <Input
+                        value={formData.authorizedPickup}
+                        onChange={(e) => updateForm("authorizedPickup", e.target.value)}
+                        placeholder="Nama & Hubungan (Misal: Pak Budi - Sopir)"
+                        className="h-12 rounded-2xl bg-white border-ink/10"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ===== STEP 4: DOKUMEN ===== */}
+              {currentStep === 4 && (
+                <div className="animate-in fade-in slide-in-from-right-4 duration-300">
+                  <span className="inline-block bg-sky-50 text-sky text-xs font-bold px-3 py-1 rounded-full mb-4">
+                    Dokumen / Required Documents
+                  </span>
+                  <h1 className="font-display text-3xl mb-2">
+                    Unggah Dokumen.
+                  </h1>
+                  <p className="text-ink-400 mb-10">
+                    File Anda akan kami kompres otomatis untuk menghemat data. Format JPG, PNG, atau PDF.
                   </p>
 
                   <div className="space-y-4">
                     {[
-                      { key: "kk", title: "Kartu Keluarga (KK)" },
-                      { key: "akte", title: "Akte Lahir" },
-                      {
-                        key: "foto4x3",
-                        title: "Pas Foto 4x3",
-                        desc: "Latar belakang polos, wajah menghadap depan",
-                      },
-                      {
-                        key: "foto2x3",
-                        title: "Pas Foto 2x3",
-                        desc: "Latar belakang polos, wajah menghadap depan",
-                      },
+                      { key: "akte", title: "Fotokopi Akta Kelahiran", desc: "Copy of Birth Certificate" },
+                      { key: "kk", title: "Fotokopi Kartu Keluarga", desc: "Copy of Family Card" },
+                      { key: "ktp_orangtua", title: "Fotokopi KTP Orang Tua", desc: "Copy of Parent's ID Card" },
+                      { key: "foto4x3", title: "Pas Foto Anak 3x4", desc: "Child's Photographs 3x4 (4 copies in 1 file or zip)" },
+                      { key: "kartu_imunisasi", title: "Fotokopi Kartu Imunisasi", desc: "Copy of Immunization Card (if available)" },
+                      { key: "rapor", title: "Rapor Sekolah Asal", desc: "Copy of Previous School Report (Jika Pindahan)" },
                     ].map((doc) => {
                       const uploaded = docUploaded[doc.key];
                       return (
@@ -867,189 +1044,69 @@ export default function DaftarPPDB() {
                 </div>
               )}
 
-              {/* ===== STEP 4: REVIEW & KIRIM ===== */}
-              {currentStep === 4 && (
+              {/* ===== STEP 5: REVIEW & KIRIM ===== */}
+              {currentStep === 5 && (
                 <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                   <span className="inline-block bg-sky-50 text-sky text-xs font-bold px-3 py-1 rounded-full mb-4">
-                    Review & Kirim
+                    Review & Kirim / Declaration
                   </span>
                   <h1 className="font-display text-3xl mb-2">
-                    Periksa kembali datanya.
+                    Konfirmasi Akhir.
                   </h1>
                   <p className="text-ink-400 mb-10">
-                    Pastikan semua data sudah benar sebelum dikirim ke tim
-                    admisi JACOS.
+                    Pastikan seluruh data sudah benar sebelum dikirimkan.
                   </p>
 
-                  <div className="space-y-4">
-                    {/* Informasi Siswa */}
-                    <div className="rounded-2xl border border-ink/10 bg-white p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="font-bold text-sm text-sky">
-                          Informasi Siswa
+                  <div className="space-y-6">
+                    {/* Pernyataan */}
+                    <div className="rounded-2xl border border-ink/10 bg-white p-6 space-y-5">
+                      <Label className="flex items-start gap-4 cursor-pointer">
+                        <Checkbox
+                          className="mt-1 w-5 h-5"
+                          checked={formData.agreed}
+                          onCheckedChange={(v) => updateForm("agreed", !!v)}
+                        />
+                        <div className="space-y-1">
+                          <p className="text-sm font-bold">1. Kebenaran Data (Declaration of Data Accuracy)</p>
+                          <p className="text-xs text-ink-400 leading-relaxed">
+                            Saya menyatakan bahwa seluruh data yang diberikan dalam formulir ini adalah benar dan akurat. <br/>
+                            <i className="text-ink-300">I hereby declare that all information provided in this form is accurate and true.</i>
+                          </p>
+                        </div>
+                      </Label>
+
+                      <div className="pt-4 border-t border-ink/10">
+                        <div className="space-y-2 mb-3">
+                          <p className="text-sm font-bold">2. Persetujuan Media & Publikasi (Media Consent)</p>
+                          <p className="text-xs text-ink-400 leading-relaxed">
+                            Saya mengizinkan pihak sekolah menggunakan foto/video kegiatan siswa untuk dokumentasi resmi dan publikasi sekolah. <br/>
+                            <i className="text-ink-300">I grant permission for the school to use student photos/videos for official educational/promotional purposes.</i>
+                          </p>
+                        </div>
+                        <RadioGroup
+                          value={formData.mediaConsent ? "yes" : "no"}
+                          onValueChange={(v) => updateForm("mediaConsent", v === "yes")}
+                          className="flex gap-4"
+                        >
+                          <Label className="flex items-center gap-2 cursor-pointer">
+                            <RadioGroupItem value="yes" />
+                            <span className="text-sm font-semibold">Ya, Setuju (YES)</span>
+                          </Label>
+                          <Label className="flex items-center gap-2 cursor-pointer">
+                            <RadioGroupItem value="no" />
+                            <span className="text-sm font-semibold">Tidak Setuju (NO)</span>
+                          </Label>
+                        </RadioGroup>
+                      </div>
+
+                      <div className="pt-4 border-t border-ink/10 space-y-1">
+                        <p className="text-sm font-bold">3. Kerahasiaan Data (Data Privacy Protection)</p>
+                        <p className="text-xs text-ink-400 leading-relaxed">
+                          Seluruh data pribadi akan dijaga kerahasiaannya dan hanya digunakan untuk keperluan administrasi pendidikan. <br/>
+                          <i className="text-ink-300">All personal data provided will be kept confidential and strictly used for school administrative purposes.</i>
                         </p>
-                        <button
-                          type="button"
-                          onClick={() => setCurrentStep(1)}
-                          className="text-xs font-bold text-ink-300 hover:text-sky"
-                        >
-                          Ubah
-                        </button>
                       </div>
-                      <dl className="text-sm space-y-1.5 text-ink-400">
-                        <div className="flex justify-between">
-                          <dt>Nama</dt>
-                          <dd className="font-semibold text-ink">
-                            {formData.fullName || "-"}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>Tempat, Tgl Lahir</dt>
-                          <dd className="font-semibold text-ink">
-                            {formData.birthPlace || "-"},{" "}
-                            {formData.birthDate
-                              ? new Date(formData.birthDate).toLocaleDateString(
-                                  "id-ID"
-                                )
-                              : "-"}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>Jenis Kelamin</dt>
-                          <dd className="font-semibold text-ink">
-                            {formData.gender}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>Kategori</dt>
-                          <dd className="font-semibold text-ink">
-                            {formData.category}
-                          </dd>
-                        </div>
-                        {formData.category === "Pindahan" && formData.nisn && (
-                          <div className="flex justify-between">
-                            <dt>NISN</dt>
-                            <dd className="font-semibold text-ink">
-                              {formData.nisn}
-                            </dd>
-                          </div>
-                        )}
-                        <div className="flex justify-between">
-                          <dt>Alamat</dt>
-                          <dd className="font-semibold text-ink text-right max-w-[220px]">
-                            {formData.address || "-"}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>Program</dt>
-                          <dd className="font-semibold text-ink">
-                            Primary School
-                          </dd>
-                        </div>
-                      </dl>
                     </div>
-
-                    {/* Data Orang Tua */}
-                    <div className="rounded-2xl border border-ink/10 bg-white p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="font-bold text-sm text-sky">
-                          Data Orang Tua
-                        </p>
-                        <button
-                          type="button"
-                          onClick={() => setCurrentStep(2)}
-                          className="text-xs font-bold text-ink-300 hover:text-sky"
-                        >
-                          Ubah
-                        </button>
-                      </div>
-                      <dl className="text-sm space-y-1.5 text-ink-400">
-                        <div className="flex justify-between">
-                          <dt>Nama</dt>
-                          <dd className="font-semibold text-ink">
-                            {formData.parentName || "-"}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>Tempat, Tgl Lahir</dt>
-                          <dd className="font-semibold text-ink">
-                            {formData.parentBirthPlace || "-"},{" "}
-                            {formData.parentBirthDate
-                              ? new Date(
-                                  formData.parentBirthDate
-                                ).toLocaleDateString("id-ID")
-                              : "-"}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>Pekerjaan</dt>
-                          <dd className="font-semibold text-ink">
-                            {formData.parentJob || "-"}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>Pendidikan Terakhir</dt>
-                          <dd className="font-semibold text-ink">
-                            {formData.parentEducation}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>Hubungan</dt>
-                          <dd className="font-semibold text-ink capitalize">
-                            {formData.parentRelation}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>WhatsApp</dt>
-                          <dd className="font-semibold text-ink">
-                            {formData.phone || "-"}
-                          </dd>
-                        </div>
-                        <div className="flex justify-between">
-                          <dt>Email</dt>
-                          <dd className="font-semibold text-ink">
-                            {formData.email || "-"}
-                          </dd>
-                        </div>
-                      </dl>
-                    </div>
-
-                    {/* Dokumen */}
-                    <div className="rounded-2xl border border-ink/10 bg-white p-5">
-                      <div className="flex items-center justify-between mb-3">
-                        <p className="font-bold text-sm text-sky">Dokumen</p>
-                        <button
-                          type="button"
-                          onClick={() => setCurrentStep(3)}
-                          className="text-xs font-bold text-ink-300 hover:text-sky"
-                        >
-                          Ubah
-                        </button>
-                      </div>
-                      <p className="text-sm text-ink-400">
-                        {Object.keys(docUploaded).length} dari 4 dokumen
-                        terunggah
-                        {Object.keys(docUploaded).length < 4 && (
-                          <span className="text-gold-600 font-semibold">
-                            {" "}
-                            — lengkapi sebelum mengirim.
-                          </span>
-                        )}
-                      </p>
-                    </div>
-
-                    {/* Agreement */}
-                    <Label className="flex items-start gap-3 pt-4 cursor-pointer">
-                      <Checkbox
-                        className="mt-0.5"
-                        checked={formData.agreed}
-                        onCheckedChange={(v) => updateForm("agreed", !!v)}
-                      />
-                      <span className="text-xs text-ink-400 leading-relaxed font-normal">
-                        Saya menyatakan bahwa seluruh data &amp; dokumen yang
-                        diberikan adalah benar dan dapat dipertanggungjawabkan.
-                      </span>
-                    </Label>
                   </div>
                 </div>
               )}
