@@ -44,6 +44,12 @@ export async function proxy(request: NextRequest) {
       url.pathname = `/penjemputan-app${currentPath === '/' ? '' : currentPath}`
       return NextResponse.rewrite(url)
     }
+  } else if (hostname.startsWith('parent.')) {
+    // parent.jacos.id -> /parent-portal
+    if (!currentPath.startsWith('/parent-portal')) {
+      url.pathname = `/parent-portal${currentPath === '/' ? '' : currentPath}`
+      return NextResponse.rewrite(url)
+    }
   }
 
   return response

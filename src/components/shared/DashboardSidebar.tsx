@@ -7,7 +7,7 @@ import { LayoutDashboard, Users, UserCheck, GraduationCap, Receipt, CalendarChec
 
 const NAV_ITEMS = [
   { href: "/management", label: "Beranda", icon: LayoutDashboard, color: "text-sky", bgColor: "bg-sky-50" },
-  { href: "/management/admisi", label: "PPDB Online", icon: Users, color: "text-coral", bgColor: "bg-coral-50" },
+  { href: "/management/admisi", label: "Online Admission", icon: Users, color: "text-coral", bgColor: "bg-coral-50" },
   { href: "/management/siswa", label: "Data Siswa", icon: GraduationCap, color: "text-leaf", bgColor: "bg-leaf-50" },
   { href: "/management/guru", label: "Data Guru", icon: UserCheck, color: "text-gold", bgColor: "bg-gold-50" },
   { href: "/management/classroom", label: "Classroom", icon: BookOpen, color: "text-sky", bgColor: "bg-sky-50" },

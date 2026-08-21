@@ -155,10 +155,7 @@ export default function DaftarPPDB() {
     }
   };
 
-  // VA number from registration no
-  const vaNumber = registrationNo
-    ? `88808 ${registrationNo.split("-")[1] || "2026"} ${registrationNo.split("-").pop()}`
-    : "";
+  // (VA number dihapus - pembayaran sudah dilakukan sebelum link form diberikan)
 
   const renderSidebar = () => (
     <aside className="hidden lg:flex w-80 bg-white border-r border-ink/10 flex-col px-8 py-10 shrink-0 min-h-screen">
@@ -253,10 +250,10 @@ export default function DaftarPPDB() {
                 </svg>
               </div>
               <h1 className="font-display text-2xl font-bold mb-1">
-                Pendaftaran Berhasil Dikirim!
+                Formulir Berhasil Dikirim!
               </h1>
               <p className="text-ink-400 text-sm">
-                Simpan atau screenshot halaman ini sebagai bukti pendaftaran.
+                Terima kasih, data Anda telah kami terima.
               </p>
             </div>
 
@@ -291,7 +288,7 @@ export default function DaftarPPDB() {
                     <dd className="font-bold text-right">{formData.fullName}</dd>
                   </div>
                   <div className="flex justify-between">
-                    <dt className="text-ink-400">Apply Kelas</dt>
+                    <dt className="text-ink-400">Jenjang</dt>
                     <dd className="font-bold text-right">{formData.program} School</dd>
                   </div>
                   <div className="flex justify-between">
@@ -302,144 +299,27 @@ export default function DaftarPPDB() {
                   </div>
                 </dl>
 
-                {/* Payment box */}
-                <div className="rounded-3xl bg-gold-50 border border-gold-100 p-5">
-                  <p className="text-xs font-bold text-gold-600 uppercase tracking-widest mb-3">
-                    Biaya Pendaftaran
+                {/* Info box — tanpa info pembayaran */}
+                <div className="rounded-3xl bg-sky-50 border border-sky-100 p-5">
+                  <p className="text-xs font-bold text-sky-600 uppercase tracking-widest mb-3">
+                    Langkah Selanjutnya
                   </p>
-                  <p className="font-display text-3xl mb-4">Rp 500.000</p>
-
-                  <p className="text-[11px] font-bold text-ink-300 uppercase tracking-wide mb-1.5">
-                    Bank Mandiri Virtual Account
+                  <p className="text-sm text-ink-400 leading-relaxed">
+                    Formulir pendaftaran Anda telah kami terima. Tim admin JACOS akan segera
+                    memverifikasi seluruh data dan dokumen yang Anda lampirkan.
                   </p>
-                  <div className="flex items-center justify-between bg-white rounded-2xl px-4 py-3 mb-3">
-                    <span className="font-mono font-bold text-sm tracking-wider">
-                      {vaNumber}
-                    </span>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard?.writeText(
-                          vaNumber.replace(/\s/g, "")
-                        );
-                      }}
-                      className="text-xs font-bold text-sky shrink-0 hover:text-sky-700 transition"
-                    >
-                      Salin
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-2 text-xs text-coral-600 font-bold">
-                    Bayar dalam 1x24 jam setelah pendaftaran
-                  </div>
+                  <p className="text-sm text-ink-400 leading-relaxed mt-3">
+                    Anda akan menerima <strong className="text-ink">email konfirmasi</strong> beserta{" "}
+                    <strong className="text-ink">akses login Portal Orang Tua</strong> setelah
+                    proses verifikasi selesai.
+                  </p>
                 </div>
               </div>
             </div>
 
-            {/* Channel info */}
             <p className="text-center text-xs text-ink-300 mb-5">
-              Konfirmasi ini juga terkirim ke WhatsApp &amp; Email yang Anda
-              daftarkan
+              Konfirmasi juga akan dikirim ke email yang Anda daftarkan.
             </p>
-
-            {/* Preview toggles */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
-              <button
-                onClick={() => {
-                  setWaPreview((v) => !v);
-                  setEmailPreview(false);
-                }}
-                className="bg-white border border-ink/10 hover:bg-cloud font-bold text-xs py-3 rounded-full transition"
-              >
-                Lihat di WhatsApp
-              </button>
-              <button
-                onClick={() => {
-                  setEmailPreview((v) => !v);
-                  setWaPreview(false);
-                }}
-                className="bg-white border border-ink/10 hover:bg-cloud font-bold text-xs py-3 rounded-full transition"
-              >
-                Lihat di Email
-              </button>
-            </div>
-
-            {/* WA Preview */}
-            {waPreview && (
-              <div className="mb-6">
-                <p className="text-xs font-bold text-ink-300 uppercase tracking-widest mb-3 text-center">
-                  Tampilan Pesan WhatsApp
-                </p>
-                <div className="bg-[#E4DDD4] rounded-3xl p-5">
-                  <div className="bg-white rounded-2xl rounded-tl-sm p-4 shadow-sm max-w-[85%]">
-                    <p className="font-bold text-sm text-leaf-600 mb-2">
-                      JACOS Admission
-                    </p>
-                    <p className="text-sm leading-relaxed">
-                      Assalamu&apos;alaikum, Bpk/Ibu{" "}
-                      <b>{formData.fatherName || formData.motherName || formData.guardianName}</b>
-                      <br />
-                      <br />
-                      Pendaftaran ananda <b>{formData.fullName}</b> untuk{" "}
-                      <b>{formData.program} School</b> JACOS telah kami terima.
-                      <br />
-                      <br />
-                      Mohon selesaikan biaya pendaftaran:
-                      <br />
-                      Rp <b>500.000</b>
-                      <br />
-                      Mandiri VA: <b>{vaNumber}</b>
-                      <br />
-                      <br />
-                      Terima kasih
-                    </p>
-                    <p className="text-[10px] text-ink-300 text-right mt-2">
-                      ✓✓
-                    </p>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Email Preview */}
-            {emailPreview && (
-              <div className="mb-6">
-                <p className="text-xs font-bold text-ink-300 uppercase tracking-widest mb-3 text-center">
-                  Tampilan Email
-                </p>
-                <div className="bg-white rounded-3xl border border-ink/10 overflow-hidden">
-                  <div className="px-5 py-3 border-b border-ink/8 text-xs text-ink-300">
-                    <p>
-                      <span className="font-bold text-ink">Dari:</span>{" "}
-                      admission@jacos.id
-                    </p>
-                    <p>
-                      <span className="font-bold text-ink">Subjek:</span>{" "}
-                      Konfirmasi Pendaftaran &amp; Pembayaran — {registrationNo}
-                    </p>
-                  </div>
-                  <div className="p-5 text-sm text-ink-400 leading-relaxed">
-                    Yth. Bapak/Ibu <b className="text-ink">{formData.fatherName || formData.motherName || formData.guardianName}</b>,
-                    <br />
-                    <br />
-                    Pendaftaran ananda{" "}
-                    <b className="text-ink">{formData.fullName}</b> untuk{" "}
-                    <b className="text-ink">{formData.program} School</b> di JACOS telah
-                    kami terima. Untuk melanjutkan proses seleksi, mohon
-                    selesaikan pembayaran biaya pendaftaran sebesar{" "}
-                    <b className="text-ink">Rp 500.000</b> ke{" "}
-                    <b className="text-ink">
-                      Bank Mandiri Virtual Account {vaNumber}
-                    </b>{" "}
-                    dalam 1x24 jam.
-                    <br />
-                    <br />
-                    Hormat kami,
-                    <br />
-                    Tim Admission JACOS
-                  </div>
-                </div>
-              </div>
-            )}
 
             <button
               onClick={() => window.location.reload()}

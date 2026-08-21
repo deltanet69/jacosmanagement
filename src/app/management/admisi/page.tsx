@@ -49,10 +49,10 @@ export default function AdmisiPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-sky-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-sky-500"></span>
               </span>
-              Portal Admisi PPDB
+              Portal Admisi Online Admission
             </div>
             <h1 className="font-display text-4xl sm:text-5xl font-extrabold text-ink tracking-tight leading-tight">
-              Manajemen <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky to-sky-600">Pendaftar</span>
+              Manajemen <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky to-sky-600">Online Admission</span>
             </h1>
             <p className="text-ink-400 mt-3 text-lg leading-relaxed">
               Kelola dan verifikasi aplikasi pendaftaran calon siswa baru dengan mudah dan cepat.
@@ -81,8 +81,8 @@ export default function AdmisiPage() {
             </div>
             
             <Link href="/management/admisi/tambah" className="shrink-0">
-              <Button className="w-full sm:w-auto h-14 px-6 bg-ink hover:bg-ink-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300">
-                <Plus size={20} className="mr-2" /> Input Manual
+              <Button className="w-full sm:w-auto h-14 px-6 bg-sky hover:bg-sky-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300">
+                <Plus size={20} className="mr-2" /> Pendaftaran Baru
               </Button>
             </Link>
           </div>
