@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { Resend } from "resend";
 import crypto from "crypto";
+import { isValidEmail, getFirstValidEmail } from "@/lib/utils";
 
 const getResend = () => new Resend(process.env.RESEND_API_KEY!);
 
@@ -30,25 +31,6 @@ function generateTempPassword(): string {
     pass += all[Math.floor(Math.random() * all.length)];
   }
   return pass;
-}
-
-export function isValidEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  const trimmed = email.trim();
-  return (
-    trimmed.length > 5 &&
-    trimmed !== "-" &&
-    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
-  );
-}
-
-export function getFirstValidEmail(...candidates: (string | null | undefined)[]): string | null {
-  for (const candidate of candidates) {
-    if (isValidEmail(candidate)) {
-      return candidate!.trim();
-    }
-  }
-  return null;
 }
 
 // ============================================================

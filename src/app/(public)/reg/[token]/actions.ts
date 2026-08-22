@@ -1,7 +1,8 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/server";
-import { sendFormReceivedEmail, getFirstValidEmail, isValidEmail } from "@/app/management/admisi/actions";
+import { sendFormReceivedEmail } from "@/app/management/admisi/actions";
+import { isValidEmail, getFirstValidEmail } from "@/lib/utils";
 
 // Verifikasi token dan kembalikan data pendaftar (prefill)
 export async function getApplicantByToken(token: string) {
