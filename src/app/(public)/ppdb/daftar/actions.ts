@@ -120,9 +120,9 @@ export async function submitApplicant(formData: FormData) {
       }
     }
 
-    // 4. Upload Documents
+    // 4. Upload Documents (Parallel)
     const docKeys = ["akte", "kk", "ktp_orangtua", "foto4x3", "kartu_imunisasi", "rapor"];
-    for (const key of docKeys) {
+    const uploadPromises = docKeys.map(async (key) => {
       const file = formData.get(`file_${key}`) as File;
       if (file && file.size > 0) {
         const ext = file.name.split(".").pop();
@@ -134,6 +134,7 @@ export async function submitApplicant(formData: FormData) {
           .from("admission-documents")
           .upload(filePath, buffer, {
             contentType: file.type,
+            upsert: true,
           });
           
         if (uploadError) {
@@ -154,7 +155,9 @@ export async function submitApplicant(formData: FormData) {
           });
         }
       }
-    }
+    });
+
+    await Promise.all(uploadPromises);
 
     return { success: true, registrationNo };
   } catch (err: any) {

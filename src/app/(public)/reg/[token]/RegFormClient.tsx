@@ -55,6 +55,7 @@ export default function RegFormClient({
 
   const [docUploaded, setDocUploaded] = useState<Record<string, string>>({});
   const [docFiles, setDocFiles] = useState<Record<string, File>>({});
+  const [compressingKeys, setCompressingKeys] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState({
     program: prefill.program || "Primary",
@@ -151,18 +152,21 @@ export default function RegFormClient({
   ) => {
     const file = event.target.files?.[0];
     if (file) {
+      setCompressingKeys((prev) => ({ ...prev, [docKey]: true }));
       let processedFile = file;
       if (file.type.startsWith("image/")) {
         try {
           processedFile = await imageCompression(file, {
-            maxSizeMB: 3, // High quality, up to 3MB per image
+            maxSizeMB: 0.6, // Kompresi efisien di bawah 1MB (~300KB-600KB) hemat storage Supabase
+            maxWidthOrHeight: 1920, // Resolusi Full HD 1080p tetap jernih & tajam untuk teks dokumen
+            initialQuality: 0.85, // Kualitas visual tinggi tanpa blur/pecah
             useWebWorker: true,
-            // Tidak mengurangi resolusi sama sekali
           });
         } catch (e) {
           console.error("Compression error:", e);
         }
       }
+      setCompressingKeys((prev) => ({ ...prev, [docKey]: false }));
       setDocUploaded((prev) => ({ ...prev, [docKey]: processedFile.name }));
       setDocFiles((prev) => ({ ...prev, [docKey]: processedFile }));
     }
@@ -548,14 +552,16 @@ export default function RegFormClient({
                           <p className="font-bold text-sm">
                             {label} {required && <span className="text-coral text-xs">*</span>}
                           </p>
-                          {docUploaded[key] ? (
+                          {compressingKeys[key] ? (
+                            <p className="text-xs text-sky-600 font-semibold mt-0.5 animate-pulse">⏳ Mengoptimalkan & mengompresi gambar...</p>
+                          ) : docUploaded[key] ? (
                             <p className="text-xs text-leaf-600 font-semibold mt-0.5">✓ {docUploaded[key]}</p>
                           ) : (
                             <p className="text-xs text-ink-300 mt-0.5">Belum ada file</p>
                           )}
                         </div>
-                        <div className={`px-4 py-2 rounded-xl text-xs font-bold transition ${docUploaded[key] ? "bg-leaf-50 text-leaf-600" : "bg-cloud text-ink-400 group-hover:bg-sky-50 group-hover:text-sky"}`}>
-                          {docUploaded[key] ? "Ganti" : "Upload"}
+                        <div className={`px-4 py-2 rounded-xl text-xs font-bold transition ${compressingKeys[key] ? "bg-sky-50 text-sky" : docUploaded[key] ? "bg-leaf-50 text-leaf-600" : "bg-cloud text-ink-400 group-hover:bg-sky-50 group-hover:text-sky"}`}>
+                          {compressingKeys[key] ? "Memproses..." : docUploaded[key] ? "Ganti" : "Upload"}
                         </div>
                         <input type="file" accept=".jpg,.jpeg,.png,.pdf" className="hidden" onChange={(e) => handleFileUpload(e, key)} />
                       </label>

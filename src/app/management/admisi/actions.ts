@@ -249,11 +249,12 @@ export async function approveAndAssignClass(applicantId: string, classId: string
   }
 
   // Insert parent
-  const guardian = applicant.guardians
-    ? Array.isArray(applicant.guardians)
-      ? applicant.guardians[0]
-      : applicant.guardians
-    : null;
+  let guardian = null;
+  if (applicant.guardians) {
+    const guardiansList = Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians];
+    // Find the first guardian that has a valid email address
+    guardian = guardiansList.find((g: any) => g.email && g.email.trim() !== "" && g.email !== "-") || guardiansList[0];
+  }
 
   if (guardian) {
     await supabase.from("student_parents").insert({
@@ -364,13 +365,13 @@ export async function rejectApplicant(applicantId: string, reason?: string) {
 
   // Kirim email penolakan
   if (applicant) {
-    const guardian = applicant.guardians
-      ? Array.isArray(applicant.guardians)
-        ? applicant.guardians[0]
-        : applicant.guardians
-      : null;
+    let guardian = null;
+    if (applicant.guardians) {
+      const guardiansList = Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians];
+      guardian = guardiansList.find((g: any) => g.email && g.email.trim() !== "" && g.email !== "-") || guardiansList[0];
+    }
 
-    if (guardian?.email) {
+    if (guardian?.email && guardian.email.trim() !== "" && guardian.email !== "-") {
       await sendRejectionEmail({
         parentName: guardian.full_name,
         parentEmail: guardian.email,

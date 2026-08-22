@@ -4,7 +4,7 @@ import Image from "next/image";
 export default function DaftarPPDB() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-slate-50 to-sky-50 p-6">
-      <div className="max-w-md w-full text-center space-y-6">
+      <div className="max-w-lg w-full text-center space-y-6">
         <div className="flex justify-center">
           <Image
             src="/publicjacos/logo.png"
@@ -43,9 +43,9 @@ export default function DaftarPPDB() {
             <p className="text-sky-700 font-bold text-sm">📋 Langkah Pendaftaran:</p>
             <ol className="text-sky-600 text-sm space-y-1.5 list-decimal list-inside">
               <li>Hubungi pihak sekolah JACOS</li>
-              <li>Admin akan membuat slot pendaftaran untuk anak Anda</li>
-              <li>Link formulir unik akan dikirimkan via WhatsApp/Email</li>
-              <li>Isi formulir lengkap melalui link tersebut</li>
+              <li>Admin akan membuat aplikasi pendaftaran untuk anak Anda</li>
+              <li>Link formulir pendaftaran akan otomatis dikirimkan via WhatsApp/Email</li>
+              <li>Isi formulir pendaftaran lengkap melalui link tersebut</li>
             </ol>
           </div>
 

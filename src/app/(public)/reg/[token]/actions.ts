@@ -132,9 +132,9 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
       if (insertGuardiansErr) console.error("Error inserting guardians:", insertGuardiansErr);
     }
 
-    // 4. Upload dokumen
+    // 4. Upload dokumen (Parallel untuk menghindari timeout di Vercel)
     const docKeys = ["akte", "kk", "ktp_orangtua", "foto4x3", "kartu_imunisasi", "rapor"];
-    for (const key of docKeys) {
+    const uploadPromises = docKeys.map(async (key) => {
       const file = formData.get(`file_${key}`) as File;
       if (file && file.size > 0) {
         const ext = file.name.split(".").pop();
@@ -171,7 +171,9 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
           console.error(`Upload error for ${key}:`, uploadError);
         }
       }
-    }
+    });
+
+    await Promise.all(uploadPromises);
 
     // 5. Kirim email konfirmasi ke orang tua
     const guardian = applicant.guardians
