@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/server";
-import { sendFormReceivedEmail } from "@/app/management/admisi/actions";
+import { sendFormReceivedEmail, getFirstValidEmail, isValidEmail } from "@/app/management/admisi/actions";
 
 // Verifikasi token dan kembalikan data pendaftar (prefill)
 export async function getApplicantByToken(token: string) {
@@ -176,16 +176,24 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
     await Promise.all(uploadPromises);
 
     // 5. Kirim email konfirmasi ke orang tua
-    const guardian = applicant.guardians
-      ? Array.isArray(applicant.guardians)
-        ? applicant.guardians[0]
-        : applicant.guardians
-      : null;
+    const guardiansList = applicant.guardians
+      ? (Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians])
+      : [];
 
-    const emailTarget =
-      data.fatherEmail || data.motherEmail || guardian?.email || "";
+    const emailTarget = getFirstValidEmail(
+      data.fatherEmail,
+      data.motherEmail,
+      ...guardiansList.map((g: any) => g?.email)
+    );
+
     const parentName =
-      data.fatherName || data.motherName || guardian?.full_name || "Orang Tua";
+      (data.fatherName && isValidEmail(data.fatherEmail) ? data.fatherName : null) ||
+      (data.motherName && isValidEmail(data.motherEmail) ? data.motherName : null) ||
+      data.fatherName ||
+      data.motherName ||
+      guardiansList[0]?.full_name ||
+      "Orang Tua";
+
     const studentName = data.fullName || applicant.student_name;
     const programLabel: Record<string, string> = {
       PRESCHOOL: "Preschool",
@@ -219,11 +227,11 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
         if (isAlreadyExists) {
           // Cari user ID dan update passwordnya
           const { data: userList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-          const existingUser = userList?.users?.find(u => u.email === emailTarget);
+          const existingUser = userList?.users?.find(u => u.email?.toLowerCase() === emailTarget.toLowerCase());
           if (existingUser) {
             await supabase.auth.admin.updateUserById(existingUser.id, {
               password: portalPassword,
-              user_metadata: { first_login: true, applicant_id: applicant.id, role: "PARENT" },
+              user_metadata: { ...(existingUser.user_metadata || {}), first_login: true, applicant_id: applicant.id, role: "PARENT" },
             });
             console.log("Existing user password reset for:", emailTarget);
           }
@@ -238,7 +246,7 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
         ? "https://parent.jacos.id" 
         : "https://jacosmanagement.vercel.app/parent-portal";
 
-      await sendFormReceivedEmail({
+      const resendResult = await sendFormReceivedEmail({
         parentName,
         parentEmail: emailTarget,
         studentName,
@@ -248,6 +256,9 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
         portalEmail: emailTarget,
         portalPassword,
       });
+      console.log("Form received email sent to", emailTarget, "result:", resendResult);
+    } else {
+      console.warn("No valid parent email found for applicant:", applicant.registration_no);
     }
 
     return {

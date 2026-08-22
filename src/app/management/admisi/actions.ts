@@ -32,6 +32,25 @@ function generateTempPassword(): string {
   return pass;
 }
 
+export function isValidEmail(email: string | null | undefined): boolean {
+  if (!email) return false;
+  const trimmed = email.trim();
+  return (
+    trimmed.length > 5 &&
+    trimmed !== "-" &&
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
+  );
+}
+
+export function getFirstValidEmail(...candidates: (string | null | undefined)[]): string | null {
+  for (const candidate of candidates) {
+    if (isValidEmail(candidate)) {
+      return candidate!.trim();
+    }
+  }
+  return null;
+}
+
 // ============================================================
 // READ
 // ============================================================
@@ -250,11 +269,12 @@ export async function approveAndAssignClass(applicantId: string, classId: string
 
   // Insert parent
   let guardian = null;
-  if (applicant.guardians) {
-    const guardiansList = Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians];
-    // Find the first guardian that has a valid email address
-    guardian = guardiansList.find((g: any) => g.email && g.email.trim() !== "" && g.email !== "-") || guardiansList[0];
-  }
+  const guardiansList = applicant.guardians
+    ? (Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians])
+    : [];
+
+  const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
+  guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
 
   if (guardian) {
     await supabase.from("student_parents").insert({
@@ -267,12 +287,12 @@ export async function approveAndAssignClass(applicantId: string, classId: string
     });
 
     // Create parent portal account + send email
-    if (guardian.email) {
+    if (targetEmail) {
       const tempPassword = generateTempPassword();
 
       // Create Supabase Auth user for the parent
       const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: guardian.email,
+        email: targetEmail,
         password: tempPassword,
         user_metadata: {
           full_name: guardian.full_name,
@@ -295,11 +315,11 @@ export async function approveAndAssignClass(applicantId: string, classId: string
                                 
         if (isAlreadyExists) {
           const { data: userList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-          const existingUser = userList?.users?.find(u => u.email === guardian.email);
+          const existingUser = userList?.users?.find(u => u.email?.toLowerCase() === targetEmail.toLowerCase());
           if (existingUser) {
             await supabase.auth.admin.updateUserById(existingUser.id, {
               user_metadata: { 
-                ...existingUser.user_metadata,
+                ...(existingUser.user_metadata || {}),
                 full_name: guardian.full_name,
                 role: "PARENT", 
                 student_id: student.id,
@@ -319,16 +339,19 @@ export async function approveAndAssignClass(applicantId: string, classId: string
       const portalUrl = process.env.NEXT_PUBLIC_PARENT_URL || "https://parent.jacos.id";
 
       if (shouldSendEmail) {
-        await sendApprovalEmail({
+        const approveEmailRes = await sendApprovalEmail({
           parentName: guardian.full_name,
-          parentEmail: guardian.email,
+          parentEmail: targetEmail,
           studentName: applicant.student_name,
           registrationNo: applicant.registration_no,
           tempPassword: isExistingUser ? undefined : tempPassword,
           program: applicant.program,
           portalUrl,
         });
+        console.log("Approval email sending result:", approveEmailRes);
       }
+    } else {
+      console.warn("No valid email address found to send approval email for applicant:", applicantId);
     }
   }
 
@@ -365,16 +388,16 @@ export async function rejectApplicant(applicantId: string, reason?: string) {
 
   // Kirim email penolakan
   if (applicant) {
-    let guardian = null;
-    if (applicant.guardians) {
-      const guardiansList = Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians];
-      guardian = guardiansList.find((g: any) => g.email && g.email.trim() !== "" && g.email !== "-") || guardiansList[0];
-    }
+    const guardiansList = applicant.guardians
+      ? (Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians])
+      : [];
+    const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
+    const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
 
-    if (guardian?.email && guardian.email.trim() !== "" && guardian.email !== "-") {
+    if (targetEmail && guardian) {
       await sendRejectionEmail({
         parentName: guardian.full_name,
-        parentEmail: guardian.email,
+        parentEmail: targetEmail,
         studentName: applicant.student_name,
         registrationNo: applicant.registration_no,
         reason: reason || "Belum ada keterangan dari admin.",
@@ -402,9 +425,15 @@ export async function sendFormReceivedEmail(params: {
   portalPassword?: string;
 }) {
   try {
-    await getResend().emails.send({
+    const cleanEmail = params.parentEmail?.trim();
+    if (!isValidEmail(cleanEmail)) {
+      console.warn("Invalid email for form received:", params.parentEmail);
+      return { success: false, message: "Invalid email" };
+    }
+
+    const { data, error } = await getResend().emails.send({
       from: "JACOS Admission <admission@jacos.id>",
-      to: params.parentEmail,
+      to: cleanEmail,
       subject: `Formulir Pendaftaran Diterima — ${params.studentName}`,
       html: `
 <!DOCTYPE html>
@@ -491,10 +520,14 @@ export async function sendFormReceivedEmail(params: {
 </body>
 </html>`,
     });
-    return { success: true };
+    if (error) {
+      console.error("Resend sendFormReceivedEmail error:", error);
+      return { success: false, error };
+    }
+    return { success: true, data };
   } catch (err) {
     console.error("Error sending form received email:", err);
-    return { success: false };
+    return { success: false, error: err };
   }
 }
 
@@ -512,15 +545,21 @@ async function sendApprovalEmail(params: {
   portalUrl: string;
 }) {
   try {
+    const cleanEmail = params.parentEmail?.trim();
+    if (!isValidEmail(cleanEmail)) {
+      console.warn("Invalid parent email address for approval:", params.parentEmail);
+      return { success: false, message: "Invalid email" };
+    }
+
     const programLabel: Record<string, string> = {
       PRESCHOOL: "Preschool",
       KINDERGARTEN: "Kindergarten",
       PRIMARY_SCHOOL: "Primary School",
     };
 
-    await getResend().emails.send({
+    const { data, error } = await getResend().emails.send({
       from: "JACOS Admission <admission@jacos.id>",
-      to: params.parentEmail,
+      to: cleanEmail,
       subject: `Selamat! Pendaftaran ${params.studentName} Diterima di JACOS 🎉`,
       html: `
 <!DOCTYPE html>
@@ -555,7 +594,7 @@ async function sendApprovalEmail(params: {
                   </tr>
                   <tr>
                     <td style="color:#64748B;font-size:14px;padding:6px 0;">Email Login</td>
-                    <td style="color:#0F172A;font-weight:700;font-size:14px;text-align:right;">${params.parentEmail}</td>
+                    <td style="color:#0F172A;font-weight:700;font-size:14px;text-align:right;">${cleanEmail}</td>
                   </tr>
                   ${params.tempPassword ? `
                   <tr>
@@ -599,8 +638,14 @@ async function sendApprovalEmail(params: {
 </body>
 </html>`,
     });
+    if (error) {
+      console.error("Resend sendApprovalEmail error:", error);
+      return { success: false, error };
+    }
+    return { success: true, data };
   } catch (err) {
     console.error("Error sending approval email:", err);
+    return { success: false, error: err };
   }
 }
 
@@ -616,9 +661,15 @@ async function sendRejectionEmail(params: {
   reason: string;
 }) {
   try {
-    await getResend().emails.send({
+    const cleanEmail = params.parentEmail?.trim();
+    if (!isValidEmail(cleanEmail)) {
+      console.warn("Invalid email for rejection:", params.parentEmail);
+      return { success: false, message: "Invalid email" };
+    }
+
+    const { data, error } = await getResend().emails.send({
       from: "JACOS Admission <admission@jacos.id>",
-      to: params.parentEmail,
+      to: cleanEmail,
       subject: `Update Pendaftaran ${params.studentName} di JACOS`,
       html: `
 <!DOCTYPE html>
@@ -671,7 +722,13 @@ async function sendRejectionEmail(params: {
 </body>
 </html>`,
     });
+    if (error) {
+      console.error("Resend sendRejectionEmail error:", error);
+      return { success: false, error };
+    }
+    return { success: true, data };
   } catch (err) {
     console.error("Error sending rejection email:", err);
+    return { success: false, error: err };
   }
 }

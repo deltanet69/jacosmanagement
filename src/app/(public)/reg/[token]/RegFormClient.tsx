@@ -107,6 +107,34 @@ export default function RegFormClient({
     setFormData((prev) => ({ ...prev, [key]: value }));
 
   const nextStep = async () => {
+    // Validasi Step 1
+    if (currentStep === 1) {
+      if (!formData.fullName.trim()) {
+        alert("Nama lengkap calon siswa wajib diisi.");
+        return;
+      }
+    }
+
+    // Validasi Step 2: Minimal 1 email aktif untuk menerima notifikasi & akses login
+    if (currentStep === 2) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      const fatherEmail = formData.fatherEmail.trim();
+      const motherEmail = formData.motherEmail.trim();
+
+      if (!fatherEmail && !motherEmail) {
+        alert("Mohon isi minimal satu alamat email aktif (Email Ayah atau Ibu) untuk menerima notifikasi pendaftaran dan akses login Portal Orang Tua.");
+        return;
+      }
+      if (fatherEmail && !emailRegex.test(fatherEmail)) {
+        alert("Format email Ayah tidak valid. Mohon periksa kembali.");
+        return;
+      }
+      if (motherEmail && !emailRegex.test(motherEmail)) {
+        alert("Format email Ibu tidak valid. Mohon periksa kembali.");
+        return;
+      }
+    }
+
     if (currentStep === totalSteps) {
       if (!formData.agreed) {
         alert("Anda harus menyetujui pernyataan Kebenaran Data untuk melanjutkan.");
@@ -445,7 +473,12 @@ export default function RegFormClient({
                         <div><Label className="block text-sm font-bold mb-2">NIK</Label><Input value={formData.fatherNik} onChange={(e) => updateForm("fatherNik", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                         <div><Label className="block text-sm font-bold mb-2">Pekerjaan</Label><Input value={formData.fatherJob} onChange={(e) => updateForm("fatherJob", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                         <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.fatherPhone} onChange={(e) => updateForm("fatherPhone", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div className="sm:col-span-2"><Label className="block text-sm font-bold mb-2">Email</Label><Input type="email" value={formData.fatherEmail} onChange={(e) => updateForm("fatherEmail", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
+                        <div className="sm:col-span-2">
+                          <Label className="block text-sm font-bold mb-2">
+                            Email Ayah <span className="text-xs font-normal text-ink-300">(Untuk akun login portal & notifikasi)</span>
+                          </Label>
+                          <Input type="email" value={formData.fatherEmail} onChange={(e) => updateForm("fatherEmail", e.target.value)} placeholder="contoh@gmail.com" className="h-12 rounded-2xl bg-cloud border-transparent" />
+                        </div>
                       </div>
                     </div>
 
@@ -457,7 +490,12 @@ export default function RegFormClient({
                         <div><Label className="block text-sm font-bold mb-2">NIK</Label><Input value={formData.motherNik} onChange={(e) => updateForm("motherNik", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                         <div><Label className="block text-sm font-bold mb-2">Pekerjaan</Label><Input value={formData.motherJob} onChange={(e) => updateForm("motherJob", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                         <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.motherPhone} onChange={(e) => updateForm("motherPhone", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div className="sm:col-span-2"><Label className="block text-sm font-bold mb-2">Email</Label><Input type="email" value={formData.motherEmail} onChange={(e) => updateForm("motherEmail", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
+                        <div className="sm:col-span-2">
+                          <Label className="block text-sm font-bold mb-2">
+                            Email Ibu <span className="text-xs font-normal text-ink-300">(Untuk akun login portal & notifikasi)</span>
+                          </Label>
+                          <Input type="email" value={formData.motherEmail} onChange={(e) => updateForm("motherEmail", e.target.value)} placeholder="contoh@gmail.com" className="h-12 rounded-2xl bg-cloud border-transparent" />
+                        </div>
                       </div>
                     </div>
 
