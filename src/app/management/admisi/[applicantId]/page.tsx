@@ -120,7 +120,7 @@ export default function ApplicantDetail({
 
   const handleCopyLink = () => {
     if (!data.registration_token) return;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://jacosmanagement.vercel.app';
     const link = `${baseUrl}/reg/${data.registration_token}`;
     navigator.clipboard?.writeText(link);
     setCopied(true);
@@ -129,7 +129,7 @@ export default function ApplicantDetail({
 
   const handleShareWA = () => {
     if (!data.registration_token) return;
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+    const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://jacosmanagement.vercel.app';
     const link = `${baseUrl}/reg/${data.registration_token}`;
     const guardian = Array.isArray(data.guardians) ? data.guardians[0] : data.guardians;
     const parentName = guardian?.full_name || "Bapak/Ibu";
@@ -286,7 +286,7 @@ export default function ApplicantDetail({
                 )}
               </div>
               <p className="font-mono text-sm text-ink truncate bg-cloud rounded-xl px-3 py-2 mt-1">
-                {process.env.NEXT_PUBLIC_APP_URL || (typeof window !== "undefined" ? window.location.origin : "https://jacos.id")}/reg/{data.registration_token}
+                {typeof window !== 'undefined' ? window.location.origin : 'https://jacosmanagement.vercel.app'}/reg/{data.registration_token}
               </p>
             </div>
             <div className="flex gap-3 shrink-0">
