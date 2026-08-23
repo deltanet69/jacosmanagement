@@ -1,9 +1,11 @@
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-
-if (!process.env.RESEND_API_KEY) {
-  console.error("WARNING: RESEND_API_KEY is not defined in the environment variables!");
+// Lazy initialization — prevents 'Missing API key' error during module load on Vercel
+function getResend() {
+  if (!process.env.RESEND_API_KEY) {
+    console.error("[email] RESEND_API_KEY is missing! Email will not be sent.");
+  }
+  return new Resend(process.env.RESEND_API_KEY!);
 }
 
 // ============================================================
@@ -29,7 +31,7 @@ export async function sendFormReceivedEmail(params: {
 
     console.log("[email] Sending form received email to:", cleanEmail);
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: "JACOS Admission <admission@jacos.id>",
       to: cleanEmail,
       subject: `Formulir Pendaftaran Diterima — ${params.studentName}`,
@@ -159,7 +161,7 @@ export async function sendApprovalEmail(params: {
       PRIMARY_SCHOOL: "Primary School",
     };
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: "JACOS Admission <admission@jacos.id>",
       to: cleanEmail,
       subject: `Selamat! Pendaftaran ${params.studentName} Diterima di JACOS 🎉`,
@@ -265,7 +267,7 @@ export async function sendRejectionEmail(params: {
 
     console.log("[email] Sending rejection email to:", cleanEmail);
 
-    const { data, error } = await resend.emails.send({
+    const { data, error } = await getResend().emails.send({
       from: "JACOS Admission <admission@jacos.id>",
       to: cleanEmail,
       subject: `Update Pendaftaran ${params.studentName} di JACOS`,
