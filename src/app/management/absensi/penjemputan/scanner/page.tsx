@@ -149,13 +149,15 @@ export default function SecurityScannerPage() {
                   <p className="font-bold text-ink text-base">{q.students?.full_name}</p>
                   <p className="text-xs text-ink-400 font-medium mt-0.5">Kelas {q.students?.class_id || '-'} · dijemput oleh {q.picked_by_name}</p>
                 </div>
-                <div className="flex items-center gap-4">
-                  <span className="font-mono text-xs font-bold text-ink-400 bg-white px-3 py-1.5 rounded-lg border border-ink/5 shadow-sm">
-                    {new Date(q.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  <button 
-                    onClick={() => handleConfirm(q.id, q.student_id)} 
-                    className="bg-leaf hover:bg-leaf-600 text-white text-xs font-bold px-5 py-2.5 rounded-xl shrink-0 transition shadow-sm hover:shadow-md hover:-translate-y-0.5"
+                
+                <div className="flex items-center gap-3 mt-3 sm:mt-0">
+                  <div className="text-right hidden sm:block">
+                    <p className="text-[10px] font-bold text-ink-300 uppercase">Waktu Tunggu</p>
+                    <p className="text-xs font-bold text-ink">Est. {(idx + 1) * 3} Menit</p>
+                  </div>
+                  <Button 
+                    onClick={() => handleConfirm(q.id, q.student_id)}
+                    className="w-full sm:w-auto bg-leaf hover:bg-leaf-600 text-white font-bold rounded-xl shadow-sm border border-leaf-600"
                   >
                     Sudah Dijemput
                   </button>
