@@ -107,32 +107,84 @@ export default function RegFormClient({
     setFormData((prev) => ({ ...prev, [key]: value }));
 
   const nextStep = async () => {
+    const digitRegex = /^\d+$/;
+    
     // Validasi Step 1
     if (currentStep === 1) {
-      if (!formData.fullName.trim()) {
-        alert("Nama lengkap calon siswa wajib diisi.");
+      if (!formData.program) { alert("Jenjang pendaftaran wajib dipilih."); return; }
+      if (!formData.fullName.trim()) { alert("Nama lengkap calon siswa wajib diisi."); return; }
+      if (!formData.gender) { alert("Jenis kelamin wajib dipilih."); return; }
+      if (!formData.birthPlace.trim()) { alert("Tempat lahir wajib diisi."); return; }
+      if (!formData.birthDate) { alert("Tanggal lahir wajib diisi."); return; }
+      
+      // NIK: 16 digit angka
+      if (!formData.nik.trim()) { alert("NIK calon siswa wajib diisi."); return; }
+      if (formData.nik.length !== 16 || !digitRegex.test(formData.nik)) {
+        alert("NIK calon siswa harus tepat 16 digit angka.");
         return;
+      }
+      
+      if (!formData.religion) { alert("Agama wajib dipilih."); return; }
+      if (!formData.nationality) { alert("Kewarganegaraan wajib dipilih."); return; }
+      if (!formData.bloodType) { alert("Golongan darah wajib dipilih."); return; }
+      if (!formData.address.trim()) { alert("Alamat lengkap wajib diisi."); return; }
+      if (!formData.primaryLanguage.trim()) { alert("Bahasa utama di rumah wajib diisi."); return; }
+    }
+
+    // Validasi Step 2: Minimal 1 orang tua lengkap
+    if (currentStep === 2) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      
+      const hasFather = formData.fatherName.trim() !== "";
+      const hasMother = formData.motherName.trim() !== "";
+      
+      if (!hasFather && !hasMother) {
+        alert("Data Ayah atau Ibu wajib diisi salah satu.");
+        return;
+      }
+
+      if (hasFather) {
+        if (!formData.fatherNik.trim() || formData.fatherNik.length !== 16 || !digitRegex.test(formData.fatherNik)) {
+          alert("NIK Ayah harus tepat 16 digit angka.");
+          return;
+        }
+        if (!formData.fatherJob.trim()) { alert("Pekerjaan Ayah wajib diisi."); return; }
+        if (!formData.fatherPhone.trim() || formData.fatherPhone.length < 9 || !digitRegex.test(formData.fatherPhone)) {
+          alert("No HP Ayah harus minimal 9 digit angka.");
+          return;
+        }
+        if (!formData.fatherEmail.trim() || !emailRegex.test(formData.fatherEmail)) {
+          alert("Email Ayah wajib diisi dengan format yang benar.");
+          return;
+        }
+      }
+
+      if (hasMother) {
+        if (!formData.motherNik.trim() || formData.motherNik.length !== 16 || !digitRegex.test(formData.motherNik)) {
+          alert("NIK Ibu harus tepat 16 digit angka.");
+          return;
+        }
+        if (!formData.motherJob.trim()) { alert("Pekerjaan Ibu wajib diisi."); return; }
+        if (!formData.motherPhone.trim() || formData.motherPhone.length < 9 || !digitRegex.test(formData.motherPhone)) {
+          alert("No HP Ibu harus minimal 9 digit angka.");
+          return;
+        }
+        if (!formData.motherEmail.trim() || !emailRegex.test(formData.motherEmail)) {
+          alert("Email Ibu wajib diisi dengan format yang benar.");
+          return;
+        }
       }
     }
 
-    // Validasi Step 2: Minimal 1 email aktif untuk menerima notifikasi & akses login
-    if (currentStep === 2) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      const fatherEmail = formData.fatherEmail.trim();
-      const motherEmail = formData.motherEmail.trim();
-
-      if (!fatherEmail && !motherEmail) {
-        alert("Mohon isi minimal satu alamat email aktif (Email Ayah atau Ibu) untuk menerima notifikasi pendaftaran dan akses login Portal Orang Tua.");
+    // Validasi Step 3
+    if (currentStep === 3) {
+      if (!formData.emergencyContactName.trim()) { alert("Nama kontak darurat wajib diisi."); return; }
+      if (!formData.emergencyContactRelation.trim()) { alert("Hubungan kontak darurat wajib diisi."); return; }
+      if (!formData.emergencyContactPhone.trim() || formData.emergencyContactPhone.length < 9 || !digitRegex.test(formData.emergencyContactPhone)) {
+        alert("No HP kontak darurat harus minimal 9 digit angka.");
         return;
       }
-      if (fatherEmail && !emailRegex.test(fatherEmail)) {
-        alert("Format email Ayah tidak valid. Mohon periksa kembali.");
-        return;
-      }
-      if (motherEmail && !emailRegex.test(motherEmail)) {
-        alert("Format email Ibu tidak valid. Mohon periksa kembali.");
-        return;
-      }
+      if (!formData.authorizedPickup.trim()) { alert("Nama yang menjemput wajib diisi."); return; }
     }
 
     if (currentStep === totalSteps) {
