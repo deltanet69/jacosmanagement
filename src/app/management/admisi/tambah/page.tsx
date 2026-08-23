@@ -54,11 +54,18 @@ export default function TambahAdmisiPage() {
     setError(null);
 
     // Validasi
-    if (!form.studentName || !form.parentName || !form.parentPhone || !form.parentEmail) {
+    const digitRegex = /^\d+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!form.studentName.trim() || !form.parentName.trim() || !form.parentPhone.trim() || !form.parentEmail.trim()) {
       setError("Harap lengkapi semua kolom yang diperlukan.");
       return;
     }
-    if (!form.parentEmail.includes("@")) {
+    if (form.parentPhone.length < 9 || !digitRegex.test(form.parentPhone.trim())) {
+      setError("No HP / WhatsApp harus minimal 9 digit angka.");
+      return;
+    }
+    if (!emailRegex.test(form.parentEmail.trim())) {
       setError("Format email orang tua tidak valid.");
       return;
     }
