@@ -204,6 +204,7 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
 
     let portalPassword = "";
     
+    let resendResult: any = null;
     if (emailTarget) {
       // Create user auto-generate password
       portalPassword = Math.random().toString(36).slice(-8) + "Aa1!"; // Secure random password
@@ -247,7 +248,7 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
         ? "https://parent.jacos.id" 
         : "https://jacosmanagement.vercel.app/parent-portal";
 
-      const resendResult = await sendFormReceivedEmail({
+      resendResult = await sendFormReceivedEmail({
         parentName,
         parentEmail: emailTarget,
         studentName,

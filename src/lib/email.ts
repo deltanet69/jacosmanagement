@@ -159,7 +159,7 @@ export async function sendApprovalEmail(params: {
       PRIMARY_SCHOOL: "Primary School",
     };
 
-    const { data, error } = await getResend().emails.send({
+    const { data, error } = await resend.emails.send({
       from: "JACOS Admission <admission@jacos.id>",
       to: cleanEmail,
       subject: `Selamat! Pendaftaran ${params.studentName} Diterima di JACOS 🎉`,
@@ -265,7 +265,7 @@ export async function sendRejectionEmail(params: {
 
     console.log("[email] Sending rejection email to:", cleanEmail);
 
-    const { data, error } = await getResend().emails.send({
+    const { data, error } = await resend.emails.send({
       from: "JACOS Admission <admission@jacos.id>",
       to: cleanEmail,
       subject: `Update Pendaftaran ${params.studentName} di JACOS`,
