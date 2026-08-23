@@ -102,89 +102,93 @@ export default function RegFormClient({
     agreed: false,
     mediaConsent: false,
   });
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const updateForm = (key: string, value: any) =>
+  const updateForm = (key: string, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
+    if (errors[key]) {
+      setErrors((prev) => ({ ...prev, [key]: "" }));
+    }
+  };
 
   const nextStep = async () => {
     const digitRegex = /^\d+$/;
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const newErrors: Record<string, string> = {};
     
     // Validasi Step 1
     if (currentStep === 1) {
-      if (!formData.program) { alert("Jenjang pendaftaran wajib dipilih."); return; }
-      if (!formData.fullName.trim()) { alert("Nama lengkap calon siswa wajib diisi."); return; }
-      if (!formData.gender) { alert("Jenis kelamin wajib dipilih."); return; }
-      if (!formData.birthPlace.trim()) { alert("Tempat lahir wajib diisi."); return; }
-      if (!formData.birthDate) { alert("Tanggal lahir wajib diisi."); return; }
+      if (!formData.program) newErrors.program = "Jenjang pendaftaran wajib dipilih.";
+      if (!formData.fullName.trim()) newErrors.fullName = "Nama lengkap wajib diisi.";
+      if (!formData.gender) newErrors.gender = "Jenis kelamin wajib dipilih.";
+      if (!formData.birthPlace.trim()) newErrors.birthPlace = "Tempat lahir wajib diisi.";
+      if (!formData.birthDate) newErrors.birthDate = "Tanggal lahir wajib diisi.";
       
-      // NIK: 16 digit angka
-      if (!formData.nik.trim()) { alert("NIK calon siswa wajib diisi."); return; }
-      if (formData.nik.length !== 16 || !digitRegex.test(formData.nik)) {
-        alert("NIK calon siswa harus tepat 16 digit angka.");
-        return;
+      if (!formData.nik.trim()) {
+        newErrors.nik = "NIK wajib diisi.";
+      } else if (formData.nik.length !== 16 || !digitRegex.test(formData.nik)) {
+        newErrors.nik = "NIK harus tepat 16 digit angka.";
       }
       
-      if (!formData.religion) { alert("Agama wajib dipilih."); return; }
-      if (!formData.nationality) { alert("Kewarganegaraan wajib dipilih."); return; }
-      if (!formData.bloodType) { alert("Golongan darah wajib dipilih."); return; }
-      if (!formData.address.trim()) { alert("Alamat lengkap wajib diisi."); return; }
-      if (!formData.primaryLanguage.trim()) { alert("Bahasa utama di rumah wajib diisi."); return; }
+      if (!formData.religion) newErrors.religion = "Agama wajib dipilih.";
+      if (!formData.nationality) newErrors.nationality = "Kewarganegaraan wajib dipilih.";
+      if (!formData.bloodType) newErrors.bloodType = "Golongan darah wajib dipilih.";
+      if (!formData.address.trim()) newErrors.address = "Alamat lengkap wajib diisi.";
+      if (!formData.primaryLanguage.trim()) newErrors.primaryLanguage = "Bahasa utama di rumah wajib diisi.";
     }
 
     // Validasi Step 2: Minimal 1 orang tua lengkap
     if (currentStep === 2) {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      
       const hasFather = formData.fatherName.trim() !== "";
       const hasMother = formData.motherName.trim() !== "";
       
       if (!hasFather && !hasMother) {
-        alert("Data Ayah atau Ibu wajib diisi salah satu.");
-        return;
+        newErrors.fatherName = "Data Ayah atau Ibu wajib diisi salah satu.";
+        newErrors.motherName = "Data Ayah atau Ibu wajib diisi salah satu.";
       }
 
       if (hasFather) {
         if (!formData.fatherNik.trim() || formData.fatherNik.length !== 16 || !digitRegex.test(formData.fatherNik)) {
-          alert("NIK Ayah harus tepat 16 digit angka.");
-          return;
+          newErrors.fatherNik = "NIK Ayah harus tepat 16 digit angka.";
         }
-        if (!formData.fatherJob.trim()) { alert("Pekerjaan Ayah wajib diisi."); return; }
+        if (!formData.fatherJob.trim()) newErrors.fatherJob = "Pekerjaan Ayah wajib diisi.";
         if (!formData.fatherPhone.trim() || formData.fatherPhone.length < 9 || !digitRegex.test(formData.fatherPhone)) {
-          alert("No HP Ayah harus minimal 9 digit angka.");
-          return;
+          newErrors.fatherPhone = "No HP Ayah harus minimal 9 digit angka.";
         }
         if (!formData.fatherEmail.trim() || !emailRegex.test(formData.fatherEmail)) {
-          alert("Email Ayah wajib diisi dengan format yang benar.");
-          return;
+          newErrors.fatherEmail = "Email Ayah wajib diisi dengan format yang benar.";
         }
       }
 
       if (hasMother) {
         if (!formData.motherNik.trim() || formData.motherNik.length !== 16 || !digitRegex.test(formData.motherNik)) {
-          alert("NIK Ibu harus tepat 16 digit angka.");
-          return;
+          newErrors.motherNik = "NIK Ibu harus tepat 16 digit angka.";
         }
-        if (!formData.motherJob.trim()) { alert("Pekerjaan Ibu wajib diisi."); return; }
+        if (!formData.motherJob.trim()) newErrors.motherJob = "Pekerjaan Ibu wajib diisi.";
         if (!formData.motherPhone.trim() || formData.motherPhone.length < 9 || !digitRegex.test(formData.motherPhone)) {
-          alert("No HP Ibu harus minimal 9 digit angka.");
-          return;
+          newErrors.motherPhone = "No HP Ibu harus minimal 9 digit angka.";
         }
         if (!formData.motherEmail.trim() || !emailRegex.test(formData.motherEmail)) {
-          alert("Email Ibu wajib diisi dengan format yang benar.");
-          return;
+          newErrors.motherEmail = "Email Ibu wajib diisi dengan format yang benar.";
         }
       }
     }
 
     // Validasi Step 3
     if (currentStep === 3) {
-      if (!formData.emergencyContactName.trim()) { alert("Nama kontak darurat wajib diisi."); return; }
-      if (!formData.emergencyContactRelation.trim()) { alert("Hubungan kontak darurat wajib diisi."); return; }
+      if (!formData.emergencyContactName.trim()) newErrors.emergencyContactName = "Nama kontak darurat wajib diisi.";
+      if (!formData.emergencyContactRelation.trim()) newErrors.emergencyContactRelation = "Hubungan kontak darurat wajib diisi.";
       if (!formData.emergencyContactPhone.trim() || formData.emergencyContactPhone.length < 9 || !digitRegex.test(formData.emergencyContactPhone)) {
-        alert("No HP kontak darurat harus minimal 9 digit angka.");
-        return;
+        newErrors.emergencyContactPhone = "No HP kontak darurat harus minimal 9 digit angka.";
       }
-      if (!formData.authorizedPickup.trim()) { alert("Nama yang menjemput wajib diisi."); return; }
+      if (!formData.authorizedPickup.trim()) newErrors.authorizedPickup = "Nama yang menjemput wajib diisi.";
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      alert("Terdapat isian yang belum lengkap atau tidak sesuai format. Silakan periksa kembali bagian yang bertanda merah.");
+      return;
     }
 
     if (currentStep === totalSteps) {
@@ -403,7 +407,8 @@ export default function RegFormClient({
                     <div className="grid sm:grid-cols-2 gap-6">
                       <div>
                         <Label className="block text-sm font-bold mb-2">Nama Lengkap / Full Name</Label>
-                        <Input value={formData.fullName} onChange={(e) => updateForm("fullName", e.target.value)} placeholder="Sesuai Akte Lahir" className="h-12 rounded-2xl bg-white border-ink/10" />
+                        <Input value={formData.fullName} onChange={(e) => updateForm("fullName", e.target.value)} placeholder="Sesuai Akte Lahir" className={`h-12 rounded-2xl bg-white border-ink/10 transition-colors ${errors.fullName ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />
+                        {errors.fullName && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.fullName}</p>}
                       </div>
                       <div>
                         <Label className="block text-sm font-bold mb-2">Nama Panggilan / Preferred Name</Label>
@@ -423,26 +428,30 @@ export default function RegFormClient({
                         </Select>
                       </div>
                       <div>
-                        <Label className="block text-sm font-bold mb-2">Anak Ke / Child Order</Label>
-                        <Input value={formData.childOrder} onChange={(e) => updateForm("childOrder", e.target.value)} placeholder="Contoh: Anak ke 2 dari 5 bersaudara" className="h-12 rounded-2xl bg-white border-ink/10" />
-                      </div>
+                          <Label className="block text-sm font-bold mb-2">Pihak yang Berwenang Menjemput</Label>
+                          <Input value={formData.authorizedPickup} onChange={(e) => updateForm("authorizedPickup", e.target.value)} placeholder="Ayah, Ibu, atau nama supir/pengasuh" className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.authorizedPickup ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />
+                          {errors.authorizedPickup && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.authorizedPickup}</p>}
+                        </div>
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-6">
                       <div>
                         <Label className="block text-sm font-bold mb-2">Tempat Lahir / Birth Place</Label>
-                        <Input value={formData.birthPlace} onChange={(e) => updateForm("birthPlace", e.target.value)} placeholder="Kota lahir" className="h-12 rounded-2xl bg-white border-ink/10" />
+                        <Input value={formData.birthPlace} onChange={(e) => updateForm("birthPlace", e.target.value)} placeholder="Kota lahir" className={`h-12 rounded-2xl bg-white border-ink/10 transition-colors ${errors.birthPlace ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />
+                        {errors.birthPlace && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.birthPlace}</p>}
                       </div>
                       <div>
                         <Label className="block text-sm font-bold mb-2">Tanggal Lahir / Birth Date</Label>
-                        <Input type="date" value={formData.birthDate} onChange={(e) => updateForm("birthDate", e.target.value)} className="h-12 rounded-2xl bg-white border-ink/10" />
+                        <Input type="date" value={formData.birthDate} onChange={(e) => updateForm("birthDate", e.target.value)} className={`h-12 rounded-2xl bg-white border-ink/10 transition-colors ${errors.birthDate ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />
+                        {errors.birthDate && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.birthDate}</p>}
                       </div>
                     </div>
 
                     <div className="grid sm:grid-cols-2 gap-6">
                       <div>
                         <Label className="block text-sm font-bold mb-2">NIK</Label>
-                        <Input value={formData.nik} onChange={(e) => updateForm("nik", e.target.value.replace(/\D/g, ""))} maxLength={16} placeholder="16 digit NIK" className="h-12 rounded-2xl bg-white border-ink/10" />
+                        <Input value={formData.nik} onChange={(e) => updateForm("nik", e.target.value.replace(/\D/g, ""))} maxLength={16} placeholder="16 digit NIK" className={`h-12 rounded-2xl bg-white border-ink/10 transition-colors ${errors.nik ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />
+                        {errors.nik && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.nik}</p>}
                       </div>
                       <div>
                         <Label className="block text-sm font-bold mb-2">NISN (Opsional)</Label>
@@ -521,15 +530,16 @@ export default function RegFormClient({
                     <div className="bg-white rounded-3xl p-6 border border-ink/5">
                       <h3 className="font-bold text-sm mb-4 text-sky uppercase tracking-wide">Data Ayah</h3>
                       <div className="grid sm:grid-cols-2 gap-5">
-                        <div><Label className="block text-sm font-bold mb-2">Nama Lengkap</Label><Input value={formData.fatherName} onChange={(e) => updateForm("fatherName", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">NIK</Label><Input value={formData.fatherNik} onChange={(e) => updateForm("fatherNik", e.target.value.replace(/\D/g, ""))} maxLength={16} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">Pekerjaan</Label><Input value={formData.fatherJob} onChange={(e) => updateForm("fatherJob", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.fatherPhone} onChange={(e) => updateForm("fatherPhone", e.target.value.replace(/\D/g, ""))} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
+                        <div><Label className="block text-sm font-bold mb-2">Nama Lengkap</Label><Input value={formData.fatherName} onChange={(e) => updateForm("fatherName", e.target.value)} className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.fatherName ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />{errors.fatherName && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.fatherName}</p>}</div>
+                        <div><Label className="block text-sm font-bold mb-2">NIK</Label><Input value={formData.fatherNik} onChange={(e) => updateForm("fatherNik", e.target.value.replace(/\D/g, ""))} maxLength={16} className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.fatherNik ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />{errors.fatherNik && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.fatherNik}</p>}</div>
+                        <div><Label className="block text-sm font-bold mb-2">Pekerjaan</Label><Input value={formData.fatherJob} onChange={(e) => updateForm("fatherJob", e.target.value)} className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.fatherJob ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />{errors.fatherJob && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.fatherJob}</p>}</div>
+                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.fatherPhone} onChange={(e) => updateForm("fatherPhone", e.target.value.replace(/\D/g, ""))} className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.fatherPhone ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />{errors.fatherPhone && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.fatherPhone}</p>}</div>
                         <div className="sm:col-span-2">
                           <Label className="block text-sm font-bold mb-2">
                             Email Ayah <span className="text-xs font-normal text-ink-300">(Untuk akun login portal & notifikasi)</span>
                           </Label>
-                          <Input type="email" value={formData.fatherEmail} onChange={(e) => updateForm("fatherEmail", e.target.value)} placeholder="contoh@gmail.com" className="h-12 rounded-2xl bg-cloud border-transparent" />
+                          <Input type="email" value={formData.fatherEmail} onChange={(e) => updateForm("fatherEmail", e.target.value)} placeholder="contoh@gmail.com" className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.fatherEmail ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />
+                          {errors.fatherEmail && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.fatherEmail}</p>}
                         </div>
                       </div>
                     </div>
@@ -538,15 +548,16 @@ export default function RegFormClient({
                     <div className="bg-white rounded-3xl p-6 border border-ink/5">
                       <h3 className="font-bold text-sm mb-4 text-sky uppercase tracking-wide">Data Ibu</h3>
                       <div className="grid sm:grid-cols-2 gap-5">
-                        <div><Label className="block text-sm font-bold mb-2">Nama Lengkap</Label><Input value={formData.motherName} onChange={(e) => updateForm("motherName", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">NIK</Label><Input value={formData.motherNik} onChange={(e) => updateForm("motherNik", e.target.value.replace(/\D/g, ""))} maxLength={16} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">Pekerjaan</Label><Input value={formData.motherJob} onChange={(e) => updateForm("motherJob", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.motherPhone} onChange={(e) => updateForm("motherPhone", e.target.value.replace(/\D/g, ""))} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
+                        <div><Label className="block text-sm font-bold mb-2">Nama Lengkap</Label><Input value={formData.motherName} onChange={(e) => updateForm("motherName", e.target.value)} className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.motherName ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />{errors.motherName && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.motherName}</p>}</div>
+                        <div><Label className="block text-sm font-bold mb-2">NIK</Label><Input value={formData.motherNik} onChange={(e) => updateForm("motherNik", e.target.value.replace(/\D/g, ""))} maxLength={16} className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.motherNik ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />{errors.motherNik && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.motherNik}</p>}</div>
+                        <div><Label className="block text-sm font-bold mb-2">Pekerjaan</Label><Input value={formData.motherJob} onChange={(e) => updateForm("motherJob", e.target.value)} className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.motherJob ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />{errors.motherJob && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.motherJob}</p>}</div>
+                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.motherPhone} onChange={(e) => updateForm("motherPhone", e.target.value.replace(/\D/g, ""))} className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.motherPhone ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />{errors.motherPhone && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.motherPhone}</p>}</div>
                         <div className="sm:col-span-2">
                           <Label className="block text-sm font-bold mb-2">
                             Email Ibu <span className="text-xs font-normal text-ink-300">(Untuk akun login portal & notifikasi)</span>
                           </Label>
-                          <Input type="email" value={formData.motherEmail} onChange={(e) => updateForm("motherEmail", e.target.value)} placeholder="contoh@gmail.com" className="h-12 rounded-2xl bg-cloud border-transparent" />
+                          <Input type="email" value={formData.motherEmail} onChange={(e) => updateForm("motherEmail", e.target.value)} placeholder="contoh@gmail.com" className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.motherEmail ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />
+                          {errors.motherEmail && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.motherEmail}</p>}
                         </div>
                       </div>
                     </div>
@@ -589,9 +600,9 @@ export default function RegFormClient({
                     <div className="bg-white rounded-3xl p-6 border border-ink/5">
                       <h3 className="font-bold text-sm mb-4 text-sky uppercase tracking-wide">Kontak Darurat</h3>
                       <div className="grid sm:grid-cols-3 gap-5">
-                        <div><Label className="block text-sm font-bold mb-2">Nama</Label><Input value={formData.emergencyContactName} onChange={(e) => updateForm("emergencyContactName", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">Hubungan</Label><Input value={formData.emergencyContactRelation} onChange={(e) => updateForm("emergencyContactRelation", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.emergencyContactPhone} onChange={(e) => updateForm("emergencyContactPhone", e.target.value.replace(/\D/g, ""))} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
+                        <div><Label className="block text-sm font-bold mb-2">Nama</Label><Input value={formData.emergencyContactName} onChange={(e) => updateForm("emergencyContactName", e.target.value)} className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.emergencyContactName ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />{errors.emergencyContactName && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.emergencyContactName}</p>}</div>
+                        <div><Label className="block text-sm font-bold mb-2">Hubungan</Label><Input value={formData.emergencyContactRelation} onChange={(e) => updateForm("emergencyContactRelation", e.target.value)} className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.emergencyContactRelation ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />{errors.emergencyContactRelation && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.emergencyContactRelation}</p>}</div>
+                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.emergencyContactPhone} onChange={(e) => updateForm("emergencyContactPhone", e.target.value.replace(/\D/g, ""))} className={`h-12 rounded-2xl bg-cloud border-transparent transition-colors ${errors.emergencyContactPhone ? 'ring-2 ring-red-500 bg-red-50' : ''}`} />{errors.emergencyContactPhone && <p className="text-red-500 text-xs mt-1 font-semibold">{errors.emergencyContactPhone}</p>}</div>
                       </div>
                     </div>
 
