@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/server";
-import { sendFormReceivedEmail } from "@/app/management/admisi/actions";
+import { sendFormReceivedEmail } from "@/lib/email";
 import { isValidEmail, getFirstValidEmail } from "@/lib/utils";
 
 // Verifikasi token dan kembalikan data pendaftar (prefill)
@@ -267,6 +267,7 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
       registrationNo: applicant.registration_no,
       studentName,
       parentName,
+      emailSent: resendResult?.success ?? false,
     };
   } catch (err: any) {
     console.error(err);
