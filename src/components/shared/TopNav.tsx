@@ -1,6 +1,6 @@
 "use client";
 
-import { Bell, Search, Menu, LayoutDashboard, Users, UserCheck, GraduationCap, Receipt, CalendarCheck, Settings, LogOut, BookOpen } from "lucide-react";
+import { Bell, Search, Menu, LayoutDashboard, Users, UserCheck, GraduationCap, Receipt, CalendarCheck, Settings, LogOut, BookOpen, Car } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import Link from "next/link";
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { href: "/management/siswa", label: "Data Siswa", icon: GraduationCap, color: "text-leaf", bgColor: "bg-leaf-50" },
   { href: "/management/guru", label: "Data Guru", icon: UserCheck, color: "text-gold", bgColor: "bg-gold-50" },
   { href: "/management/classroom", label: "Classroom", icon: BookOpen, color: "text-sky", bgColor: "bg-sky-50" },
+  { href: "/management/absensi/penjemputan", label: "Penjemputan Siswa", icon: Car, color: "text-purple-600", bgColor: "bg-purple-50" },
   { href: "/management/keuangan", label: "Keuangan & SPP", icon: Receipt, color: "text-sky-600", bgColor: "bg-sky-50" },
   { href: "/management/absensi", label: "Rekap Absensi", icon: CalendarCheck, color: "text-coral-600", bgColor: "bg-coral-50" },
 ];
