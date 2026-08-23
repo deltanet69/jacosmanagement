@@ -442,7 +442,7 @@ export default function RegFormClient({
                     <div className="grid sm:grid-cols-2 gap-6">
                       <div>
                         <Label className="block text-sm font-bold mb-2">NIK</Label>
-                        <Input value={formData.nik} onChange={(e) => updateForm("nik", e.target.value)} placeholder="16 digit NIK" className="h-12 rounded-2xl bg-white border-ink/10" />
+                        <Input value={formData.nik} onChange={(e) => updateForm("nik", e.target.value.replace(/\D/g, ""))} maxLength={16} placeholder="16 digit NIK" className="h-12 rounded-2xl bg-white border-ink/10" />
                       </div>
                       <div>
                         <Label className="block text-sm font-bold mb-2">NISN (Opsional)</Label>
@@ -522,9 +522,9 @@ export default function RegFormClient({
                       <h3 className="font-bold text-sm mb-4 text-sky uppercase tracking-wide">Data Ayah</h3>
                       <div className="grid sm:grid-cols-2 gap-5">
                         <div><Label className="block text-sm font-bold mb-2">Nama Lengkap</Label><Input value={formData.fatherName} onChange={(e) => updateForm("fatherName", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">NIK</Label><Input value={formData.fatherNik} onChange={(e) => updateForm("fatherNik", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
+                        <div><Label className="block text-sm font-bold mb-2">NIK</Label><Input value={formData.fatherNik} onChange={(e) => updateForm("fatherNik", e.target.value.replace(/\D/g, ""))} maxLength={16} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                         <div><Label className="block text-sm font-bold mb-2">Pekerjaan</Label><Input value={formData.fatherJob} onChange={(e) => updateForm("fatherJob", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.fatherPhone} onChange={(e) => updateForm("fatherPhone", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
+                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.fatherPhone} onChange={(e) => updateForm("fatherPhone", e.target.value.replace(/\D/g, ""))} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                         <div className="sm:col-span-2">
                           <Label className="block text-sm font-bold mb-2">
                             Email Ayah <span className="text-xs font-normal text-ink-300">(Untuk akun login portal & notifikasi)</span>
@@ -539,9 +539,9 @@ export default function RegFormClient({
                       <h3 className="font-bold text-sm mb-4 text-sky uppercase tracking-wide">Data Ibu</h3>
                       <div className="grid sm:grid-cols-2 gap-5">
                         <div><Label className="block text-sm font-bold mb-2">Nama Lengkap</Label><Input value={formData.motherName} onChange={(e) => updateForm("motherName", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">NIK</Label><Input value={formData.motherNik} onChange={(e) => updateForm("motherNik", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
+                        <div><Label className="block text-sm font-bold mb-2">NIK</Label><Input value={formData.motherNik} onChange={(e) => updateForm("motherNik", e.target.value.replace(/\D/g, ""))} maxLength={16} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                         <div><Label className="block text-sm font-bold mb-2">Pekerjaan</Label><Input value={formData.motherJob} onChange={(e) => updateForm("motherJob", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.motherPhone} onChange={(e) => updateForm("motherPhone", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
+                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.motherPhone} onChange={(e) => updateForm("motherPhone", e.target.value.replace(/\D/g, ""))} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                         <div className="sm:col-span-2">
                           <Label className="block text-sm font-bold mb-2">
                             Email Ibu <span className="text-xs font-normal text-ink-300">(Untuk akun login portal & notifikasi)</span>
@@ -571,7 +571,7 @@ export default function RegFormClient({
                       <div className="grid sm:grid-cols-2 gap-5">
                         <div><Label className="block text-sm font-bold mb-2">Nama Wali</Label><Input value={formData.guardianName} onChange={(e) => updateForm("guardianName", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                         <div><Label className="block text-sm font-bold mb-2">Hubungan</Label><Input value={formData.guardianRelation} onChange={(e) => updateForm("guardianRelation", e.target.value)} placeholder="Kakek, Nenek, dll." className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.guardianPhone} onChange={(e) => updateForm("guardianPhone", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
+                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.guardianPhone} onChange={(e) => updateForm("guardianPhone", e.target.value.replace(/\D/g, ""))} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                       </div>
                     </div>
                   </div>
@@ -591,7 +591,7 @@ export default function RegFormClient({
                       <div className="grid sm:grid-cols-3 gap-5">
                         <div><Label className="block text-sm font-bold mb-2">Nama</Label><Input value={formData.emergencyContactName} onChange={(e) => updateForm("emergencyContactName", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                         <div><Label className="block text-sm font-bold mb-2">Hubungan</Label><Input value={formData.emergencyContactRelation} onChange={(e) => updateForm("emergencyContactRelation", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
-                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.emergencyContactPhone} onChange={(e) => updateForm("emergencyContactPhone", e.target.value)} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
+                        <div><Label className="block text-sm font-bold mb-2">No. HP / WA</Label><Input value={formData.emergencyContactPhone} onChange={(e) => updateForm("emergencyContactPhone", e.target.value.replace(/\D/g, ""))} className="h-12 rounded-2xl bg-cloud border-transparent" /></div>
                       </div>
                     </div>
 
