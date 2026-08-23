@@ -115,7 +115,7 @@ export async function getTodayAttendanceByClass(classId: string) {
 // PENJEMPUTAN (QR ORTU -> ANTRIAN TV)
 // ===============================
 
-export async function addPickupQueue(studentId: string, parentName: string = "Orang Tua/Wali") {
+export async function addPickupQueue(studentId: string, parentName: string = "Orang Tua/Wali", relation: string = "Orang Tua") {
   const supabase = createAdminClient();
   const today = new Date().toISOString().split('T')[0];
 
@@ -140,7 +140,7 @@ export async function addPickupQueue(studentId: string, parentName: string = "Or
       pickup_date: today,
       status: 'WAITING',
       picked_by_name: parentName,
-      picked_by_relation: "Orang Tua"
+      picked_by_relation: relation
     });
 
   if (error) {

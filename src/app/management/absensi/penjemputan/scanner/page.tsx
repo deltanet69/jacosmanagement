@@ -33,12 +33,33 @@ export default function SecurityScannerPage() {
     e.preventDefault();
     if (!qrCode.trim()) return;
 
-    // Simulate scanning a student ID (In real life, QR contains a token or student ID)
-    const studentId = qrCode.trim();
-    const res = await addPickupQueue(studentId, "Orang Tua/Wali");
+    let studentId = qrCode.trim();
+    let pickedByName = "Orang Tua/Wali";
+    let pickedByRelation = "Orang Tua";
+
+    try {
+      if (qrCode.trim().startsWith("{")) {
+        const parsed = JSON.parse(qrCode.trim());
+        if (parsed.studentId) studentId = parsed.studentId;
+        if (parsed.picker) pickedByName = parsed.picker;
+        if (parsed.role) pickedByRelation = parsed.role;
+      } else if (qrCode.trim().startsWith("pickup:")) {
+        const parts = qrCode.trim().split(":");
+        if (parts[1]) studentId = parts[1];
+      }
+    } catch (err) {
+      console.error("Error parsing QR Code:", err);
+    }
+
+    const res = await addPickupQueue(studentId, pickedByName, pickedByRelation);
     
     if (res.success) {
-      setRecentScan({ studentId, time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) });
+      setRecentScan({ 
+        studentId, 
+        picker: pickedByName,
+        relation: pickedByRelation,
+        time: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) 
+      });
       setTimeout(() => setRecentScan(null), 5000);
     }
     
