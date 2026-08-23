@@ -175,6 +175,82 @@ export async function createNewAdmission(formData: {
       console.error("Error creating guardian:", guardianError);
     }
 
+    // ============================================================
+    // Kirim email konfirmasi pendaftaran ke orang tua
+    // ============================================================
+    const cleanEmail = formData.parentEmail?.trim();
+    if (cleanEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      try {
+        // 1. Buat akun auth untuk orang tua
+        const tempPassword = generateTempPassword();
+        const portalUrl = process.env.NEXT_PUBLIC_PARENT_URL || "https://parent.jacos.id";
+
+        let finalPassword = tempPassword;
+        const { error: authError } = await supabase.auth.admin.createUser({
+          email: cleanEmail,
+          password: tempPassword,
+          user_metadata: {
+            full_name: formData.parentName,
+            role: "PARENT",
+            first_login: true,
+            applicant_id: newApplicant.id,
+            admission_status: "Waiting for approval",
+          },
+          email_confirm: true,
+        });
+
+        if (authError) {
+          const isAlreadyExists =
+            authError.message.toLowerCase().includes("already") ||
+            authError.message.toLowerCase().includes("exist") ||
+            authError.code === "email_exists";
+
+          if (isAlreadyExists) {
+            const { data: userList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+            const existingUser = userList?.users?.find(
+              (u) => u.email?.toLowerCase() === cleanEmail.toLowerCase()
+            );
+            if (existingUser) {
+              await supabase.auth.admin.updateUserById(existingUser.id, {
+                password: tempPassword,
+                user_metadata: {
+                  ...(existingUser.user_metadata || {}),
+                  full_name: formData.parentName,
+                  role: "PARENT",
+                  first_login: true,
+                  applicant_id: newApplicant.id,
+                  admission_status: "Waiting for approval",
+                },
+              });
+              console.log("[createNewAdmission] Updated existing user password for:", cleanEmail);
+            }
+          } else {
+            console.error("[createNewAdmission] Error creating parent auth user:", authError);
+            finalPassword = ""; // Jangan kirim password jika ada error tak terduga
+          }
+        }
+
+        // 2. Kirim email dengan detail portal access dan nomor registrasi
+        const emailResult = await sendFormReceivedEmail({
+          parentName: formData.parentName,
+          parentEmail: cleanEmail,
+          studentName: formData.studentName,
+          registrationNo,
+          program: formData.program,
+          portalUrl,
+          portalEmail: cleanEmail,
+          portalPassword: finalPassword,
+        });
+
+        console.log("[createNewAdmission] Email sent to", cleanEmail, "result:", emailResult);
+      } catch (emailErr) {
+        // Email error tidak memblokir proses pendaftaran
+        console.error("[createNewAdmission] Email error (non-fatal):", emailErr);
+      }
+    } else {
+      console.warn("[createNewAdmission] Invalid or missing parent email:", formData.parentEmail);
+    }
+
     revalidatePath("/management/admisi");
     return { success: true, applicantId: newApplicant.id, registrationToken };
   } catch (err: any) {
