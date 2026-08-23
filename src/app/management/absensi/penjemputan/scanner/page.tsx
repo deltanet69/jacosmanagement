@@ -159,8 +159,8 @@ export default function SecurityScannerPage() {
                     onClick={() => handleConfirm(q.id, q.student_id)}
                     className="w-full sm:w-auto bg-leaf hover:bg-leaf-600 text-white font-bold rounded-xl shadow-sm border border-leaf-600"
                   >
-                    Sudah Dijemput
-                  </button>
+                    Konfirmasi Selesai
+                  </Button>
                 </div>
               </div>
             ))
