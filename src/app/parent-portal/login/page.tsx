@@ -35,9 +35,32 @@ export default function LoginPage() {
 
       if (signInError) throw signInError
 
-      const isFirstLogin = data.user?.user_metadata?.first_login !== false
+      const user = data.user
       const isSubdomain = window.location.hostname.startsWith('parent.')
+      const isFirstLogin = user?.user_metadata?.first_login === true
 
+      // Cek status approval dari DB secara realtime
+      let isApprovedInDB = false
+      if (user?.email) {
+        const { data: guardians } = await supabase
+          .from('guardians')
+          .select('applicant_id, applicants(status, student_record_id)')
+          .ilike('email', user.email)
+          .limit(1)
+        
+        const applicant = (guardians?.[0] as any)?.applicants
+        if (applicant?.status === 'ENROLLED' || applicant?.student_record_id) {
+          isApprovedInDB = true
+        }
+      }
+
+      // Jika sudah approved di DB, langsung ke dashboard tanpa paksa ganti password
+      if (isApprovedInDB) {
+        router.push(isSubdomain ? '/' : '/parent-portal')
+        return
+      }
+
+      // Jika belum approved dan ini first_login, minta ganti password dulu
       if (isFirstLogin) {
         router.push(isSubdomain ? '/change-password' : '/parent-portal/change-password')
       } else {

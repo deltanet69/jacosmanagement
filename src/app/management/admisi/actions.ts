@@ -367,12 +367,18 @@ export async function approveAndAssignClass(applicantId: string, classId: string
             (u) => u.email?.toLowerCase() === targetEmail.toLowerCase()
           );
           if (existingUser) {
+            // Preserve first_login state: if user already changed password (first_login=false), keep it
+            const alreadyChangedPassword = existingUser.user_metadata?.first_login === false;
+            
             await supabase.auth.admin.updateUserById(existingUser.id, {
               user_metadata: {
                 ...(existingUser.user_metadata || {}),
                 full_name: guardian.full_name,
                 role: "PARENT",
+                // Jika belum pernah ganti password, tandai first_login agar tidak dipaksa ganti lagi
+                first_login: alreadyChangedPassword ? false : false, // selalu false setelah approved
                 student_id: student.id,
+                student_name: applicant.student_name,
                 admission_status: "Approved",
               },
             });

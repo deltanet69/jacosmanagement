@@ -44,33 +44,72 @@ export default function ParentDashboardPage() {
     const fetchStatusAndStudent = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          setStatus(session.user.user_metadata?.admission_status || 'Approved');
-          const studentId = session.user.user_metadata?.student_id;
-          
-          let loadedStudent = null;
-          if (studentId) {
-            const { data: studentData, error } = await supabase
-              .from('students')
-              .select('id, full_name, nis, school_classes(name)')
-              .eq('id', studentId)
-              .maybeSingle();
+        if (!session) { setLoading(false); return; }
 
-            if (!error && studentData) {
-              loadedStudent = studentData;
+        // Refresh session untuk mendapatkan user_metadata terbaru
+        await supabase.auth.refreshSession();
+        const { data: { session: freshSession } } = await supabase.auth.getSession();
+        const user = freshSession?.user || session.user;
+        const userEmail = user.email;
+        const studentIdFromMeta = user.user_metadata?.student_id;
+
+        // 1. Cek status dari DB applicants secara realtime (bukan JWT yang bisa stale)
+        let resolvedStatus = 'Approved'; // default: biarkan masuk
+        let resolvedStudentId = studentIdFromMeta;
+
+        if (userEmail) {
+          // Cari applicant berdasarkan email guardian
+          const { data: guardians } = await supabase
+            .from('guardians')
+            .select('applicant_id, applicants(id, status, student_record_id)')
+            .ilike('email', userEmail)
+            .limit(1);
+
+          if (guardians && guardians.length > 0) {
+            const applicant = (guardians[0] as any).applicants;
+            if (applicant) {
+              if (applicant.status === 'ENROLLED' || applicant.student_record_id) {
+                resolvedStatus = 'Approved';
+                // Ambil student_id dari DB jika belum ada di metadata
+                if (!resolvedStudentId && applicant.student_record_id) {
+                  resolvedStudentId = applicant.student_record_id;
+                }
+              } else if (applicant.status === 'REJECTED') {
+                resolvedStatus = 'Rejected';
+              } else {
+                // SUBMITTED / REVIEWING — masih menunggu
+                resolvedStatus = 'Waiting for approval';
+              }
             }
+          } else if (studentIdFromMeta) {
+            // Sudah ada student_id di metadata → sudah approved
+            resolvedStatus = 'Approved';
           }
-
-          if (!loadedStudent) {
-            loadedStudent = {
-              id: studentId || 'student-demo',
-              full_name: session.user.user_metadata?.student_name || 'Ananda Siswa JACOS',
-              school_classes: [{ name: 'Grade 1 - Al-Fatih' }]
-            };
-          }
-
-          setStudent(loadedStudent);
         }
+
+        setStatus(resolvedStatus);
+
+        // 2. Load student data
+        let loadedStudent = null;
+        if (resolvedStudentId) {
+          const { data: studentData } = await supabase
+            .from('students')
+            .select('id, full_name, nis, school_classes(name)')
+            .eq('id', resolvedStudentId)
+            .maybeSingle();
+
+          if (studentData) loadedStudent = studentData;
+        }
+
+        if (!loadedStudent) {
+          loadedStudent = {
+            id: resolvedStudentId || 'student-demo',
+            full_name: user.user_metadata?.student_name || 'Ananda Siswa JACOS',
+            school_classes: [{ name: 'Grade 1 - Al-Fatih' }]
+          };
+        }
+
+        setStudent(loadedStudent);
       } catch (err) {
         console.error("Error loading dashboard data:", err);
       } finally {
