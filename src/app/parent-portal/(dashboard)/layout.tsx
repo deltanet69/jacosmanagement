@@ -30,15 +30,38 @@ export default function DashboardLayout({
         return;
       }
 
-      if (session.user.user_metadata?.first_login) {
-        router.push('/parent-portal/change-password');
-        return;
+      await supabase.auth.refreshSession();
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      const user = freshSession?.user || session.user;
+      
+      // Bypass first_login check if user is already approved in DB
+      let isApprovedInDB = false;
+      if (user?.email) {
+        const { data: guardians } = await supabase
+          .from('guardians')
+          .select('applicant_id, applicants(status, student_record_id)')
+          .ilike('email', user.email)
+          .limit(1);
+          
+        const applicant = (guardians?.[0] as any)?.applicants;
+        if (applicant?.status === 'ENROLLED' || applicant?.student_record_id) {
+          isApprovedInDB = true;
+        }
       }
 
-      const status = session.user.user_metadata?.admission_status || 'Waiting for approval';
-      if (status === 'Approved') {
+      if (isApprovedInDB) {
         setIsApproved(true);
+      } else {
+        if (user.user_metadata?.first_login) {
+          router.push('/parent-portal/change-password');
+          return;
+        }
+        const status = user.user_metadata?.admission_status || 'Waiting for approval';
+        if (status === 'Approved') {
+          setIsApproved(true);
+        }
       }
+      
       setLoading(false);
     };
 
