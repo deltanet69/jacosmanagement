@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { getPickupQueue, confirmPickup, addPickupQueue } from "../../actions";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 
 export default function SecurityScannerPage() {
   const [queue, setQueue] = useState<any[]>([]);
