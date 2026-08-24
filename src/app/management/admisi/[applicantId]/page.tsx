@@ -17,6 +17,7 @@ import {
   getClasses,
   approveAndAssignClass,
   rejectApplicant,
+  verifyDocumentAgreement,
 } from "../actions";
 
 export default function ApplicantDetail({
@@ -34,6 +35,12 @@ export default function ApplicantDetail({
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [copied, setCopied] = useState(false);
+  
+  // States for Document Verification
+  const [showDocRejectModal, setShowDocRejectModal] = useState(false);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [docRejectNote, setDocRejectNote] = useState("");
+  const [isVerifyingDoc, setIsVerifyingDoc] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -115,6 +122,24 @@ export default function ApplicantDetail({
     if (res.success) {
       setData({ ...data, status: "REJECTED", rejection_reason: rejectReason });
       setShowRejectModal(false);
+    }
+  };
+
+  const handleVerifyDoc = async (docId: string, status: string, note?: string) => {
+    setIsVerifyingDoc(true);
+    const res = await verifyDocumentAgreement(docId, applicantId, status, note);
+    setIsVerifyingDoc(false);
+    if (res.success) {
+      // Update local state
+      const dbStatus = status === 'APPROVED' ? 'VERIFIED' : status;
+      const updatedDocs = data.documents.map((d: any) => 
+        d.id === docId ? { ...d, verification: dbStatus, review_note: note || null } : d
+      );
+      setData({ ...data, documents: updatedDocs });
+      setShowDocRejectModal(false);
+      setDocRejectNote("");
+    } else {
+      alert(res.message || "Gagal verifikasi dokumen");
     }
   };
 
@@ -459,40 +484,130 @@ export default function ApplicantDetail({
 
           {/* Documents Card */}
           {data.documents && data.documents.length > 0 && (
-            <div className="bg-white p-8 rounded-3xl shadow-sm border border-ink/5">
-              <h3 className="text-xs font-bold text-sky uppercase tracking-wider mb-6 pb-2 border-b border-ink/5">
-                Dokumen Terunggah
-              </h3>
-              <div className="grid sm:grid-cols-2 gap-4">
-                {data.documents.map((doc: any) => (
-                  <div
-                    key={doc.id}
-                    className="flex items-center gap-4 p-4 rounded-2xl bg-cloud/50 border border-ink/5"
-                  >
-                    <div className="w-12 h-12 rounded-xl bg-sky-50 flex items-center justify-center shrink-0 border border-sky/10">
-                      <FileText size={20} className="text-sky" />
+            <div className="bg-white p-8 rounded-3xl shadow-sm border border-ink/5 space-y-8">
+              
+              {/* Dokumen Agreement Section */}
+              {(() => {
+                const agreementDocs = data.documents.filter((d: any) => d.type === "JACOS_AGREEMENT");
+                if (agreementDocs.length === 0) return null;
+                
+                return (
+                  <div>
+                    <h3 className="text-xs font-bold text-sky uppercase tracking-wider mb-6 pb-2 border-b border-ink/5">
+                      Dokumen Agreement (Persetujuan Orang Tua)
+                    </h3>
+                    <div className="grid sm:grid-cols-1 gap-4">
+                      {agreementDocs.map((doc: any) => (
+                        <div key={doc.id} className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-5 rounded-2xl bg-sky-50/50 border border-sky-100">
+                          <div className="w-12 h-12 rounded-xl bg-sky-100 flex items-center justify-center shrink-0 border border-sky/20">
+                            <FileText size={20} className="text-sky-600" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-ink">Dokumen Jacos Agreement</p>
+                            <p className="text-xs text-ink-400 mt-0.5">Diunggah: {formatDate(doc.created_at || doc.uploaded_at)}</p>
+                            
+                            {doc.review_note && (
+                              <div className="mt-2 text-xs bg-white/60 p-2 rounded-lg border border-coral/20 text-coral-600 font-medium">
+                                Catatan Admin: {doc.review_note}
+                              </div>
+                            )}
+                          </div>
+                          
+                          <div className="flex flex-wrap items-center gap-2 shrink-0 w-full sm:w-auto">
+                            <div className="mr-2">
+                              {doc.verification === 'VERIFIED' ? (
+                                <span className="text-xs font-bold bg-leaf-50 text-leaf-600 px-3 py-1.5 rounded-full flex items-center gap-1"><CheckCircle2 size={14}/> Disetujui</span>
+                              ) : doc.verification === 'REJECTED' ? (
+                                <span className="text-xs font-bold bg-coral-50 text-coral-600 px-3 py-1.5 rounded-full flex items-center gap-1"><XCircle size={14}/> Ditolak</span>
+                              ) : (
+                                <span className="text-xs font-bold bg-sun-50 text-sun-600 px-3 py-1.5 rounded-full flex items-center gap-1"><Clock size={14}/> Menunggu Verifikasi</span>
+                              )}
+                            </div>
+                            
+                            {doc.verification !== 'VERIFIED' && (
+                              <>
+                                <Button 
+                                  size="sm"
+                                  onClick={() => handleVerifyDoc(doc.id, 'APPROVED')}
+                                  disabled={isVerifyingDoc}
+                                  className="h-9 bg-leaf hover:bg-leaf-600 text-white font-bold text-xs"
+                                >
+                                  Approve
+                                </Button>
+                                <Button 
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => { setSelectedDocId(doc.id); setShowDocRejectModal(true); }}
+                                  disabled={isVerifyingDoc}
+                                  className="h-9 border-coral text-coral hover:bg-coral-50 font-bold text-xs"
+                                >
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                            
+                            {(doc.signed_url || doc.file_url) && (
+                              <a
+                                href={doc.signed_url || doc.file_url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="h-9 flex items-center text-xs font-bold text-white bg-sky hover:bg-sky-600 px-4 rounded-lg transition"
+                              >
+                                Buka Dokumen
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold truncate">
-                        {docLabel(doc.type || doc.document_type)}
-                      </p>
-                      <p className="text-xs text-ink-300">
-                        {formatDate(doc.created_at)}
-                      </p>
-                    </div>
-                    {doc.signed_url || doc.file_url ? (
-                      <a
-                        href={doc.signed_url || doc.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-xs font-bold text-white bg-sky hover:bg-sky-600 px-4 py-2 rounded-lg shrink-0 transition"
-                      >
-                        Buka Dokumen
-                      </a>
-                    ) : null}
                   </div>
-                ))}
-              </div>
+                );
+              })()}
+              
+              {/* General Documents */}
+              {(() => {
+                const generalDocs = data.documents.filter((d: any) => d.type !== "JACOS_AGREEMENT");
+                if (generalDocs.length === 0) return null;
+                
+                return (
+                  <div>
+                    <h3 className="text-xs font-bold text-ink-400 uppercase tracking-wider mb-6 pb-2 border-b border-ink/5">
+                      Dokumen Pendaftaran (Lainnya)
+                    </h3>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      {generalDocs.map((doc: any) => (
+                        <div
+                          key={doc.id}
+                          className="flex items-center gap-4 p-4 rounded-2xl bg-cloud/50 border border-ink/5"
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-ink-50 flex items-center justify-center shrink-0 border border-ink/10">
+                            <FileText size={20} className="text-ink-400" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold truncate">
+                              {docLabel(doc.type)}
+                            </p>
+                            <p className="text-xs text-ink-300">
+                              {formatDate(doc.created_at || doc.uploaded_at)}
+                            </p>
+                          </div>
+                          {(doc.signed_url || doc.file_url) && (
+                            <a
+                              href={doc.signed_url || doc.file_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs font-bold text-ink-600 bg-white border border-ink/10 hover:bg-ink-50 px-4 py-2 rounded-lg shrink-0 transition"
+                            >
+                              Buka Dokumen
+                            </a>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
+              
             </div>
           )}
         </div>
@@ -561,6 +676,48 @@ export default function ApplicantDetail({
           </div>
         </div>
       </div>
+
+      {/* Document Reject Modal */}
+      {showDocRejectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-sm">
+          <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-xl border border-ink/10">
+            <h3 className="text-lg font-display font-bold text-ink mb-2">
+              Tolak Dokumen Agreement
+            </h3>
+            <p className="text-sm text-ink-400 mb-6">
+              Silakan tulis alasan penolakan agar orang tua bisa memperbaiki dokumen.
+            </p>
+            <textarea
+              value={docRejectNote}
+              onChange={(e) => setDocRejectNote(e.target.value)}
+              placeholder="Contoh: Materai kurang jelas, tanda tangan tidak sesuai, dll."
+              className="w-full rounded-xl border border-ink/20 p-4 text-sm focus:border-sky focus:ring-1 focus:ring-sky outline-none min-h-[120px] mb-6 resize-none"
+            ></textarea>
+            <div className="flex gap-3">
+              <Button
+                variant="outline"
+                className="flex-1 rounded-xl h-11"
+                onClick={() => {
+                  setShowDocRejectModal(false);
+                  setDocRejectNote("");
+                }}
+              >
+                Batal
+              </Button>
+              <Button
+                className="flex-1 rounded-xl h-11 bg-coral hover:bg-coral-600 text-white font-bold"
+                onClick={() => {
+                  if (selectedDocId) handleVerifyDoc(selectedDocId, 'REJECTED', docRejectNote);
+                }}
+                disabled={!docRejectNote.trim() || isVerifyingDoc}
+              >
+                Tolak Dokumen
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

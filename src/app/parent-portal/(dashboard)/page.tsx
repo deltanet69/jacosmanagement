@@ -20,8 +20,10 @@ import {
   ShieldCheck,
   Clock,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  XCircle
 } from 'lucide-react';
+import { uploadJacosAgreement, getParentDashboardData } from '@/app/parent-portal/actions';
 
 export default function ParentDashboardPage() {
   const [loading, setLoading] = useState(true);
@@ -34,6 +36,12 @@ export default function ParentDashboardPage() {
   const [pickerType, setPickerType] = useState('parent');
   const [pickerName, setPickerName] = useState('');
   const [pickerRole, setPickerRole] = useState('');
+  
+  // Agreement States
+  const [applicantId, setApplicantId] = useState<string | null>(null);
+  const [agreementDoc, setAgreementDoc] = useState<any>(null);
+  const [uploadingAgreement, setUploadingAgreement] = useState(false);
+  const [agreementFile, setAgreementFile] = useState<File | null>(null);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -53,41 +61,41 @@ export default function ParentDashboardPage() {
         const userEmail = user.email;
         const studentIdFromMeta = user.user_metadata?.student_id;
 
-        // 1. Cek status dari DB applicants secara realtime (bukan JWT yang bisa stale)
+        const applicantIdFromMeta = user.user_metadata?.applicant_id;
+
         let resolvedStatus = 'Approved'; // default: biarkan masuk
-        let resolvedStudentId = studentIdFromMeta;
+        
+        // Fetch data via server action to bypass RLS on documents table
+        const { applicantData, applicantId: resolvedApplicantId, studentId } = await getParentDashboardData(applicantIdFromMeta, userEmail, studentIdFromMeta);
+        
+        let applicantId = resolvedApplicantId;
+        let resolvedStudentId = studentId;
 
-        if (userEmail) {
-          // Cari applicant berdasarkan email guardian
-          const { data: guardians } = await supabase
-            .from('guardians')
-            .select('applicant_id, applicants(id, status, student_record_id)')
-            .ilike('email', userEmail)
-            .limit(1);
-
-          if (guardians && guardians.length > 0) {
-            const applicant = (guardians[0] as any).applicants;
-            if (applicant) {
-              if (applicant.status === 'ENROLLED' || applicant.student_record_id) {
-                resolvedStatus = 'Approved';
-                // Ambil student_id dari DB jika belum ada di metadata
-                if (!resolvedStudentId && applicant.student_record_id) {
-                  resolvedStudentId = applicant.student_record_id;
-                }
-              } else if (applicant.status === 'REJECTED') {
-                resolvedStatus = 'Rejected';
-              } else {
-                // SUBMITTED / REVIEWING — masih menunggu
-                resolvedStatus = 'Waiting for approval';
-              }
+        // 4. Set state berdasarkan data yang ditemukan
+        if (applicantData) {
+          if (applicantData.documents) {
+            const agreement = applicantData.documents.find((d: any) => d.type === 'JACOS_AGREEMENT');
+            if (agreement) {
+              setAgreementDoc(agreement);
             }
-          } else if (studentIdFromMeta) {
-            // Sudah ada student_id di metadata → sudah approved
-            resolvedStatus = 'Approved';
           }
+
+          if (applicantData.status === 'ENROLLED' || applicantData.student_record_id) {
+            resolvedStatus = 'Approved';
+            if (!resolvedStudentId && applicantData.student_record_id) {
+              resolvedStudentId = applicantData.student_record_id;
+            }
+          } else if (applicantData.status === 'REJECTED') {
+            resolvedStatus = 'Rejected';
+          } else {
+            resolvedStatus = 'Waiting for approval';
+          }
+        } else if (studentIdFromMeta) {
+          resolvedStatus = 'Approved';
         }
 
         setStatus(resolvedStatus);
+        setApplicantId(applicantId);
 
         // 2. Load student data
         let loadedStudent = null;
@@ -144,6 +152,34 @@ export default function ParentDashboardPage() {
     setQrKey(Date.now());
   };
 
+  const handleAgreementUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!agreementFile) return;
+    if (!applicantId) {
+      alert("Tidak dapat mengunggah dokumen: Data pendaftaran tidak ditemukan. Silakan hubungi admin.");
+      return;
+    }
+
+    setUploadingAgreement(true);
+    try {
+      const formData = new FormData();
+      formData.append("file", agreementFile);
+      
+      const res = await uploadJacosAgreement(applicantId, formData);
+      if (!res.success) {
+        throw new Error(res.message);
+      }
+
+      // Reload page to reflect changes
+      window.location.reload();
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      alert("Gagal mengupload dokumen: " + err.message);
+    } finally {
+      setUploadingAgreement(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex h-[calc(100vh-80px)] items-center justify-center">
@@ -186,6 +222,110 @@ export default function ParentDashboardPage() {
     );
   }
 
+  // Enum verification yang valid: PENDING, REJECTED, VERIFIED
+  const isAgreementApproved = agreementDoc && agreementDoc.verification === 'VERIFIED';
+  const isAgreementPending = agreementDoc && (agreementDoc.verification === 'PENDING' || agreementDoc.verification === 'REVIEWING');
+  const isAgreementRejected = agreementDoc && agreementDoc.verification === 'REJECTED';
+
+  // Modal Dokumen Agreement
+  const renderAgreementOverlay = () => {
+    return (
+      <div className="fixed inset-0 z-50 bg-ink/60 backdrop-blur-sm overflow-y-auto">
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="max-w-2xl w-full bg-white rounded-3xl shadow-2xl border border-ink/10 p-6 md:p-8 space-y-6">
+            
+            <div className="text-center space-y-3">
+              <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 border ${isAgreementPending ? 'bg-sun-50 border-sun/20' : 'bg-sky-50 border-sky/20'}`}>
+                {isAgreementPending 
+                  ? <Clock size={36} className="text-sun" />
+                  : <ShieldCheck size={36} className="text-sky" />
+                }
+              </div>
+              <h2 className="font-display text-2xl md:text-3xl font-bold text-ink">
+                {isAgreementPending ? 'Dokumen Sedang Ditinjau' : 'Verifikasi Declaration Agreements'}
+              </h2>
+              <p className="text-ink-400 text-sm md:text-base px-4">
+                {isAgreementPending
+                  ? 'Dokumen Declaration Agreements Anda telah kami terima dan sedang dalam proses verifikasi oleh tim Admin. Anda akan mendapat notifikasi setelah disetujui.'
+                  : 'Untuk membuka seluruh fitur Parent Portal, Anda perlu mengunduh, menandatangani, dan mengunggah kembali dokumen persetujuan (Declaration Agreements).'
+                }
+              </p>
+            </div>
+
+            {/* Case 1: Belum ada dokumen atau dokumen ditolak — tampilkan form upload */}
+            {(!agreementDoc || isAgreementRejected) ? (
+              <div className="space-y-6">
+                
+                {isAgreementRejected && (
+                  <div className="bg-coral-50 border border-coral-200 rounded-2xl p-4 flex gap-3">
+                    <XCircle className="text-coral shrink-0" size={20} />
+                    <div>
+                      <p className="font-bold text-coral-700 text-sm mb-1">Dokumen Anda Ditolak</p>
+                      <p className="text-xs text-coral-600 font-medium">Catatan Admin: {agreementDoc.review_note || "Silakan upload ulang dengan benar."}</p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="bg-cloud p-6 rounded-2xl border border-ink/5 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-bold text-md mb-1">1. Unduh Dokumen</h3>
+                    <p className="text-sm text-ink-400">Silakan unduh dokumen PDF ini, lalu cetak dan berikan tanda tangan basah serta Materai 10.000.</p>
+                  </div>
+                  <a 
+                    href="/publicjacos/agreements/PD_LETTER_JACOS.pdf" 
+                    download
+                    target="_blank"
+                    className="h-10 px-6 bg-white border border-sky/20 hover:border-sky text-sky font-bold text-sm rounded-xl flex items-center gap-2 whitespace-nowrap shadow-sm transition"
+                  >
+                    <ExternalLink size={16} /> Unduh PDF
+                  </a>
+                </div>
+
+                <div className="bg-cloud p-6 rounded-2xl border border-ink/5">
+                  <h3 className="font-bold text-md mb-1">2. Unggah Dokumen</h3>
+                  <p className="text-sm text-ink-400 mb-4">Scan atau foto dokumen yang sudah ditandatangani beserta materai dengan jelas.</p>
+                  <form onSubmit={handleAgreementUpload} className="space-y-4">
+                    <div className="relative">
+                      <input 
+                        type="file" 
+                        accept=".pdf,image/*" 
+                        required
+                        onChange={(e) => setAgreementFile(e.target.files?.[0] || null)}
+                        className="block w-full text-sm text-ink-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-sky-50 file:text-sky hover:file:bg-sky-100 transition cursor-pointer bg-white border border-ink/10 rounded-xl" 
+                      />
+                    </div>
+                    <Button 
+                      type="submit" 
+                      className="w-full bg-sky hover:bg-sky-600 text-white font-bold h-12 rounded-xl"
+                      disabled={uploadingAgreement || !agreementFile}
+                    >
+                      {uploadingAgreement ? 'Mengunggah...' : 'Unggah Dokumen'}
+                    </Button>
+                  </form>
+                </div>
+
+              </div>
+            ) : (
+              <div className="bg-sun-50 border border-sun-200 rounded-2xl p-6 text-center space-y-3">
+                <Clock className="mx-auto text-sun" size={32} />
+                <h3 className="font-bold text-sun-700 text-lg">Dokumen Sedang Ditinjau</h3>
+                <p className="text-sm text-sun-600">
+                  Terima kasih, dokumen persetujuan Anda telah kami terima dan sedang dalam proses verifikasi oleh Admin. Harap periksa kembali beberapa saat lagi.
+                </p>
+                <div className="pt-4">
+                  <Button variant="outline" className="border-sun-300 text-sun-700 hover:bg-sun-100" onClick={() => window.location.reload()}>
+                    Refresh Status
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const studentName = student?.full_name || 'Siswa JACOS';
   const className = Array.isArray(student?.school_classes) 
     ? student?.school_classes[0]?.name 
@@ -199,8 +339,11 @@ export default function ParentDashboardPage() {
   });
 
   return (
-    <div className="space-y-8 pb-12">
-      {/* Header Banner */}
+    <>
+      {!isAgreementApproved && renderAgreementOverlay()}
+      
+      <div className={`space-y-8 pb-12 ${!isAgreementApproved ? 'pointer-events-none opacity-50 blur-sm h-[calc(100vh-80px)] overflow-hidden' : ''}`}>
+        {/* Header Banner */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="font-display text-3xl font-bold text-ink">Ringkasan Aktivitas</h1>
@@ -497,5 +640,6 @@ export default function ParentDashboardPage() {
         </div>
       )}
     </div>
+    </>
   );
 }

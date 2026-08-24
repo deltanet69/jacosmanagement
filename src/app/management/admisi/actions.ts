@@ -464,3 +464,32 @@ export async function rejectApplicant(applicantId: string, reason?: string) {
   revalidatePath(`/management/admisi/${applicantId}`);
   return { success: true, emailSent: resendResult?.success ?? false };
 }
+
+// ============================================================
+// JACOS AGREEMENT VERIFICATION
+// ============================================================
+
+export async function verifyDocumentAgreement(documentId: string, applicantId: string, status: string, note?: string) {
+  const supabase = createAdminClient();
+
+  // Map UI status ke DB enum yang valid: PENDING | REJECTED | VERIFIED
+  // 'APPROVED' tidak ada di enum DB — gunakan 'VERIFIED'
+  const dbStatus = status === 'APPROVED' ? 'VERIFIED' : status;
+
+  const { error } = await supabase
+    .from("documents")
+    .update({ 
+      verification: dbStatus, 
+      review_note: note || null 
+    })
+    .eq("id", documentId);
+
+  if (error) {
+    console.error("Error verifying document:", error);
+    return { success: false, message: error.message };
+  }
+
+  revalidatePath(`/management/admisi/${applicantId}`);
+  revalidatePath("/parent-portal");
+  return { success: true };
+}

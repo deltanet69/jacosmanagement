@@ -308,8 +308,8 @@ export default function TambahAdmisiPage() {
             {form.paymentMethod === "Transfer BNI" && (
               <div className="bg-cloud rounded-2xl p-5 border border-ink/5 mt-4">
                  <p className="text-sm font-bold text-ink mb-1">Tujuan Transfer BNI</p>
-                 <p className="text-sm text-ink-400">No. Rekening: <span className="font-mono font-bold text-ink">1287361001</span></p>
-                 <p className="text-sm text-ink-400">Atas Nama: <span className="font-bold text-ink">Jakarta Cosmopolite International School</span></p>
+                 <p className="text-sm text-ink-400">No. Rekening: <span className="font-mono font-bold text-ink">2332334216</span></p>
+                 <p className="text-sm text-ink-400">Atas Nama: <span className="font-bold text-ink">Yayasan Cahaya Pembangunan Global Indonesia</span></p>
               </div>
             )}
             
