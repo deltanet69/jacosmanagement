@@ -66,7 +66,11 @@ export default function ParentDashboardPage() {
         let resolvedStatus = 'Approved'; // default: biarkan masuk
         
         // Fetch data via server action to bypass RLS on documents table
-        const { applicantData, applicantId: resolvedApplicantId, studentId } = await getParentDashboardData(applicantIdFromMeta, userEmail, studentIdFromMeta);
+        const { applicantData, applicantId: resolvedApplicantId, studentId } = await getParentDashboardData(
+          applicantIdFromMeta || null, 
+          userEmail || null, 
+          studentIdFromMeta || null
+        );
         
         let applicantId = resolvedApplicantId;
         let resolvedStudentId = studentId;
