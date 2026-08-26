@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup } from '@/components/ui/radio-group';
-import { createBrowserClient } from '@supabase/ssr';
+import { createParentClient } from '@/lib/supabase/client';
 import { QRCodeSVG } from 'qrcode.react';
 import Link from 'next/link';
 import { 
@@ -23,12 +23,13 @@ import {
   ExternalLink,
   XCircle
 } from 'lucide-react';
-import { uploadJacosAgreement, getParentDashboardData } from '@/app/parent-portal/actions';
+import { uploadJacosAgreement, getParentDashboardData, getParentAnnouncements } from '@/app/parent-portal/actions';
 
 export default function ParentDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
   const [student, setStudent] = useState<any>(null);
+  const [announcements, setAnnouncements] = useState<any[]>([]);
   
   // QR Generator Modal States
   const [showQR, setShowQR] = useState(false);
@@ -43,10 +44,7 @@ export default function ParentDashboardPage() {
   const [uploadingAgreement, setUploadingAgreement] = useState(false);
   const [agreementFile, setAgreementFile] = useState<File | null>(null);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = createParentClient();
 
   useEffect(() => {
     const fetchStatusAndStudent = async () => {
@@ -122,6 +120,12 @@ export default function ParentDashboardPage() {
         }
 
         setStudent(loadedStudent);
+
+        // Load real-time announcements for parent
+        const annRes = await getParentAnnouncements();
+        if (annRes.success && annRes.data) {
+          setAnnouncements(annRes.data);
+        }
       } catch (err) {
         console.error("Error loading dashboard data:", err);
       } finally {
@@ -129,6 +133,25 @@ export default function ParentDashboardPage() {
       }
     };
     fetchStatusAndStudent();
+
+    // Supabase Realtime channel for announcements on dashboard
+    const channel = supabase
+      .channel("realtime_dashboard_announcements")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "announcements" },
+        async () => {
+          const res = await getParentAnnouncements();
+          if (res.success && res.data) {
+            setAnnouncements(res.data);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [supabase]);
 
   // Auto reload QR every 30 seconds for security when modal is active
@@ -453,31 +476,69 @@ export default function ParentDashboardPage() {
           </div>
 
           <div className="space-y-4">
-            <div className="bg-sky-50/50 p-5 rounded-2xl border border-sky/20 flex flex-col sm:flex-row gap-4 items-start">
-              <div className="w-11 h-11 rounded-xl bg-sky-100 flex items-center justify-center shrink-0 text-sky-700 font-bold">
-                📢
+            {announcements.length === 0 ? (
+              <div className="p-8 text-center bg-cloud/50 rounded-2xl border border-ink/5">
+                <p className="text-xs text-ink-400 font-semibold">Belum ada informasi terbaru dari sekolah.</p>
               </div>
-              <div className="flex-1">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-bold text-sky-950 text-base">Kegiatan Field Trip Minggu Depan</h3>
-                  <span className="text-[11px] font-bold text-sky-600 bg-sky-100/70 px-2.5 py-0.5 rounded-full">
-                    Khusus Kelas
-                  </span>
-                </div>
-                <p className="text-xs sm:text-sm font-medium text-sky-900 mt-1 leading-relaxed">
-                  Harap mempersiapkan bekal dan seragam olahraga untuk kegiatan field trip yang akan dilaksanakan pada hari Rabu di Taman Safari Indonesia.
-                </p>
-                <span className="text-[11px] font-semibold text-sky-600 mt-3 block">14 Agustus 2026</span>
-              </div>
-            </div>
+            ) : (
+              announcements.slice(0, 3).map((item: any, idx: number) => {
+                const cleanSnippet = item.content
+                  ? item.content.replace(/<[^>]*>?/gm, ' ').replace(/\s+/g, ' ').trim()
+                  : '';
+                const excerpt = cleanSnippet.length > 120 ? cleanSnippet.substring(0, 120) + '...' : cleanSnippet;
+                const formattedDate = new Date(item.created_at).toLocaleDateString('id-ID', {
+                  day: 'numeric',
+                  month: 'short',
+                  year: 'numeric'
+                });
 
-            <div className="p-4 rounded-2xl bg-cloud/50 border border-ink/5 flex items-center justify-between">
-              <div>
-                <h4 className="font-bold text-ink text-sm">Pemberitahuan Libur Nasional</h4>
-                <p className="text-xs text-ink-400 mt-0.5">Kegiatan belajar daring dalam rangka HUT RI</p>
-              </div>
-              <span className="text-xs font-bold text-ink-300">16 Agu</span>
-            </div>
+                return (
+                  <Link
+                    key={item.id}
+                    href="/parent-portal/informasi"
+                    className={`block p-5 rounded-2xl border transition-all hover:-translate-y-0.5 hover:shadow-xs ${
+                      idx === 0
+                        ? 'bg-sky-50/60 border-sky/20 hover:border-sky/40'
+                        : 'bg-cloud/40 border-ink/5 hover:bg-white hover:border-ink/15'
+                    }`}
+                  >
+                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+                      <div
+                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold ${
+                          idx === 0 ? 'bg-sky-100 text-sky-700' : 'bg-white text-ink-500 border border-ink/10'
+                        }`}
+                      >
+                        <Megaphone size={18} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap justify-between items-start gap-2">
+                          <h3 className="font-bold text-ink text-sm sm:text-base leading-snug truncate">
+                            {item.title}
+                          </h3>
+                          <span
+                            className={`text-[10px] font-extrabold px-2.5 py-0.5 rounded-full border ${
+                              item.target_type === 'GENERAL'
+                                ? 'bg-sky-100/80 text-sky-800 border-sky-200'
+                                : 'bg-coral-100/80 text-coral-800 border-coral-200'
+                            }`}
+                          >
+                            {item.target_type === 'GENERAL' ? 'Umum' : 'Khusus Kelas'}
+                          </span>
+                        </div>
+                        {excerpt && (
+                          <p className="text-xs font-medium text-ink-500 mt-1 leading-relaxed line-clamp-2">
+                            {excerpt}
+                          </p>
+                        )}
+                        <span className="text-[11px] font-semibold text-ink-400 mt-2.5 block">
+                          {formattedDate} • {item.category}
+                        </span>
+                      </div>
+                    </div>
+                  </Link>
+                );
+              })
+            )}
           </div>
         </div>
 

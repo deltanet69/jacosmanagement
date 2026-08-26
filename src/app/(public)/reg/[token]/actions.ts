@@ -133,8 +133,17 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
       if (insertGuardiansErr) console.error("Error inserting guardians:", insertGuardiansErr);
     }
 
-    // 4. Upload dokumen (Parallel untuk menghindari timeout di Vercel)
-    const docKeys = ["akte", "kk", "ktp_orangtua", "foto4x3", "kartu_imunisasi", "rapor"];
+    // 4. Upload dokumen — simpan URL ke kolom doc_* di applicants
+    const docFieldMap: Record<string, string> = {
+      akte: "doc_birth_certificate",
+      kk: "doc_family_card",
+      ktp_orangtua: "doc_parent_id",
+      foto4x3: "doc_photo_4x3",
+      kartu_imunisasi: "doc_immunization_card",
+      rapor: "doc_previous_report",
+    };
+
+    const docKeys = Object.keys(docFieldMap);
     const uploadPromises = docKeys.map(async (key) => {
       const file = formData.get(`file_${key}`) as File;
       if (file && file.size > 0) {
@@ -147,27 +156,11 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
           .upload(filePath, buffer, { contentType: file.type, upsert: true });
 
         if (!uploadError) {
-          const typeMap: Record<string, string> = {
-            akte: "BIRTH_CERTIFICATE",
-            kk: "FAMILY_CARD",
-            ktp_orangtua: "PARENT_ID",
-            foto4x3: "PHOTO_4X3",
-            kartu_imunisasi: "IMMUNIZATION_CARD",
-            rapor: "PREVIOUS_REPORT",
-          };
-          
-          const docType = typeMap[key] || "BIRTH_CERTIFICATE";
-          
-          // Delete old doc entry just in case to simulate upsert without unique constraint
-          await supabase.from("documents").delete().match({ applicant_id: applicant.id, type: docType });
-
-          // Insert dokumen
-          const { error: docInsertErr } = await supabase.from("documents").insert({
-            applicant_id: applicant.id,
-            type: docType,
-            file_url: filePath,
-          });
-          if (docInsertErr) console.error("Error inserting document:", docInsertErr);
+          const { error: updateErr } = await supabase
+            .from("applicants")
+            .update({ [docFieldMap[key]]: filePath })
+            .eq("id", applicant.id);
+          if (updateErr) console.error("Error updating doc column:", updateErr);
         } else {
           console.error(`Upload error for ${key}:`, uploadError);
         }

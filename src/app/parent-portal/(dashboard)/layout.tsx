@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { createBrowserClient } from "@supabase/ssr";
+import { createParentClient } from "@/lib/supabase/client";
 import { ParentSidebar } from "@/components/parent-portal/ParentSidebar";
 import { ParentTopNav } from "@/components/parent-portal/ParentTopNav";
 
@@ -15,10 +15,7 @@ export default function DashboardLayout({
   const [isApproved, setIsApproved] = useState(false);
   const router = useRouter();
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = createParentClient();
 
   useEffect(() => {
     const checkSession = async () => {

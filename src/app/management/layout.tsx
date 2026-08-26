@@ -16,8 +16,10 @@ export default function DashboardLayout({
       <DashboardSidebar />
       <div className="flex-1 flex flex-col min-w-0">
         <TopNav />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-cloud p-6 lg:p-10">
-          {children}
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-cloud p-4 sm:p-6 lg:p-8 2xl:p-10">
+          <div className="max-w-7xl 2xl:max-w-[1600px] mx-auto w-full">
+            {children}
+          </div>
         </main>
       </div>
     </div>

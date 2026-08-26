@@ -51,32 +51,32 @@ export default function SiswaClientPage({ students }: { students: any[] }) {
   return (
     <div className="space-y-8 pb-12">
       {/* Header Premium */}
-      <div className="relative overflow-hidden rounded-[2.5rem] bg-gradient-to-br from-gold-50 via-white to-cloud border border-gold-100 p-8 sm:p-10 shadow-sm">
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-gold-50 via-white to-cloud border border-gold-100 p-5 sm:p-7 lg:p-8 shadow-sm">
         <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-64 h-64 bg-gradient-to-br from-gold-200/40 to-gold-100/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-0 left-10 translate-y-1/3 w-48 h-48 bg-gradient-to-tr from-sky-200/30 to-transparent rounded-full blur-2xl pointer-events-none" />
         
-        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-8">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-6">
           <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-gold-100/50 text-gold-700 text-xs font-bold tracking-wide uppercase mb-4 border border-gold-200/50">
-              Database Master
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gold-100/60 text-gold-700 text-[11px] font-bold tracking-wide uppercase mb-3 border border-gold-200/50">
+              Data Siswa Master
             </div>
-            <h1 className="font-display text-4xl sm:text-5xl font-extrabold text-ink tracking-tight leading-tight">
+            <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold text-ink tracking-tight leading-tight">
               Data <span className="text-transparent bg-clip-text bg-gradient-to-r from-gold to-gold-600">Siswa Aktif</span>
             </h1>
-            <p className="text-ink-400 mt-3 text-lg leading-relaxed">
+            <p className="text-ink-400 mt-2 text-xs sm:text-sm lg:text-base leading-relaxed">
               Pusat informasi biodata lengkap siswa, data RFID, dan rekam keluarga.
             </p>
           </div>
           
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
             <Link href="/management/siswa/tambah" className="w-full sm:w-auto">
-              <Button variant="outline" className="w-full h-14 px-6 bg-white/80 backdrop-blur-xl border-ink/10 hover:bg-gold-50 hover:text-gold text-ink font-bold rounded-2xl shadow-sm transition-all duration-300">
-                <Plus size={20} className="mr-2" /> Tambah Siswa
+              <Button variant="outline" className="w-full sm:w-auto h-11 px-5 bg-white/80 backdrop-blur-xl border-ink/10 hover:bg-gold-50 hover:text-gold text-ink font-bold rounded-xl shadow-2xs transition-all text-xs sm:text-sm">
+                <Plus size={16} className="mr-1.5" /> Tambah Siswa
               </Button>
             </Link>
             <Link href="/management/siswa/import" className="w-full sm:w-auto">
-              <Button className="w-full h-14 px-6 bg-ink hover:bg-ink-600 text-white font-bold rounded-2xl shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all duration-300">
-                <FileSpreadsheet size={20} className="mr-2" /> Import Excel
+              <Button className="w-full sm:w-auto h-11 px-5 bg-ink hover:bg-ink-600 text-white font-bold rounded-xl shadow-md transition-all text-xs sm:text-sm">
+                <FileSpreadsheet size={16} className="mr-1.5" /> Import Excel
               </Button>
             </Link>
           </div>

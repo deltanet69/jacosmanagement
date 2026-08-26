@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { createBrowserClient } from '@supabase/ssr';
+import { createParentClient } from '@/lib/supabase/client';
 import { User, CreditCard, Lock, Download } from 'lucide-react';
 import Image from 'next/image';
 
@@ -10,10 +10,7 @@ export default function ProfilSiswaPage() {
   const [loading, setLoading] = useState(true);
   const [student, setStudent] = useState<any>(null);
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = createParentClient();
 
   useEffect(() => {
     const fetchStudentData = async () => {

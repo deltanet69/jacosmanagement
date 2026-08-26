@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { createBrowserClient } from '@supabase/ssr'
+import { createParentClient } from '@/lib/supabase/client'
 import { KeyRound, Eye, EyeOff, ShieldCheck } from 'lucide-react'
 
 export default function ChangePasswordPage() {
@@ -17,10 +17,7 @@ export default function ChangePasswordPage() {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  )
+  const supabase = createParentClient()
 
   const validatePassword = (pass: string) => {
     if (pass.length < 6) return 'Password minimal 6 karakter.'

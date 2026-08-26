@@ -2,7 +2,7 @@
 
 import { Bell, Menu, LayoutDashboard, User, BookOpen, Megaphone, Car, Receipt, PiggyBank, Settings, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
-import { createBrowserClient } from "@supabase/ssr";
+import { createParentClient } from "@/lib/supabase/client";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import Link from "next/link";
 import Image from "next/image";
@@ -52,10 +52,7 @@ export function ParentTopNav() {
   const pathname = usePathname();
   const router = useRouter();
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = createParentClient();
 
   useEffect(() => {
     const fetchUser = async () => {

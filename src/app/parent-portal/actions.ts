@@ -21,38 +21,17 @@ export async function uploadJacosAgreement(applicantId: string, formData: FormDa
 
     if (uploadError) throw uploadError;
 
-    // Check if agreement document already exists
-    const { data: existingDoc } = await supabase
-      .from("documents")
-      .select("id")
-      .eq("applicant_id", applicantId)
-      .in("type", ["JACOS_AGREEMENT"]) // wait, the column could be type or document_type
-      .single();
+    // Simpan URL & reset status ke kolom di applicants
+    const { error: updateErr } = await supabase
+      .from("applicants")
+      .update({
+        doc_jacos_agreement: filePath,
+        doc_jacos_agreement_status: 'PENDING',
+        doc_jacos_agreement_note: null,
+      })
+      .eq("id", applicantId);
 
-    if (existingDoc) {
-      const { error: updateErr } = await supabase
-        .from("documents")
-        .update({
-          file_url: filePath,
-          verification: 'PENDING',
-          review_note: null,
-          uploaded_at: new Date().toISOString()
-        })
-        .eq("id", existingDoc.id);
-        
-      if (updateErr) throw updateErr;
-    } else {
-      const { error: insertErr } = await supabase
-        .from("documents")
-        .insert({
-          applicant_id: applicantId,
-          type: 'JACOS_AGREEMENT',
-          file_url: filePath,
-          verification: 'PENDING'
-        });
-        
-      if (insertErr) throw insertErr;
-    }
+    if (updateErr) throw updateErr;
 
     return { success: true };
   } catch (err: any) {
@@ -67,21 +46,21 @@ export async function getParentDashboardData(applicantId: string | null, userEma
   let resolvedApplicantId = applicantId;
   let resolvedStudentId = studentIdFromMeta;
 
-  // 1. Coba ambil dari DB applicants langsung
+  const selectCols = 'id, status, student_record_id, doc_jacos_agreement, doc_jacos_agreement_status, doc_jacos_agreement_note, doc_photo_4x3, doc_birth_certificate, doc_immunization_card, doc_previous_report, doc_family_card, doc_parent_id';
+
   if (resolvedApplicantId) {
     const { data } = await supabase
       .from('applicants')
-      .select('id, status, student_record_id, documents(id, type, verification, review_note)')
+      .select(selectCols)
       .eq('id', resolvedApplicantId)
       .maybeSingle();
     if (data) applicantData = data;
   }
 
-  // 2. Fallback: Cari dari email guardian
   if (!applicantData && userEmail) {
     const { data: guardians } = await supabase
       .from('guardians')
-      .select('applicant_id, applicants(id, status, student_record_id, documents(id, type, verification, review_note))')
+      .select(`applicant_id, applicants(${selectCols})`)
       .ilike('email', userEmail)
       .limit(1);
 
@@ -94,11 +73,10 @@ export async function getParentDashboardData(applicantId: string | null, userEma
     }
   }
 
-  // 3. Fallback: Cari dari student_record_id
   if (!applicantData && resolvedStudentId) {
     const { data: applicantFallback } = await supabase
       .from('applicants')
-      .select('id, status, student_record_id, documents(id, type, verification, review_note)')
+      .select(selectCols)
       .eq('student_record_id', resolvedStudentId)
       .maybeSingle();
 
@@ -109,4 +87,32 @@ export async function getParentDashboardData(applicantId: string | null, userEma
   }
 
   return { applicantData, applicantId: resolvedApplicantId, studentId: resolvedStudentId };
+}
+
+export async function getParentAnnouncements(studentClassId?: string | null) {
+  const supabase = createAdminClient();
+  try {
+    const { data, error } = await supabase
+      .from('announcements')
+      .select('*')
+      .eq('is_published', true)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    const allAnnouncements = data || [];
+    const filtered = allAnnouncements.filter((item: any) => {
+      if (item.target_type === 'GENERAL') return true;
+      if (item.target_type === 'SPECIFIC_CLASSES') {
+        if (!studentClassId) return true;
+        return Array.isArray(item.target_classes) && item.target_classes.includes(studentClassId);
+      }
+      return true;
+    });
+
+    return { success: true, data: filtered };
+  } catch (err: any) {
+    console.error("Error getParentAnnouncements:", err);
+    return { success: false, data: [] };
+  }
 }

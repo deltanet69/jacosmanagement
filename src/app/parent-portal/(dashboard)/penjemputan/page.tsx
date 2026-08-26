@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { createBrowserClient } from '@supabase/ssr';
+import { createParentClient } from '@/lib/supabase/client';
 import { QRCodeSVG } from 'qrcode.react';
 import { History, Car, UserCircle, Users, CheckCircle2 } from 'lucide-react';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -18,10 +18,7 @@ export default function PenjemputanPage() {
   const [pickerName, setPickerName] = useState('');
   const [pickerRole, setPickerRole] = useState('');
 
-  const supabase = createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  );
+  const supabase = createParentClient();
 
   useEffect(() => {
     const fetchStudentData = async () => {

@@ -4,7 +4,17 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 import { isValidEmail, getFirstValidEmail } from "@/lib/utils";
-import { sendFormReceivedEmail, sendApprovalEmail, sendRejectionEmail } from "@/lib/email";
+import {
+  sendFormReceivedEmail,
+  sendApprovalEmail,
+  sendRejectionEmail,
+  sendAgreementApprovedEmail,
+} from "@/lib/email";
+import {
+  AdmissionBatchKey,
+  getCurrentActiveBatch,
+  getBatchInfo,
+} from "@/lib/admission-config";
 
 // ============================================================
 // UTILITY
@@ -14,8 +24,31 @@ function generateToken(): string {
   return crypto.randomBytes(6).toString("hex");
 }
 
-function generateRegistrationNo(nextNum: number): string {
-  const prefix = "JCS-" + new Date().getFullYear();
+async function getNextRegistrationNo(supabase: any): Promise<string> {
+  const currentYear = new Date().getFullYear();
+  const prefix = `JCS-${currentYear}`;
+
+  const { data: allRegs } = await supabase
+    .from("applicants")
+    .select("registration_no")
+    .like("registration_no", `${prefix}-%`);
+
+  let maxNum = 0;
+  if (allRegs && allRegs.length > 0) {
+    for (const item of allRegs) {
+      if (item.registration_no) {
+        const match = item.registration_no.match(/-(\d+)$/);
+        if (match) {
+          const num = parseInt(match[1], 10);
+          if (!isNaN(num) && num > maxNum) {
+            maxNum = num;
+          }
+        }
+      }
+    }
+  }
+
+  const nextNum = maxNum + 1;
   return `${prefix}-${nextNum.toString().padStart(5, "0")}`;
 }
 
@@ -32,7 +65,7 @@ function generateTempPassword(): string {
 }
 
 // ============================================================
-// READ
+// READ — Applicants & Classes
 // ============================================================
 
 export async function getApplicants() {
@@ -53,7 +86,7 @@ export async function getApplicantDetail(id: string) {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("applicants")
-    .select(`*, guardians (*), documents (*)`)
+    .select(`*, guardians (*)`)
     .eq("id", id)
     .single();
 
@@ -62,28 +95,143 @@ export async function getApplicantDetail(id: string) {
     return null;
   }
 
-  // Generate signed URLs for private documents
-  if (data?.documents && data.documents.length > 0) {
-    for (const doc of data.documents) {
+  // Generate signed URLs for doc_* columns on applicants
+  const docFields = [
+    "doc_photo_4x3",
+    "doc_birth_certificate",
+    "doc_immunization_card",
+    "doc_previous_report",
+    "doc_family_card",
+    "doc_parent_id",
+    "doc_jacos_agreement",
+  ] as const;
+
+  const signedUrls: Record<string, string> = {};
+  for (const field of docFields) {
+    const filePath = (data as any)[field];
+    if (filePath) {
       const { data: urlData } = await supabase.storage
         .from("admission-documents")
-        .createSignedUrl(doc.file_url, 3600);
-      if (urlData) {
-        doc.signed_url = urlData.signedUrl;
-      }
+        .createSignedUrl(filePath, 3600);
+      if (urlData) signedUrls[`${field}_signed`] = urlData.signedUrl;
     }
   }
 
-  return data;
+  return { ...data, ...signedUrls };
 }
 
 export async function getClasses() {
   const supabase = createAdminClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("school_classes")
-    .select("*")
+    .select("id, name, grade, capacity")
     .order("grade", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching classes:", error);
+    return [];
+  }
   return data || [];
+}
+
+// ============================================================
+// READ — Batch Approved Students
+// ============================================================
+
+export async function getBatchApprovedStudents() {
+  const supabase = createAdminClient();
+
+  try {
+    // 1. Ambil data students yang berasal dari pendaftaran
+    const { data: students, error: studentError } = await supabase
+      .from("students")
+      .select(`
+        id,
+        applicant_id,
+        full_name,
+        nis,
+        nisn,
+        gender,
+        program,
+        class_id,
+        created_at,
+        school_classes ( id, name, grade )
+      `)
+      .order("created_at", { ascending: false });
+
+    if (studentError) {
+      console.error("Error fetching batch students:", studentError);
+      return [];
+    }
+
+    // 2. Ambil data applicants terkait
+    const applicantIds = (students || [])
+      .map((s) => s.applicant_id)
+      .filter(Boolean);
+
+    let applicantsMap = new Map<string, any>();
+    if (applicantIds.length > 0) {
+      const { data: apps } = await supabase
+        .from("applicants")
+        .select(`id, registration_no, submitted_at, updated_at, status, payment_note, guardians (*)`)
+        .in("id", applicantIds);
+
+      if (apps) {
+        apps.forEach((a) => applicantsMap.set(a.id, a));
+      }
+    }
+
+    // 3. Format data dengan resolved batch
+    return (students || []).map((s: any) => {
+      const app = applicantsMap.get(s.applicant_id) || {};
+      const guardians = app.guardians
+        ? Array.isArray(app.guardians)
+          ? app.guardians
+          : [app.guardians]
+        : [];
+      const primaryGuardian =
+        guardians.find((g: any) => isValidEmail(g?.email)) || guardians[0];
+
+      // Resolve batch:
+      // a) Dari column s.batch / app.batch jika ada
+      // b) Dari tag di payment_note misal "[BATCH_1]"
+      // c) Dari created_at date / submitted_at date
+      let resolvedBatch: AdmissionBatchKey = "BATCH_1";
+
+      if ((s as any).batch && ["BATCH_1", "BATCH_2", "BATCH_3"].includes((s as any).batch)) {
+        resolvedBatch = (s as any).batch;
+      } else if ((app as any).batch && ["BATCH_1", "BATCH_2", "BATCH_3"].includes((app as any).batch)) {
+        resolvedBatch = (app as any).batch;
+      } else if (app.payment_note && app.payment_note.includes("[BATCH_")) {
+        const match = app.payment_note.match(/\[(BATCH_[123])\]/);
+        if (match) resolvedBatch = match[1] as AdmissionBatchKey;
+      } else {
+        const dateToUse = new Date(app.submitted_at || s.created_at || new Date());
+        resolvedBatch = getCurrentActiveBatch(dateToUse);
+      }
+
+      return {
+        id: s.id,
+        applicant_id: s.applicant_id,
+        full_name: s.full_name,
+        nis: s.nis || "-",
+        nisn: s.nisn || "-",
+        gender: s.gender,
+        program: s.program,
+        class_id: s.class_id,
+        school_class: s.school_classes || null,
+        batch: resolvedBatch,
+        registration_no: app.registration_no || "-",
+        guardian_name: primaryGuardian?.full_name || "-",
+        guardian_phone: primaryGuardian?.phone || "-",
+        guardian_email: primaryGuardian?.email || "-",
+        enrolled_at: app.submitted_at || s.created_at,
+      };
+    });
+  } catch (err) {
+    console.error("Exception in getBatchApprovedStudents:", err);
+    return [];
+  }
 }
 
 // ============================================================
@@ -105,19 +253,7 @@ export async function createNewAdmission(formData: {
   const supabase = createAdminClient();
 
   try {
-    const { data: last } = await supabase
-      .from("applicants")
-      .select("registration_no")
-      .order("submitted_at", { ascending: false })
-      .limit(1);
-
-    let nextNum = 1;
-    if (last && last.length > 0) {
-      const match = last[0].registration_no?.match(/-(\d+)$/);
-      if (match) nextNum = parseInt(match[1]) + 1;
-    }
-
-    const registrationNo = generateRegistrationNo(nextNum);
+    const registrationNo = await getNextRegistrationNo(supabase);
     const registrationToken = generateToken();
 
     const programMap: Record<string, string> = {
@@ -175,13 +311,10 @@ export async function createNewAdmission(formData: {
       console.error("Error creating guardian:", guardianError);
     }
 
-    // ============================================================
     // Kirim email konfirmasi pendaftaran ke orang tua
-    // ============================================================
     const cleanEmail = formData.parentEmail?.trim();
-    if (cleanEmail && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+    if (cleanEmail && isValidEmail(cleanEmail)) {
       try {
-        // 1. Buat akun auth untuk orang tua
         const tempPassword = generateTempPassword();
         const portalUrl = process.env.NEXT_PUBLIC_PARENT_URL || "https://parent.jacos.id";
 
@@ -222,16 +355,14 @@ export async function createNewAdmission(formData: {
                   admission_status: "Waiting for approval",
                 },
               });
-              console.log("[createNewAdmission] Updated existing user password for:", cleanEmail);
             }
           } else {
             console.error("[createNewAdmission] Error creating parent auth user:", authError);
-            finalPassword = ""; // Jangan kirim password jika ada error tak terduga
+            finalPassword = "";
           }
         }
 
-        // 2. Kirim email dengan detail portal access dan nomor registrasi
-        const emailResult = await sendFormReceivedEmail({
+        await sendFormReceivedEmail({
           parentName: formData.parentName,
           parentEmail: cleanEmail,
           studentName: formData.studentName,
@@ -241,14 +372,9 @@ export async function createNewAdmission(formData: {
           portalEmail: cleanEmail,
           portalPassword: finalPassword,
         });
-
-        console.log("[createNewAdmission] Email sent to", cleanEmail, "result:", emailResult);
       } catch (emailErr) {
-        // Email error tidak memblokir proses pendaftaran
         console.error("[createNewAdmission] Email error (non-fatal):", emailErr);
       }
-    } else {
-      console.warn("[createNewAdmission] Invalid or missing parent email:", formData.parentEmail);
     }
 
     revalidatePath("/management/admisi");
@@ -256,6 +382,294 @@ export async function createNewAdmission(formData: {
   } catch (err: any) {
     console.error(err);
     return { success: false, message: err.message || "Terjadi kesalahan sistem." };
+  }
+}
+
+// ============================================================
+// APPROVAL — Approve Siswa dengan Assignment BATCH
+// ============================================================
+
+export async function approveApplicantWithBatch(
+  applicantId: string,
+  batchKey?: string
+) {
+  const supabase = createAdminClient();
+  let resendResult: any = null;
+
+  try {
+    const selectedBatch = (batchKey as AdmissionBatchKey) || getCurrentActiveBatch();
+
+    // 1. Ambil data applicant
+    const { data: applicant, error: applicantError } = await supabase
+      .from("applicants")
+      .select("*, guardians(*)")
+      .eq("id", applicantId)
+      .single();
+
+    if (applicantError || !applicant) {
+      return { success: false, message: "Pendaftar tidak ditemukan." };
+    }
+
+    // 2. Insert record ke tabel students (class_id: null -> unassigned until batch assignment)
+    const studentPayload: any = {
+      applicant_id: applicant.id,
+      full_name: applicant.student_name,
+      nisn: applicant.nisn,
+      gender: applicant.gender,
+      program: applicant.program,
+      birth_place: applicant.birth_place,
+      birth_date: applicant.birth_date,
+      address: applicant.address,
+      class_id: null,
+      is_active: true,
+    };
+
+    // Sertakan batch jika kolom ada
+    try {
+      studentPayload.batch = selectedBatch;
+    } catch (_) {}
+
+    let student: any = null;
+    const { data: insertedStudent, error: studentError } = await supabase
+      .from("students")
+      .insert(studentPayload)
+      .select()
+      .single();
+
+    if (studentError) {
+      // Fallback jika kolom batch belum ada di students
+      if (studentError.message?.includes("batch")) {
+        delete studentPayload.batch;
+        const { data: fallbackStudent, error: fallbackError } = await supabase
+          .from("students")
+          .insert(studentPayload)
+          .select()
+          .single();
+
+        if (fallbackError) {
+          console.error("Error inserting student (fallback):", fallbackError);
+          return { success: false, message: "Gagal memindahkan data ke tabel Siswa." };
+        }
+        student = fallbackStudent;
+      } else {
+        console.error("Error inserting student:", studentError);
+        return { success: false, message: "Gagal memindahkan data ke tabel Siswa: " + studentError.message };
+      }
+    } else {
+      student = insertedStudent;
+    }
+
+    // 3. Insert ke student_parents
+    const guardiansList = applicant.guardians
+      ? Array.isArray(applicant.guardians)
+        ? applicant.guardians
+        : [applicant.guardians]
+      : [];
+
+    const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
+    const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
+
+    if (guardian && student) {
+      await supabase.from("student_parents").insert({
+        student_id: student.id,
+        father_name: guardian.relation === "FATHER" ? guardian.full_name : null,
+        mother_name: guardian.relation === "MOTHER" ? guardian.full_name : null,
+        father_occupation: guardian.relation === "FATHER" ? guardian.occupation : null,
+        mother_occupation: guardian.relation === "MOTHER" ? guardian.occupation : null,
+        phone_number: guardian.phone,
+      });
+
+      // 4. Update / Buat Akun Auth Orang Tua
+      if (targetEmail) {
+        const tempPassword = generateTempPassword();
+
+        const { error: authError } = await supabase.auth.admin.createUser({
+          email: targetEmail,
+          password: tempPassword,
+          user_metadata: {
+            full_name: guardian.full_name,
+            role: "PARENT",
+            first_login: true,
+            student_id: student.id,
+            student_name: applicant.student_name,
+            admission_status: "Approved",
+          },
+          email_confirm: true,
+        });
+
+        let shouldSendEmail = false;
+        let isExistingUser = false;
+
+        if (authError) {
+          const isAlreadyExists =
+            authError.message.toLowerCase().includes("already") ||
+            authError.message.toLowerCase().includes("exist") ||
+            authError.code === "email_exists";
+
+          if (isAlreadyExists) {
+            const { data: userList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+            const existingUser = userList?.users?.find(
+              (u) => u.email?.toLowerCase() === targetEmail.toLowerCase()
+            );
+            if (existingUser) {
+              await supabase.auth.admin.updateUserById(existingUser.id, {
+                user_metadata: {
+                  ...(existingUser.user_metadata || {}),
+                  full_name: guardian.full_name,
+                  role: "PARENT",
+                  student_id: student.id,
+                  student_name: applicant.student_name,
+                  admission_status: "Approved",
+                },
+              });
+              shouldSendEmail = true;
+              isExistingUser = true;
+            }
+          } else {
+            console.error("Error creating auth user:", authError);
+          }
+        } else {
+          shouldSendEmail = true;
+        }
+
+        const portalUrl = process.env.NEXT_PUBLIC_PARENT_URL || "https://parent.jacos.id";
+
+        // 5. Kirim Email Approval dengan Informasi BATCH
+        if (shouldSendEmail) {
+          resendResult = await sendApprovalEmail({
+            parentName: guardian.full_name,
+            parentEmail: targetEmail,
+            studentName: applicant.student_name,
+            registrationNo: applicant.registration_no,
+            tempPassword: isExistingUser ? undefined : tempPassword,
+            program: applicant.program,
+            batch: selectedBatch,
+            portalUrl,
+          });
+          console.log("[admisi] Approval email sent result:", resendResult);
+        }
+      }
+    }
+
+    // 6. Update applicant status ke ENROLLED + simpan tag batch di payment_note & batch column
+    const noteWithBatch = applicant.payment_note
+      ? `${applicant.payment_note} [${selectedBatch}]`
+      : `[${selectedBatch}]`;
+
+    const applicantUpdatePayload: any = {
+      status: "ENROLLED",
+      student_record_id: student ? student.id : null,
+      payment_note: noteWithBatch,
+    };
+
+    try {
+      applicantUpdatePayload.batch = selectedBatch;
+    } catch (_) {}
+
+    const { error: updateAppErr } = await supabase
+      .from("applicants")
+      .update(applicantUpdatePayload)
+      .eq("id", applicantId);
+
+    if (updateAppErr && updateAppErr.message?.includes("batch")) {
+      delete applicantUpdatePayload.batch;
+      await supabase
+        .from("applicants")
+        .update(applicantUpdatePayload)
+        .eq("id", applicantId);
+    }
+
+    revalidatePath("/management/admisi");
+    revalidatePath(`/management/admisi/${applicantId}`);
+    revalidatePath("/management/siswa");
+
+    return {
+      success: true,
+      batch: selectedBatch,
+      batchInfo: getBatchInfo(selectedBatch),
+      emailSent: resendResult?.success ?? false,
+    };
+  } catch (err: any) {
+    console.error("Exception in approveApplicantWithBatch:", err);
+    return { success: false, message: err.message || "Terjadi kesalahan sistem saat approval." };
+  }
+}
+
+// ============================================================
+// ASSIGN — Siswa ke Classroom (pada Batch Listing)
+// ============================================================
+
+export async function assignStudentToClass(studentId: string, classId: string | null) {
+  const supabase = createAdminClient();
+
+  try {
+    const { error } = await supabase
+      .from("students")
+      .update({ class_id: classId || null })
+      .eq("id", studentId);
+
+    if (error) {
+      console.error("Error assigning student to class:", error);
+      return { success: false, message: error.message };
+    }
+
+    revalidatePath("/management/admisi");
+    revalidatePath("/management/siswa");
+    revalidatePath("/management/classroom");
+
+    return { success: true };
+  } catch (err: any) {
+    console.error("Exception in assignStudentToClass:", err);
+    return { success: false, message: err.message || "Gagal meng-assign kelas." };
+  }
+}
+
+// ============================================================
+// REJECT — Update Status + Kirim Email Penolakan
+// ============================================================
+
+export async function rejectApplicant(applicantId: string, reason?: string) {
+  const supabase = createAdminClient();
+  let resendResult: any = null;
+
+  try {
+    const { data: applicant } = await supabase
+      .from("applicants")
+      .select("*, guardians(*)")
+      .eq("id", applicantId)
+      .single();
+
+    await supabase
+      .from("applicants")
+      .update({ status: "REJECTED", rejection_reason: reason || null })
+      .eq("id", applicantId);
+
+    if (applicant) {
+      const guardiansList = applicant.guardians
+        ? Array.isArray(applicant.guardians)
+          ? applicant.guardians
+          : [applicant.guardians]
+        : [];
+      const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
+      const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
+
+      if (targetEmail && guardian) {
+        resendResult = await sendRejectionEmail({
+          parentName: guardian.full_name,
+          parentEmail: targetEmail,
+          studentName: applicant.student_name,
+          registrationNo: applicant.registration_no,
+          reason: reason || "Belum ada keterangan khusus dari tim admisi.",
+        });
+      }
+    }
+
+    revalidatePath("/management/admisi");
+    revalidatePath(`/management/admisi/${applicantId}`);
+    return { success: true, emailSent: resendResult?.success ?? false };
+  } catch (err: any) {
+    console.error("Exception in rejectApplicant:", err);
+    return { success: false, message: err.message || "Gagal menolak pendaftaran." };
   }
 }
 
@@ -281,155 +695,79 @@ export async function updatePaymentStatus(applicantId: string, status: string) {
 }
 
 // ============================================================
-// APPROVE — Pindahkan ke Siswa + Kirim Email
+// JACOS AGREEMENT VERIFICATION
 // ============================================================
 
-export async function approveAndAssignClass(applicantId: string, classId: string) {
+export async function verifyDocumentAgreement(_documentId: string, applicantId: string, status: string, note?: string) {
   const supabase = createAdminClient();
-  let resendResult: any = null;
+  const dbStatus = status === "APPROVED" ? "VERIFIED" : status;
 
-  const { data: applicant, error: applicantError } = await supabase
+  const { error } = await supabase
     .from("applicants")
-    .select("*, guardians(*)")
-    .eq("id", applicantId)
-    .single();
-
-  if (applicantError || !applicant)
-    return { success: false, message: "Pendaftar tidak ditemukan." };
-
-  const { data: student, error: studentError } = await supabase
-    .from("students")
-    .insert({
-      applicant_id: applicant.id,
-      full_name: applicant.student_name,
-      nisn: applicant.nisn,
-      gender: applicant.gender,
-      program: applicant.program,
-      birth_place: applicant.birth_place,
-      birth_date: applicant.birth_date,
-      address: applicant.address,
-      class_id: classId,
-      is_active: true,
+    .update({
+      doc_jacos_agreement_status: dbStatus,
+      doc_jacos_agreement_note: note || null,
     })
-    .select()
-    .single();
+    .eq("id", applicantId);
 
-  if (studentError) {
-    console.error("Error inserting student:", studentError);
-    return { success: false, message: "Gagal memindahkan data ke tabel Siswa." };
+  if (error) {
+    console.error("Error verifying agreement:", error);
+    return { success: false, message: error.message };
   }
 
-  const guardiansList = applicant.guardians
-    ? (Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians])
-    : [];
+  if (dbStatus === "VERIFIED") {
+    try {
+      const { data: applicant } = await supabase
+        .from("applicants")
+        .select("*, guardians(*)")
+        .eq("id", applicantId)
+        .single();
 
-  const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
-  const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
+      if (applicant) {
+        const guardiansList = applicant.guardians
+          ? Array.isArray(applicant.guardians)
+            ? applicant.guardians
+            : [applicant.guardians]
+          : [];
+        const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
+        const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
 
-  if (guardian) {
-    await supabase.from("student_parents").insert({
-      student_id: student.id,
-      father_name: guardian.relation === "FATHER" ? guardian.full_name : null,
-      mother_name: guardian.relation === "MOTHER" ? guardian.full_name : null,
-      father_occupation: guardian.relation === "FATHER" ? guardian.occupation : null,
-      mother_occupation: guardian.relation === "MOTHER" ? guardian.occupation : null,
-      phone_number: guardian.phone,
-    });
-
-    if (targetEmail) {
-      const tempPassword = generateTempPassword();
-
-      const { error: authError } = await supabase.auth.admin.createUser({
-        email: targetEmail,
-        password: tempPassword,
-        user_metadata: {
-          full_name: guardian.full_name,
-          role: "PARENT",
-          first_login: true,
-          student_id: student.id,
-          admission_status: "Approved",
-        },
-        email_confirm: true,
-      });
-
-      let shouldSendEmail = false;
-      let isExistingUser = false;
-
-      if (authError) {
-        const isAlreadyExists =
-          authError.message.toLowerCase().includes("already") ||
-          authError.message.toLowerCase().includes("exist") ||
-          authError.code === "email_exists";
-
-        if (isAlreadyExists) {
+        if (targetEmail && guardian) {
           const { data: userList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
           const existingUser = userList?.users?.find(
             (u) => u.email?.toLowerCase() === targetEmail.toLowerCase()
           );
           if (existingUser) {
-            // Preserve first_login state: if user already changed password (first_login=false), keep it
-            const alreadyChangedPassword = existingUser.user_metadata?.first_login === false;
-            
             await supabase.auth.admin.updateUserById(existingUser.id, {
-              user_metadata: {
-                ...(existingUser.user_metadata || {}),
-                full_name: guardian.full_name,
-                role: "PARENT",
-                // Jika belum pernah ganti password, tandai first_login agar tidak dipaksa ganti lagi
-                first_login: alreadyChangedPassword ? false : false, // selalu false setelah approved
-                student_id: student.id,
-                student_name: applicant.student_name,
-                admission_status: "Approved",
-              },
+              user_metadata: { ...(existingUser.user_metadata || {}), admission_status: "Approved" },
             });
-            shouldSendEmail = true;
-            isExistingUser = true;
           }
-        } else {
-          console.error("Error creating auth user:", authError);
+
+          await sendAgreementApprovedEmail({
+            parentName: guardian.full_name,
+            parentEmail: targetEmail,
+            studentName: applicant.student_name,
+            registrationNo: applicant.registration_no,
+            portalUrl: process.env.NEXT_PUBLIC_PARENT_URL || "https://parent.jacos.id",
+          });
         }
-      } else {
-        shouldSendEmail = true;
       }
-
-      const portalUrl = process.env.NEXT_PUBLIC_PARENT_URL || "https://parent.jacos.id";
-
-      if (shouldSendEmail) {
-        resendResult = await sendApprovalEmail({
-          parentName: guardian.full_name,
-          parentEmail: targetEmail,
-          studentName: applicant.student_name,
-          registrationNo: applicant.registration_no,
-          tempPassword: isExistingUser ? undefined : tempPassword,
-          program: applicant.program,
-          portalUrl,
-        });
-        console.log("[admisi] Approval email result:", resendResult);
-      }
-    } else {
-      console.warn("[admisi] No valid email for approval:", applicantId);
+    } catch (err) {
+      console.error("[admisi] Error sending agreement approved email:", err);
     }
   }
 
-  await supabase
-    .from("applicants")
-    .update({ status: "ENROLLED", student_record_id: student.id })
-    .eq("id", applicantId);
-
-  revalidatePath("/management/admisi");
   revalidatePath(`/management/admisi/${applicantId}`);
-  revalidatePath("/management/siswa");
-
-  return { success: true, emailSent: resendResult?.success ?? false };
+  revalidatePath("/parent-portal");
+  return { success: true };
 }
 
 // ============================================================
-// REJECT — Update Status + Kirim Email
+// PARENT ACCOUNT ACCESS & PASSWORD RESET
 // ============================================================
 
-export async function rejectApplicant(applicantId: string, reason?: string) {
+export async function getParentAccountStatus(applicantId: string) {
   const supabase = createAdminClient();
-  let resendResult: any = null;
 
   const { data: applicant } = await supabase
     .from("applicants")
@@ -437,59 +775,132 @@ export async function rejectApplicant(applicantId: string, reason?: string) {
     .eq("id", applicantId)
     .single();
 
-  await supabase
+  if (!applicant) {
+    return { success: false, message: "Data pendaftaran tidak ditemukan" };
+  }
+
+  const guardiansList = applicant.guardians
+    ? Array.isArray(applicant.guardians)
+      ? applicant.guardians
+      : [applicant.guardians]
+    : [];
+
+  const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
+  const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
+
+  if (!targetEmail) {
+    return {
+      success: true,
+      hasEmail: false,
+      email: null,
+      guardianName: guardian?.full_name || "-",
+      guardianPhone: guardian?.phone || null,
+      exists: false,
+    };
+  }
+
+  const { data: userList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  const existingUser = userList?.users?.find(
+    (u) => u.email?.toLowerCase() === targetEmail.toLowerCase()
+  );
+
+  return {
+    success: true,
+    hasEmail: true,
+    email: targetEmail,
+    guardianName: guardian?.full_name || "-",
+    guardianPhone: guardian?.phone || null,
+    exists: !!existingUser,
+    lastSignIn: existingUser?.last_sign_in_at || null,
+    userId: existingUser?.id || null,
+  };
+}
+
+export async function resetParentAccountPassword(applicantId: string, customPassword?: string) {
+  const supabase = createAdminClient();
+
+  const { data: applicant } = await supabase
     .from("applicants")
-    .update({ status: "REJECTED", rejection_reason: reason || null })
-    .eq("id", applicantId);
+    .select("*, guardians(*)")
+    .eq("id", applicantId)
+    .single();
 
-  if (applicant) {
-    const guardiansList = applicant.guardians
-      ? (Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians])
-      : [];
-    const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
-    const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
+  if (!applicant) {
+    return { success: false, message: "Data pendaftaran tidak ditemukan" };
+  }
 
-    if (targetEmail && guardian) {
-      resendResult = await sendRejectionEmail({
-        parentName: guardian.full_name,
-        parentEmail: targetEmail,
-        studentName: applicant.student_name,
-        registrationNo: applicant.registration_no,
-        reason: reason || "Belum ada keterangan dari admin.",
-      });
+  const guardiansList = applicant.guardians
+    ? Array.isArray(applicant.guardians)
+      ? applicant.guardians
+      : [applicant.guardians]
+    : [];
+
+  const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
+  const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
+
+  if (!targetEmail) {
+    return {
+      success: false,
+      message: "Tidak ditemukan email orang tua/wali pada data pendaftaran ini.",
+    };
+  }
+
+  const newPassword =
+    customPassword && customPassword.trim().length >= 6
+      ? customPassword.trim()
+      : `Jacos${Math.floor(1000 + Math.random() * 9000)}!`;
+
+  const { data: userList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
+  const existingUser = userList?.users?.find(
+    (u) => u.email?.toLowerCase() === targetEmail.toLowerCase()
+  );
+
+  if (existingUser) {
+    const { error: updateErr } = await supabase.auth.admin.updateUserById(existingUser.id, {
+      password: newPassword,
+      user_metadata: {
+        ...(existingUser.user_metadata || {}),
+        full_name: guardian?.full_name || existingUser.user_metadata?.full_name,
+        role: "PARENT",
+        first_login: false,
+        applicant_id: applicantId,
+        student_id: applicant.student_record_id || existingUser.user_metadata?.student_id || null,
+        student_name: applicant.student_name,
+        admission_status: applicant.status === "ENROLLED" ? "Approved" : (existingUser.user_metadata?.admission_status || "Waiting for approval"),
+      },
+    });
+
+    if (updateErr) {
+      return { success: false, message: `Gagal memperbarui password: ${updateErr.message}` };
+    }
+  } else {
+    const { error: createErr } = await supabase.auth.admin.createUser({
+      email: targetEmail,
+      password: newPassword,
+      user_metadata: {
+        full_name: guardian?.full_name || "Orang Tua Siswa",
+        role: "PARENT",
+        first_login: false,
+        applicant_id: applicantId,
+        student_id: applicant.student_record_id || null,
+        student_name: applicant.student_name,
+        admission_status: applicant.status === "ENROLLED" ? "Approved" : "Waiting for approval",
+      },
+      email_confirm: true,
+    });
+
+    if (createErr) {
+      return { success: false, message: `Gagal membuat akun orang tua: ${createErr.message}` };
     }
   }
 
-  revalidatePath("/management/admisi");
   revalidatePath(`/management/admisi/${applicantId}`);
-  return { success: true, emailSent: resendResult?.success ?? false };
-}
-
-// ============================================================
-// JACOS AGREEMENT VERIFICATION
-// ============================================================
-
-export async function verifyDocumentAgreement(documentId: string, applicantId: string, status: string, note?: string) {
-  const supabase = createAdminClient();
-
-  // Map UI status ke DB enum yang valid: PENDING | REJECTED | VERIFIED
-  // 'APPROVED' tidak ada di enum DB — gunakan 'VERIFIED'
-  const dbStatus = status === 'APPROVED' ? 'VERIFIED' : status;
-
-  const { error } = await supabase
-    .from("documents")
-    .update({ 
-      verification: dbStatus, 
-      review_note: note || null 
-    })
-    .eq("id", documentId);
-
-  if (error) {
-    console.error("Error verifying document:", error);
-    return { success: false, message: error.message };
-  }
-
-  revalidatePath(`/management/admisi/${applicantId}`);
-  revalidatePath("/parent-portal");
-  return { success: true };
+  return {
+    success: true,
+    email: targetEmail,
+    newPassword,
+    guardianName: guardian?.full_name || "Orang Tua",
+    guardianPhone: guardian?.phone || null,
+    studentName: applicant.student_name,
+  };
 }

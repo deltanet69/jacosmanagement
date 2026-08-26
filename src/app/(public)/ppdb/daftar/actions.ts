@@ -10,22 +10,29 @@ export async function submitApplicant(formData: FormData) {
     if (!dataString) throw new Error("Data pendaftaran tidak ditemukan");
     const data = JSON.parse(dataString);
 
-    // 1. Generate Registration No
-    const prefix = "JCS-" + new Date().getFullYear();
-    const { data: lastApplicant } = await supabase
+    // 1. Generate Registration No secara aman (cari max nomor tahun ini)
+    const currentYear = new Date().getFullYear();
+    const prefix = `JCS-${currentYear}`;
+    const { data: allRegs } = await supabase
       .from("applicants")
       .select("registration_no")
-      .order("submitted_at", { ascending: false })
-      .limit(1);
+      .like("registration_no", `${prefix}-%`);
 
-    let nextNum = 1;
-    if (lastApplicant && lastApplicant.length > 0) {
-      const lastNo = lastApplicant[0].registration_no;
-      const match = lastNo.match(/-(\d+)$/);
-      if (match) {
-        nextNum = parseInt(match[1]) + 1;
+    let maxNum = 0;
+    if (allRegs && allRegs.length > 0) {
+      for (const item of allRegs) {
+        if (item.registration_no) {
+          const match = item.registration_no.match(/-(\d+)$/);
+          if (match) {
+            const num = parseInt(match[1], 10);
+            if (!isNaN(num) && num > maxNum) {
+              maxNum = num;
+            }
+          }
+        }
       }
     }
+    const nextNum = maxNum + 1;
     const registrationNo = `${prefix}-${nextNum.toString().padStart(5, "0")}`;
 
     // 2. Insert into applicants
@@ -120,39 +127,35 @@ export async function submitApplicant(formData: FormData) {
       }
     }
 
-    // 4. Upload Documents (Parallel)
-    const docKeys = ["akte", "kk", "ktp_orangtua", "foto4x3", "kartu_imunisasi", "rapor"];
+    // 4. Upload Documents — simpan URL ke kolom doc_* di applicants
+    const docFieldMap: Record<string, string> = {
+      akte: "doc_birth_certificate",
+      kk: "doc_family_card",
+      ktp_orangtua: "doc_parent_id",
+      foto4x3: "doc_photo_4x3",
+      kartu_imunisasi: "doc_immunization_card",
+      rapor: "doc_previous_report",
+    };
+
+    const docKeys = Object.keys(docFieldMap);
     const uploadPromises = docKeys.map(async (key) => {
       const file = formData.get(`file_${key}`) as File;
       if (file && file.size > 0) {
         const ext = file.name.split(".").pop();
         const filePath = `${newApplicant.id}/${key}.${ext}`;
-        
         const buffer = await file.arrayBuffer();
         
         const { error: uploadError } = await supabase.storage
           .from("admission-documents")
-          .upload(filePath, buffer, {
-            contentType: file.type,
-            upsert: true,
-          });
+          .upload(filePath, buffer, { contentType: file.type, upsert: true });
           
-        if (uploadError) {
-          console.error(`Error uploading ${key}:`, uploadError);
+        if (!uploadError) {
+          await supabase
+            .from("applicants")
+            .update({ [docFieldMap[key]]: filePath })
+            .eq("id", newApplicant.id);
         } else {
-          let type = "OTHER";
-          if (key === "akte") type = "BIRTH_CERTIFICATE";
-          if (key === "kk") type = "FAMILY_CARD";
-          if (key === "ktp_orangtua") type = "PARENT_ID";
-          if (key === "foto4x3") type = "PHOTO_4X3";
-          if (key === "kartu_imunisasi") type = "IMMUNIZATION_CARD";
-          if (key === "rapor") type = "PREVIOUS_REPORT";
-          
-          await supabase.from("documents").insert({
-            applicant_id: newApplicant.id,
-            type,
-            file_url: filePath,
-          });
+          console.error(`Error uploading ${key}:`, uploadError);
         }
       }
     });
