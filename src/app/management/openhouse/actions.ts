@@ -3,8 +3,8 @@
 import { createAdminClient } from '@/lib/supabase/server';
 import { Resend } from 'resend';
 import { revalidatePath } from 'next/cache';
-import { memoryRegistrations, memorySetting, globalForOpenHouse } from './memory-store';
-export type { OpenHouseLead, OpenHouseSetting } from './memory-store';
+import { memoryRegistrations, memorySetting, globalForOpenHouse, type OpenHouseLead, type OpenHouseSetting } from './memory-store';
+export type { OpenHouseLead, OpenHouseSetting };
 
 function getResend() {
   if (!process.env.RESEND_API_KEY) {
