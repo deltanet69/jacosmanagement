@@ -159,7 +159,7 @@ export default function OpenHouseAdminPage() {
     entry_year: '2026',
     interest_attendance: 'Ya',
     attendance_date: 'Sabtu, 29 Agustus 2026',
-    attendance_session: 'Session 1 (09.30 - 11.30)',
+    attendance_session: 'Session 1 (08.30 - 10.00)',
     source_info: 'Walk-in On Spot',
     topics_of_interest: ['Kurikulum & Metode Belajar'],
     admission_consultation: 'Ya',

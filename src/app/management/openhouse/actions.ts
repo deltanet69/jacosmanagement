@@ -153,7 +153,7 @@ export async function createManualOpenHouseRegistration(
       entry_year: formData.entry_year,
       interest_attendance: formData.interest_attendance || 'Ya',
       attendance_date: formData.attendance_date || 'Sabtu, 29 Agustus 2026',
-      attendance_session: formData.attendance_session || 'Session 1 (09.30 - 11.30)',
+      attendance_session: formData.attendance_session || 'Session 1 (08.30 - 10.00)',
       source_info: formData.source_info || 'Walk-in On Spot',
       topics_of_interest: formData.topics_of_interest || [],
       admission_consultation: formData.admission_consultation || 'Ya',

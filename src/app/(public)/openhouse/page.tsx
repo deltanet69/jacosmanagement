@@ -70,7 +70,7 @@ export default function OpenHousePage() {
     entry_year: '2026',
     interest_attendance: 'Ya',
     attendance_date: 'Sabtu, 29 Agustus 2026',
-    attendance_session: 'Session 1 (09.30 - 11.30)',
+    attendance_session: 'Session 1 (08.30 - 10.00)',
     source_info: 'Instagram',
     topics_of_interest: ['Kurikulum & Metode Belajar', 'Pendidikan Karakter Islami'],
     admission_consultation: 'Ya',
@@ -529,7 +529,7 @@ export default function OpenHousePage() {
                     </div>
                     <div>
                       <p className="text-xs font-extrabold text-gold-600 uppercase tracking-wider">Pilihan Sesi</p>
-                      <p className="text-xs font-bold text-ink">Sabtu: 09.30–11.30 &amp; 13.00–14.30</p>
+                      <p className="text-xs font-bold text-ink">Sabtu: 08.30–10.00 &amp; 10.30–12.00</p>
                       <p className="text-xs font-bold text-ink">Ahad: 09:30–12:00 WIB</p>
                     </div>
                   </div>
@@ -821,7 +821,7 @@ export default function OpenHousePage() {
                                   dateOption === 'Ahad, 30 Agustus 2026'
                                     ? '09:30 - 12:00'
                                     : formData.attendance_session === '09:30 - 12:00'
-                                    ? 'Session 1 (09.30 - 11.30)'
+                                    ? 'Session 1 (08.30 - 10.00)'
                                     : formData.attendance_session;
                                 setFormData({
                                   ...formData,
@@ -866,12 +866,12 @@ export default function OpenHousePage() {
                               ]
                             : [
                                 {
-                                  label: 'Session 1 (09.30 - 11.30)',
-                                  desc: 'Pagi Hari — Cocok untuk Trial Class',
+                                  label: 'Session 1 (08.30 - 10.00)',
+                                  desc: 'Pagi Hari — Sesi Pertama & Trial Class',
                                 },
                                 {
-                                  label: 'Session 2 (13.00 - 14.30)',
-                                  desc: 'Siang Hari — Sesi Fleksibel & Santai',
+                                  label: 'Session 2 (10.30 - 12.00)',
+                                  desc: 'Menjelang Siang — Sesi Kedua & School Tour',
                                 },
                               ]
                           ).map((session) => (
