@@ -529,8 +529,8 @@ export default function OpenHousePage() {
                     </div>
                     <div>
                       <p className="text-xs font-extrabold text-gold-600 uppercase tracking-wider">Pilihan Sesi</p>
-                      <p className="text-xs font-bold text-ink">Sesi 1: 09.30 – 11.30 WIB</p>
-                      <p className="text-xs font-bold text-ink">Sesi 2: 13.00 – 14.30 WIB</p>
+                      <p className="text-xs font-bold text-ink">Sabtu: 09.30–11.30 &amp; 13.00–14.30</p>
+                      <p className="text-xs font-bold text-ink">Ahad: 09:30–12:00 WIB</p>
                     </div>
                   </div>
                 </div>
@@ -816,8 +816,20 @@ export default function OpenHousePage() {
                             <button
                               key={dateOption}
                               type="button"
-                              onClick={() => setFormData({ ...formData, attendance_date: dateOption })}
-                              className={`p-4 rounded-2xl text-left border font-bold text-sm transition-all flex items-center justify-between ${
+                              onClick={() => {
+                                const newSession =
+                                  dateOption === 'Ahad, 30 Agustus 2026'
+                                    ? '09:30 - 12:00'
+                                    : formData.attendance_session === '09:30 - 12:00'
+                                    ? 'Session 1 (09.30 - 11.30)'
+                                    : formData.attendance_session;
+                                setFormData({
+                                  ...formData,
+                                  attendance_date: dateOption,
+                                  attendance_session: newSession,
+                                });
+                              }}
+                              className={`p-4 rounded-2xl text-left border font-bold text-sm transition-all flex items-center justify-between cursor-pointer ${
                                 formData.attendance_date === dateOption
                                   ? 'border-sky bg-sky text-white shadow-md shadow-sky/20'
                                   : 'border-slate-200 bg-white text-ink hover:border-slate-300'
@@ -838,16 +850,36 @@ export default function OpenHousePage() {
                         <label className="text-xs font-bold uppercase tracking-wider text-ink-400">
                           Pilihan Sesi Waktu Kehadiran: <span className="text-coral">*</span>
                         </label>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                          {[
-                            { label: 'Session 1 (09.30 - 11.30)', desc: 'Pagi Hari — Cocok untuk Trial Class' },
-                            { label: 'Session 2 (13.00 - 14.30)', desc: 'Siang Hari — Sesi Fleksibel & Santai' },
-                          ].map((session) => (
+                        <div
+                          className={`grid gap-3 mt-2 ${
+                            formData.attendance_date === 'Ahad, 30 Agustus 2026'
+                              ? 'grid-cols-1'
+                              : 'grid-cols-1 sm:grid-cols-2'
+                          }`}
+                        >
+                          {(formData.attendance_date === 'Ahad, 30 Agustus 2026'
+                            ? [
+                                {
+                                  label: '09:30 - 12:00',
+                                  desc: 'Pagi s.d. Siang — Sesi Tunggal Open House & School Tour',
+                                },
+                              ]
+                            : [
+                                {
+                                  label: 'Session 1 (09.30 - 11.30)',
+                                  desc: 'Pagi Hari — Cocok untuk Trial Class',
+                                },
+                                {
+                                  label: 'Session 2 (13.00 - 14.30)',
+                                  desc: 'Siang Hari — Sesi Fleksibel & Santai',
+                                },
+                              ]
+                          ).map((session) => (
                             <button
                               key={session.label}
                               type="button"
                               onClick={() => setFormData({ ...formData, attendance_session: session.label })}
-                              className={`p-4 rounded-2xl text-left border font-bold text-sm transition-all flex items-start justify-between ${
+                              className={`p-4 rounded-2xl text-left border font-bold text-sm transition-all flex items-start justify-between cursor-pointer ${
                                 formData.attendance_session === session.label
                                   ? 'border-gold bg-gold text-ink shadow-md shadow-gold/20'
                                   : 'border-slate-200 bg-white text-ink hover:border-slate-300'
