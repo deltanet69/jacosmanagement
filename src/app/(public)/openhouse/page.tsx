@@ -505,7 +505,7 @@ export default function OpenHousePage() {
                     <h3 className="font-display text-lg font-bold text-ink">Assalamu'alaikum Wr. Wb. Mommy & Daddy</h3>
                     <p className="text-ink-400 text-sm sm:text-base leading-relaxed mt-1">
                       Terima kasih atas ketertarikan Mommy/Daddy kepada <strong>Jakarta Cosmopolite Islamic School (JACOS)</strong>.
-                      Kami mengundang Ayah & Bunda untuk mengikuti <strong>JACOS Open House</strong> — sebuah kesempatan istimewa untuk mengenal lebih dekat lingkungan belajar islami yang hangat, kurikulum trilingual terpadu, fasilitas modern, serta program pendidikan JACOS dari jenjang Kindergarten hingga Primary School.
+                      Kami mengundang Mommy&Daddy untuk mengikuti <strong>JACOS Open House</strong> — sebuah kesempatan istimewa untuk mengenal lebih dekat lingkungan belajar islami yang hangat, kurikulum trilingual terpadu, fasilitas modern, serta program pendidikan JACOS dari jenjang Kindergarten hingga Primary School.
                     </p>
                   </div>
                 </div>
@@ -578,7 +578,7 @@ export default function OpenHousePage() {
                       <input
                         type="text"
                         required
-                        placeholder="Contoh: Bunda Aisyah Rahman"
+                        placeholder="Contoh: Mommy Aisyah Rahman"
                         value={formData.parent_name}
                         onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })}
                         className="w-full mt-1 h-12 px-4 rounded-2xl border border-slate-200 bg-cloud/50 focus:bg-white focus:border-sky focus:ring-4 focus:ring-sky/10 transition outline-none text-sm font-medium text-ink placeholder:text-slate-400"
@@ -611,7 +611,7 @@ export default function OpenHousePage() {
                       <input
                         type="email"
                         required
-                        placeholder="ayah.bunda@gmail.com"
+                        placeholder="daddy.mommy@gmail.com"
                         value={formData.email}
                         onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                         className="w-full mt-1 h-12 px-4 rounded-2xl border border-slate-200 bg-cloud/50 focus:bg-white focus:border-sky focus:ring-4 focus:ring-sky/10 transition outline-none text-sm font-medium text-ink placeholder:text-slate-400"
@@ -781,7 +781,7 @@ export default function OpenHousePage() {
                   {/* Field 8: Interest in Attendance */}
                   <div className="space-y-2">
                     <label className="text-xs font-bold uppercase tracking-wider text-ink-400">
-                      Apakah Ayah/Bunda berminat untuk datang ke Open House? <span className="text-coral">*</span>
+                      Apakah Mommny/Daddy berminat untuk datang ke Open House? <span className="text-coral">*</span>
                     </label>
                     <div className="grid grid-cols-2 gap-3 max-w-md mt-2">
                       {['Ya', 'Tidak'].map((choice) => (

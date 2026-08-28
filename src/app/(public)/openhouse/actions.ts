@@ -157,7 +157,7 @@ export async function submitOpenHouseRegistration(
                 Assalamu'alaikum Wr. Wb. <strong>${record.parent_name}</strong>,
               </p>
               <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#59647D;">
-                Terima kasih atas pendaftaran Mommy/Daddy untuk menghadiri <strong>JACOS Open House 2026</strong>. Kami sangat menantikan kehadiran keluarga Ayah/Bunda untuk mengenal lebih dekat lingkungan belajar islami berstandar internasional kami.
+                Terima kasih atas pendaftaran Mommy/Daddy untuk menghadiri <strong>JACOS Open House 2026</strong>. Kami sangat menantikan kehadiran keluarga Mommy/Daddy untuk mengenal lebih dekat lingkungan belajar islami berstandar internasional kami.
               </p>
 
               <!-- Ticket Box -->

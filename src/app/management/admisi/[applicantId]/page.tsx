@@ -582,6 +582,12 @@ export default function ApplicantDetail({
                   </p>
                 </div>
                 <div>
+                  <p className="text-xs text-ink-400 mb-0.5 font-medium">Tinggi Badan &amp; Berat Badan</p>
+                  <p className="font-bold text-ink">
+                    TB: {data.height ? `${data.height} cm` : "-"} • BB: {data.weight ? `${data.weight} kg` : "-"}
+                  </p>
+                </div>
+                <div>
                   <p className="text-xs text-ink-400 mb-0.5 font-medium">Anak Ke / Asal Sekolah</p>
                   <p className="font-bold text-ink">
                     Anak ke-{data.child_order || "-"} • {data.previous_school || "-"}
@@ -622,7 +628,7 @@ export default function ApplicantDetail({
                     <p className="text-xs font-bold text-coral-600 mb-0.5">Transportasi &amp; Pihak Penjemput</p>
                     <p className="font-bold text-ink text-sm">{data.daily_transportation || "-"}</p>
                     <p className="text-xs text-ink-400 mt-0.5">
-                      Penjemput Berwenang: {data.authorized_pickup_name || "-"}
+                      Penjemput Berwenang: {data.authorized_pickup_name || "Tidak ada / Hanya Orang Tua"}
                     </p>
                   </div>
                 </div>
@@ -664,6 +670,14 @@ export default function ApplicantDetail({
                       <p className="text-xs text-ink-400 font-medium mb-0.5">Pekerjaan</p>
                       <p className="font-bold text-ink">{g.occupation || "-"}</p>
                     </div>
+                    {g.monthly_income && (
+                      <div>
+                        <p className="text-xs text-ink-400 font-medium mb-0.5">Penghasilan Bulanan</p>
+                        <p className="font-semibold text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg text-xs border border-sky-100/60 inline-block">
+                          {g.monthly_income}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 ))
               ) : (

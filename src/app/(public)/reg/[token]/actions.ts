@@ -42,37 +42,55 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
     const data = JSON.parse(dataString);
 
     // 2. Update applicant dengan data lengkap dari form
-    const { error: updateError } = await supabase
+    const updatePayload: Record<string, any> = {
+      student_name: data.fullName || applicant.student_name,
+      preferred_name: data.preferredName,
+      birth_place: data.birthPlace,
+      birth_date: data.birthDate ? new Date(data.birthDate).toISOString() : null,
+      gender: data.gender === "Laki-laki" ? "MALE" : "FEMALE",
+      category: data.category === "Pindahan" ? "TRANSFER_STUDENT" : "NEW_STUDENT",
+      nik: data.nik || null,
+      nisn: data.nisn || null,
+      religion: data.religion,
+      nationality: data.nationality,
+      address: data.address,
+      primary_language: data.primaryLanguage,
+      child_order: data.childOrder,
+      previous_school: data.previousSchool,
+      blood_type: data.bloodType,
+      allergies_special_needs: data.allergiesSpecialNeeds,
+      medical_history: data.medicalHistory,
+      emergency_contact_name: data.emergencyContactName,
+      emergency_contact_relation: data.emergencyContactRelation,
+      emergency_contact_phone: data.emergencyContactPhone,
+      daily_transportation: data.dailyTransportation,
+      authorized_pickup_name: data.authorizedPickup || null,
+      media_consent: data.mediaConsent,
+      status: "SUBMITTED",
+      form_submitted: true,
+      submitted_at: new Date().toISOString(),
+    };
+
+    if (data.height !== undefined && data.height !== "") {
+      updatePayload.height = Number(data.height) || data.height;
+    }
+    if (data.weight !== undefined && data.weight !== "") {
+      updatePayload.weight = Number(data.weight) || data.weight;
+    }
+
+    let { error: updateError } = await supabase
       .from("applicants")
-      .update({
-        student_name: data.fullName || applicant.student_name,
-        preferred_name: data.preferredName,
-        birth_place: data.birthPlace,
-        birth_date: data.birthDate ? new Date(data.birthDate).toISOString() : null,
-        gender: data.gender === "Laki-laki" ? "MALE" : "FEMALE",
-        category: data.category === "Pindahan" ? "TRANSFER_STUDENT" : "NEW_STUDENT",
-        nik: data.nik || null,
-        nisn: data.nisn || null,
-        religion: data.religion,
-        nationality: data.nationality,
-        address: data.address,
-        primary_language: data.primaryLanguage,
-        child_order: data.childOrder,
-        previous_school: data.previousSchool,
-        blood_type: data.bloodType,
-        allergies_special_needs: data.allergiesSpecialNeeds,
-        medical_history: data.medicalHistory,
-        emergency_contact_name: data.emergencyContactName,
-        emergency_contact_relation: data.emergencyContactRelation,
-        emergency_contact_phone: data.emergencyContactPhone,
-        daily_transportation: data.dailyTransportation,
-        authorized_pickup_name: data.authorizedPickup,
-        media_consent: data.mediaConsent,
-        status: "SUBMITTED",
-        form_submitted: true,
-        submitted_at: new Date().toISOString(),
-      })
+      .update(updatePayload)
       .eq("id", applicant.id);
+
+    // Fallback tangguh jika kolom height/weight belum ditambahkan di DB
+    if (updateError && (updateError.message?.toLowerCase().includes("height") || updateError.message?.toLowerCase().includes("weight") || updateError.code === "PGRST204")) {
+      const fallbackPayload = { ...updatePayload };
+      delete fallbackPayload.height;
+      delete fallbackPayload.weight;
+      const retry = await supabase.from("applicants").update(fallbackPayload).eq("id", applicant.id);
+      updateError = retry.error;
+    }
 
     if (updateError) {
       console.error("Error updating applicant:", updateError);
@@ -93,6 +111,7 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
         birth_date: new Date().toISOString(),
         education_level: "S1",
         address: "-",
+        monthly_income: data.fatherIncome || null,
       });
     }
     if (data.motherName) {
@@ -108,6 +127,7 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
         birth_date: new Date().toISOString(),
         education_level: "S1",
         address: "-",
+        monthly_income: data.motherIncome || null,
       });
     }
     if (data.guardianName) {
@@ -116,20 +136,29 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
         full_name: data.guardianName,
         nik: "-",
         occupation: "-",
-        relation: "GUARDIAN",
+        relation: data.guardianRelation || "GUARDIAN",
         phone: data.guardianPhone || "-",
         email: "-",
         birth_place: "-",
         birth_date: new Date().toISOString(),
         education_level: "S1",
         address: "-",
+        monthly_income: data.guardianIncome || null,
       });
     }
 
     if (guardiansToUpsert.length > 0) {
       // Hapus guardian lama dulu (yang diisi admin), lalu insert yang lengkap dari orang tua
       await supabase.from("guardians").delete().eq("applicant_id", applicant.id);
-      const { error: insertGuardiansErr } = await supabase.from("guardians").insert(guardiansToUpsert);
+      let { error: insertGuardiansErr } = await supabase.from("guardians").insert(guardiansToUpsert);
+
+      // Fallback tangguh jika kolom monthly_income belum ditambahkan di DB
+      if (insertGuardiansErr && (insertGuardiansErr.message?.toLowerCase().includes("monthly_income") || insertGuardiansErr.code === "PGRST204")) {
+        const fallbackGuardians = guardiansToUpsert.map(({ monthly_income, ...rest }) => rest);
+        const retry = await supabase.from("guardians").insert(fallbackGuardians);
+        insertGuardiansErr = retry.error;
+      }
+
       if (insertGuardiansErr) console.error("Error inserting guardians:", insertGuardiansErr);
     }
 
