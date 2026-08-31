@@ -12,7 +12,6 @@ import {
   Megaphone,
   BookOpen,
   ArrowRight,
-  Sparkles,
   RefreshCw,
   Plus,
   Tv,
@@ -114,14 +113,9 @@ export default function DashboardOverview() {
       {/* ========================================================================= */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5">
         <div className="space-y-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold text-ink tracking-tight">
-              Selamat Datang, Admin JACOS! 👋
-            </h1>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-50 text-sky-700 text-xs font-bold border border-sky-200">
-              <Sparkles size={13} /> TA 2026/2027 • {d.admissions.activeBatchLabel}
-            </span>
-          </div>
+          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold text-ink tracking-tight">
+            Selamat Datang, Admin JACOS! 👋
+          </h1>
           <p className="text-ink-400 text-xs sm:text-sm">
             Dashboard overview operasional harian Jakarta Cosmopolite Islamic School.
           </p>

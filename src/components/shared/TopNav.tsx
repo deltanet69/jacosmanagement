@@ -6,7 +6,8 @@ import {
   Menu,
   Settings,
   LogOut,
-  ChevronRight
+  ChevronRight,
+  Sparkles,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -41,7 +42,7 @@ export function TopNav() {
   const currentGroups = activeModule === "admin" ? ADMIN_MENU_GROUPS : HR_MENU_GROUPS;
 
   return (
-    <header className="h-16 sm:h-20 bg-white border-b border-ink/5 px-4 sm:px-6 lg:px-10 flex items-center justify-between sticky top-0 z-20">
+    <header className="h-20 sm:h-20 bg-white border-b border-ink/5 px-4 sm:px-6 lg:px-10 flex items-center justify-between sticky top-0 z-20">
       <div className="flex items-center gap-3 sm:gap-4 flex-1">
         {/* Mobile Sidebar via Sheet */}
         <div className="lg:hidden">
@@ -49,7 +50,7 @@ export function TopNav() {
             <SheetTrigger className="w-10 h-10 flex items-center justify-center rounded-xl border border-ink/10 text-ink-400 hover:bg-cloud transition cursor-pointer">
               <Menu size={20} />
             </SheetTrigger>
-            <SheetContent side="left" className="w-80 p-0 flex flex-col bg-white">
+            <SheetContent side="left" className="w-140 p-0 flex flex-col bg-white">
               {/* Sheet Header */}
               <div className="px-6 py-5 border-b border-ink/5">
                 <Link href="/management" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
@@ -157,10 +158,16 @@ export function TopNav() {
       </div>
 
       {/* Top Right Profile & Notification */}
-      <div className="flex items-center gap-3 sm:gap-4">
-        <button className="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl hover:bg-cloud transition-colors text-ink-400 cursor-pointer">
-          <Bell size={18} />
-          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-coral border-2 border-white" />
+      <div className="flex items-center gap-2.5 sm:gap-3.5">
+        {/* Academic Year & Batch Badge */}
+        <div className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-sky-50 text-sky-700 text-[11px] sm:text-xs font-bold border border-sky-200 shadow-2xs shrink-0">
+          <Sparkles size={13} className="text-sky-600 shrink-0" />
+          <span>TA 2026/2027 • Batch 1</span>
+        </div>
+
+        <button className="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl hover:bg-cloud transition-colors text-ink-400 cursor-pointer shrink-0">
+          <Bell size={22} />
+          <span className="absolute top-1 right-1 w-3 h-3 rounded-full bg-coral border-2 border-white" />
         </button>
 
         <div className="h-6 w-px bg-ink/10 hidden sm:block" />

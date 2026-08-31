@@ -57,7 +57,7 @@ export const ADMIN_MENU_GROUPS: MenuGroup[] = [
   {
     title: "Kesiswaan",
     items: [
-      { href: "/management/siswa", label: "Data Siswa", icon: GraduationCap, color: "text-leaf", bgColor: "bg-leaf-50" },
+      { href: "/management/siswa", label: "Data Siswa JACOS", icon: GraduationCap, color: "text-leaf", bgColor: "bg-leaf-50" },
       { href: "/management/classroom", label: "Classroom", icon: BookOpen, color: "text-sky", bgColor: "bg-sky-50" },
       { href: "/management/absensi", label: "Rekap Absensi Siswa", icon: CalendarCheck, color: "text-coral-600", bgColor: "bg-coral-50" },
       { href: "/management/absensi/penjemputan", label: "Penjemputan Siswa", icon: Car, color: "text-indigo-600", bgColor: "bg-indigo-50" },
@@ -66,9 +66,9 @@ export const ADMIN_MENU_GROUPS: MenuGroup[] = [
   {
     title: "Finance",
     items: [
-      { href: "/management/keuangan", label: "Keuangan Jacos", icon: Receipt, color: "text-emerald-600", bgColor: "bg-emerald-50" },
+      { href: "/management/keuangan", label: "Keuangan JACOS", icon: Receipt, color: "text-emerald-600", bgColor: "bg-emerald-50" },
       { href: "/management/keuangan/spp", label: "SPP Sekolah", icon: CreditCard, color: "text-sky-600", bgColor: "bg-sky-50" },
-      { href: "/management/keuangan/esaldo", label: "eSaldo Jacos", icon: Wallet, color: "text-gold-600", bgColor: "bg-gold-50" },
+      { href: "/management/keuangan/esaldo", label: "eSaldo JACOS", icon: Wallet, color: "text-gold-600", bgColor: "bg-gold-50" },
     ],
   },
   {
@@ -160,7 +160,7 @@ export function DashboardSidebar() {
           <button
             type="button"
             onClick={() => setActiveModule("admin")}
-            className={`py-2.5 rounded-xl transition-all cursor-pointer ${
+            className={`py-3 rounded-xl transition-all cursor-pointer ${
               activeModule === "admin"
                 ? "bg-white text-sky shadow-xs border border-ink/5 font-bold"
                 : "text-ink-400 hover:text-ink font-semibold"
@@ -171,7 +171,7 @@ export function DashboardSidebar() {
           <button
             type="button"
             onClick={() => setActiveModule("hr")}
-            className={`py-2.5 rounded-xl transition-all cursor-pointer ${
+            className={`py-3 rounded-xl transition-all cursor-pointer ${
               activeModule === "hr"
                 ? "bg-white text-indigo-600 shadow-xs border border-ink/5 font-bold"
                 : "text-ink-400 hover:text-ink font-semibold"
@@ -183,9 +183,9 @@ export function DashboardSidebar() {
       </div>
 
       {/* Scrollable Navigation Groups */}
-      <div className="flex-1 px-4 py-4 overflow-y-auto space-y-6">
+      <div className="flex-1 px-3 py-2 overflow-y-auto space-y-4">
         {currentGroups.map((group, gIdx) => (
-          <div key={gIdx} className="space-y-1.5">
+          <div key={gIdx} className="space-y-1">
             <p className="px-4 text-xs font-bold text-ink-300 uppercase tracking-wider mb-2">
               {group.title}
             </p>
@@ -195,23 +195,23 @@ export function DashboardSidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`flex items-center justify-between px-4 py-2.5 rounded-2xl transition-all ${
+                  className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all ${
                     active
                       ? "bg-sky-50 text-sky font-bold"
                       : "text-ink-400 hover:bg-cloud hover:text-ink font-semibold"
                   }`}
-                >
+                > 
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center transition-colors ${
+                      className={`w-9 h-9 rounded-lg flex items-center justify-center transition-colors ${
                         active
                           ? item.bgColor + " " + item.color
                           : "bg-white border border-ink/10 text-ink-400"
                       }`}
                     >
-                      <item.icon size={18} />
+                      <item.icon size={17} />
                     </div>
-                    <span className="text-sm font-semibold">{item.label}</span>
+                    <span className="text-sm ">{item.label}</span>
                   </div>
 
                   {active && <ChevronRight size={16} className="text-sky" />}
