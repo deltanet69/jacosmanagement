@@ -182,10 +182,10 @@ export default function DashboardOverview() {
           </div>
         </div>
 
-        {/* KPI 2: Online Admission (PPDB) */}
+        {/* KPI 2: Online Admission */}
         <div className="bg-white p-5 sm:p-6 rounded-3xl border border-ink/5 shadow-sm space-y-3 relative overflow-hidden flex flex-col justify-between">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-coral uppercase tracking-wider">Pendaftar PPDB</span>
+            <span className="text-xs font-bold text-coral uppercase tracking-wider">Online Admission</span>
             <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-coral-50 text-coral flex items-center justify-center shrink-0">
               <Users size={18} />
             </div>
@@ -278,7 +278,7 @@ export default function DashboardOverview() {
           <div className="bg-white rounded-3xl p-5 sm:p-7 border border-ink/5 shadow-sm space-y-5">
             <div className="flex items-center justify-between pb-3.5 border-b border-ink/5">
               <div>
-                <h3 className="font-display text-lg sm:text-xl font-bold text-ink">Pendaftar PPDB Terbaru</h3>
+                <h3 className="font-display text-lg sm:text-xl font-bold text-ink">Pendaftar Online Admission Terbaru</h3>
                 <p className="text-xs text-ink-400 mt-0.5">
                   Calon siswa baru yang mendaftar melalui sistem Online Admission
                 </p>

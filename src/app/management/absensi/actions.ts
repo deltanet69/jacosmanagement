@@ -561,3 +561,225 @@ export async function getStaffAttendance() {
 
   return data || [];
 }
+
+// ===============================
+// REKAP ABSENSI SISWA UNTUK MANAGEMENT
+// ===============================
+export async function getStudentAttendanceRecap(filterDate?: string, classId?: string) {
+  const supabase = createAdminClient();
+  const date = filterDate || new Date().toISOString().split("T")[0];
+
+  // 1. Get all active students
+  let studentQuery = supabase
+    .from("students")
+    .select("id, full_name, nis, nisn, profile_picture, class_id")
+    .eq("is_active", true)
+    .order("full_name", { ascending: true });
+
+  if (classId && classId !== "ALL") {
+    studentQuery = studentQuery.eq("class_id", classId);
+  }
+
+  const { data: students } = await studentQuery;
+  const studentList = students || [];
+  const studentIds = studentList.map((s) => s.id);
+
+  // 2. Fetch classes map
+  const { data: classes } = await supabase
+    .from("school_classes")
+    .select("id, name, grade, level")
+    .order("grade", { ascending: true });
+
+  const classMap = new Map((classes || []).map((c) => [c.id, c.name || `Kelas ${c.grade}`]));
+
+  // 3. Fetch attendance for date
+  let attendanceQuery = supabase
+    .from("student_attendance")
+    .select("*")
+    .eq("date", date);
+
+  if (studentIds.length > 0) {
+    attendanceQuery = attendanceQuery.in("student_id", studentIds);
+  }
+
+  const { data: attendanceRecords } = await attendanceQuery;
+  const attendanceMap = new Map((attendanceRecords || []).map((a) => [a.student_id, a]));
+
+  // 4. Fetch absences/permissions for date
+  let absenceQuery = supabase
+    .from("student_absences")
+    .select("*")
+    .eq("date", date);
+
+  if (studentIds.length > 0) {
+    absenceQuery = absenceQuery.in("student_id", studentIds);
+  }
+
+  const { data: absenceRecords } = await absenceQuery;
+  const absenceMap = new Map((absenceRecords || []).map((a) => [a.student_id, a]));
+
+  // Combine results
+  const items = studentList.map((student) => {
+    const att = attendanceMap.get(student.id);
+    const abs = absenceMap.get(student.id);
+
+    let status = "ALPHA";
+    let checkIn = null;
+    let checkOut = null;
+    let notes = null;
+    let method = "Belum Presensi";
+
+    if (att) {
+      status = att.status || "HADIR";
+      checkIn = att.check_in_time || null;
+      checkOut = att.check_out_time || null;
+      method = att.check_in_time ? "RFID / Scanner" : "Manual System";
+    } else if (abs) {
+      status = abs.type || "IZIN";
+      notes = abs.reason || null;
+      method = "Permohonan Izin";
+    }
+
+    return {
+      studentId: student.id,
+      studentName: student.full_name,
+      nis: student.nis || "-",
+      profilePicture: student.profile_picture,
+      classId: student.class_id,
+      className: student.class_id ? classMap.get(student.class_id) || "Tanpa Kelas" : "Tanpa Kelas",
+      date,
+      status,
+      checkIn,
+      checkOut,
+      notes,
+      method,
+      attendanceId: att?.id || null,
+      absenceId: abs?.id || null,
+    };
+  });
+
+  // Calculate overall stats
+  const totalStudents = items.length;
+  const totalHadir = items.filter((i) => i.status === "HADIR").length;
+  const totalIzin = items.filter((i) => i.status === "IZIN").length;
+  const totalSakit = items.filter((i) => i.status === "SAKIT").length;
+  const totalAlpha = items.filter((i) => i.status === "ALPHA").length;
+  const percentage = totalStudents > 0 ? Math.round((totalHadir / totalStudents) * 100) : 0;
+
+  // Calculate per-class breakdown
+  const classStatsMap = new Map<string, { classId: string; className: string; total: number; hadir: number; izin: number; sakit: number; alpha: number }>();
+
+  (classes || []).forEach((cls) => {
+    classStatsMap.set(cls.id, {
+      classId: cls.id,
+      className: cls.name || `Kelas ${cls.grade}`,
+      total: 0,
+      hadir: 0,
+      izin: 0,
+      sakit: 0,
+      alpha: 0,
+    });
+  });
+
+  items.forEach((item) => {
+    if (item.classId && classStatsMap.has(item.classId)) {
+      const stats = classStatsMap.get(item.classId)!;
+      stats.total += 1;
+      if (item.status === "HADIR") stats.hadir += 1;
+      else if (item.status === "IZIN") stats.izin += 1;
+      else if (item.status === "SAKIT") stats.sakit += 1;
+      else if (item.status === "ALPHA") stats.alpha += 1;
+    }
+  });
+
+  const classBreakdown = Array.from(classStatsMap.values()).filter((c) => c.total > 0);
+
+  return {
+    items,
+    classes: classes || [],
+    summary: {
+      totalStudents,
+      totalHadir,
+      totalIzin,
+      totalSakit,
+      totalAlpha,
+      percentage,
+    },
+    classBreakdown,
+  };
+}
+
+export async function updateStudentAttendanceRecord(data: {
+  studentId: string;
+  classId?: string;
+  date: string;
+  status: "HADIR" | "IZIN" | "SAKIT" | "ALPHA";
+  checkInTime?: string;
+  checkOutTime?: string;
+  notes?: string;
+}) {
+  const supabase = createAdminClient();
+  const todayTime = new Date().toLocaleTimeString("en-US", { hour12: false });
+
+  // 1. Check existing student_attendance record
+  const { data: existing } = await supabase
+    .from("student_attendance")
+    .select("id")
+    .eq("student_id", data.studentId)
+    .eq("date", data.date)
+    .maybeSingle();
+
+  if (existing) {
+    await supabase
+      .from("student_attendance")
+      .update({
+        status: data.status,
+        check_in_time: data.checkInTime || (data.status === "HADIR" ? todayTime : null),
+        check_out_time: data.checkOutTime || null,
+      })
+      .eq("id", existing.id);
+  } else {
+    await supabase.from("student_attendance").insert({
+      student_id: data.studentId,
+      class_id: data.classId,
+      date: data.date,
+      status: data.status,
+      check_in_time: data.checkInTime || (data.status === "HADIR" ? todayTime : null),
+      check_out_time: data.checkOutTime || null,
+    });
+  }
+
+  // 2. If status is IZIN or SAKIT, also upsert into student_absences
+  if (data.status === "IZIN" || data.status === "SAKIT") {
+    const { data: existingAbsence } = await supabase
+      .from("student_absences")
+      .select("id")
+      .eq("student_id", data.studentId)
+      .eq("date", data.date)
+      .maybeSingle();
+
+    if (existingAbsence) {
+      await supabase
+        .from("student_absences")
+        .update({
+          type: data.status,
+          reason: data.notes || `Disetujui Admin/Management (${data.status})`,
+          status: "APPROVED",
+        })
+        .eq("id", existingAbsence.id);
+    } else {
+      await supabase.from("student_absences").insert({
+        student_id: data.studentId,
+        class_id: data.classId,
+        date: data.date,
+        type: data.status,
+        reason: data.notes || `Input Manual Management (${data.status})`,
+        status: "APPROVED",
+      });
+    }
+  }
+
+  revalidatePath("/management/absensi");
+  return { success: true, message: `Status absensi siswa berhasil diperbarui menjadi ${data.status}` };
+}
+

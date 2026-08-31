@@ -22,10 +22,9 @@ export async function proxy(request: NextRequest) {
   }
 
   // Rewrite based on subdomain
-  if (hostname.startsWith('ppdb.')) {
-    // ppdb.jacos.id is the default public area (including Landing Page and /ppdb/daftar)
-    // No rewrite needed for root, but if we want to isolate it we could.
-    // For now, let it pass through so it hits (public)/page.tsx and (public)/ppdb/...
+  if (hostname.startsWith('admission.') || hostname.startsWith('ppdb.')) {
+    // admission.jacos.id is the default public area (including Landing Page and /admission)
+    // No rewrite needed for root; let it pass through to (public) routes
   } else if (hostname.startsWith('management.')) {
     // management.jacos.id -> /management
     if (!currentPath.startsWith('/management')) {
