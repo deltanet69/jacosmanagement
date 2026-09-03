@@ -25,6 +25,10 @@ import {
   AlertCircle,
   Check,
   ChevronDown,
+  Phone,
+  ExternalLink,
+  Eye,
+  Copy,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -35,6 +39,9 @@ import {
   getBatchApprovedStudents,
   getClasses,
   assignStudentToClass,
+  getPublicAdmissionApplicants,
+  approvePublicPayment,
+  rejectPublicPayment,
 } from "./actions";
 import {
   BATCH_CONFIG,
@@ -54,6 +61,7 @@ export default function AdmisiPage() {
   const [applicants, setApplicants] = useState<any[]>([]);
   const [batchStudents, setBatchStudents] = useState<any[]>([]);
   const [classes, setClasses] = useState<any[]>([]);
+  const [publicApplicants, setPublicApplicants] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Private Admission Filters & Pagination
@@ -61,6 +69,23 @@ export default function AdmisiPage() {
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
   const [privateCurrentPage, setPrivateCurrentPage] = useState(1);
   const [privatePageSize, setPrivatePageSize] = useState(10);
+
+  // Public Admission Filters, Modals & Pagination
+  const [publicSearchQuery, setPublicSearchQuery] = useState("");
+  const [publicStatusFilter, setPublicStatusFilter] = useState<string>("ALL");
+  const [publicCurrentPage, setPublicCurrentPage] = useState(1);
+  const [publicPageSize, setPublicPageSize] = useState(10);
+  const [proofModalApplicant, setProofModalApplicant] = useState<any | null>(null);
+  const [rejectPaymentApplicant, setRejectPaymentApplicant] = useState<any | null>(null);
+  const [rejectReasonInput, setRejectReasonInput] = useState("");
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [approvedSuccessData, setApprovedSuccessData] = useState<{
+    applicant: any;
+    uniqueLink: string;
+    waPhone: string;
+    waMessage: string;
+  } | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Batch Approval Filters & Pagination
   const [selectedBatchFilter, setSelectedBatchFilter] = useState<string>("ALL");
@@ -79,14 +104,16 @@ export default function AdmisiPage() {
   useEffect(() => {
     async function loadAllData() {
       setIsLoading(true);
-      const [appsData, batchData, classData] = await Promise.all([
+      const [appsData, batchData, classData, publicData] = await Promise.all([
         getApplicants(),
         getBatchApprovedStudents(),
         getClasses(),
+        getPublicAdmissionApplicants(),
       ]);
       setApplicants(appsData || []);
       setBatchStudents(batchData || []);
       setClasses(classData || []);
+      setPublicApplicants(publicData || []);
       setIsLoading(false);
     }
     loadAllData();
@@ -96,6 +123,10 @@ export default function AdmisiPage() {
   useEffect(() => {
     setPrivateCurrentPage(1);
   }, [searchQuery, statusFilter, privatePageSize]);
+
+  useEffect(() => {
+    setPublicCurrentPage(1);
+  }, [publicSearchQuery, publicStatusFilter, publicPageSize]);
 
   useEffect(() => {
     setBatchCurrentPage(1);
@@ -246,6 +277,121 @@ export default function AdmisiPage() {
     return { total, assigned, unassigned };
   }, [batchStudents, selectedBatchFilter]);
 
+  // Filtered Public Applicants
+  const filteredPublicApplicants = useMemo(() => {
+    return publicApplicants.filter((app) => {
+      const matchSearch =
+        publicSearchQuery.trim() === "" ||
+        app.student_name?.toLowerCase().includes(publicSearchQuery.toLowerCase()) ||
+        app.registration_no?.toLowerCase().includes(publicSearchQuery.toLowerCase()) ||
+        app.guardians?.some?.((g: any) =>
+          g.full_name?.toLowerCase().includes(publicSearchQuery.toLowerCase()) ||
+          g.phone?.includes(publicSearchQuery) ||
+          g.email?.toLowerCase().includes(publicSearchQuery.toLowerCase())
+        );
+
+      let matchStatus = true;
+      if (publicStatusFilter === "WAITING_PAYMENT") {
+        matchStatus =
+          app.payment_status === "PENDING_VERIFICATION" ||
+          app.status === "WAITING_PAYMENT_REVIEW";
+      } else if (publicStatusFilter === "PAID") {
+        matchStatus = app.payment_status === "PAID";
+      } else if (publicStatusFilter === "REJECTED") {
+        matchStatus = app.payment_status === "REJECTED" || app.status === "REJECTED";
+      }
+
+      return matchSearch && matchStatus;
+    });
+  }, [publicApplicants, publicSearchQuery, publicStatusFilter]);
+
+  const paginatedPublicApplicants = useMemo(() => {
+    const from = (publicCurrentPage - 1) * publicPageSize;
+    return filteredPublicApplicants.slice(from, from + publicPageSize);
+  }, [filteredPublicApplicants, publicCurrentPage, publicPageSize]);
+
+  const publicTotalPages = Math.max(1, Math.ceil(filteredPublicApplicants.length / publicPageSize));
+
+  const publicStats = useMemo(() => {
+    const total = publicApplicants.length;
+    const waitingPayment = publicApplicants.filter(
+      (a) => a.payment_status === "PENDING_VERIFICATION" || a.status === "WAITING_PAYMENT_REVIEW"
+    ).length;
+    const paid = publicApplicants.filter((a) => a.payment_status === "PAID").length;
+    const rejected = publicApplicants.filter(
+      (a) => a.payment_status === "REJECTED" || a.status === "REJECTED"
+    ).length;
+    return { total, waitingPayment, paid, rejected };
+  }, [publicApplicants]);
+
+  const handleApprovePayment = async (applicant: any) => {
+    setIsProcessingPayment(true);
+    const res = await approvePublicPayment(applicant.id);
+    setIsProcessingPayment(false);
+
+    if (res.success) {
+      setPublicApplicants((prev) =>
+        prev.map((a) =>
+          a.id === applicant.id
+            ? {
+                ...a,
+                payment_status: "PAID",
+                status: a.form_submitted ? "WAITING_REVIEW" : "PENDING_FORM",
+                registration_token: res.uniqueLink?.split("/reg/")[1] || a.registration_token,
+              }
+            : a
+        )
+      );
+      if (proofModalApplicant?.id === applicant.id) {
+        setProofModalApplicant(null);
+      }
+      setApprovedSuccessData({
+        applicant,
+        uniqueLink: res.uniqueLink || "",
+        waPhone: res.waPhone || "",
+        waMessage: res.waMessage || "",
+      });
+    } else {
+      alert(res.message || "Gagal menyetujui pembayaran.");
+    }
+  };
+
+  const handleOpenRejectPayment = (applicant: any) => {
+    setRejectPaymentApplicant(applicant);
+    setRejectReasonInput("");
+    if (proofModalApplicant) setProofModalApplicant(null);
+  };
+
+  const handleConfirmRejectPayment = async () => {
+    if (!rejectPaymentApplicant) return;
+    if (!rejectReasonInput.trim()) {
+      alert("Harap masukkan catatan alasan penolakan pembayaran.");
+      return;
+    }
+    setIsProcessingPayment(true);
+    const res = await rejectPublicPayment(rejectPaymentApplicant.id, rejectReasonInput);
+    setIsProcessingPayment(false);
+
+    if (res.success) {
+      setPublicApplicants((prev) =>
+        prev.map((a) =>
+          a.id === rejectPaymentApplicant.id
+            ? {
+                ...a,
+                payment_status: "REJECTED",
+                status: "REJECTED",
+                rejection_reason: rejectReasonInput,
+              }
+            : a
+        )
+      );
+      setRejectPaymentApplicant(null);
+      setRejectReasonInput("");
+    } else {
+      alert(res.message || "Gagal menolak pembayaran.");
+    }
+  };
+
   const handleOpenAssignModal = (student: any) => {
     setStudentToAssign(student);
     setSelectedClassId(student.class_id || "");
@@ -355,6 +501,215 @@ export default function AdmisiPage() {
         </div>
       )}
 
+      {/* Proof Modal Viewer */}
+      {proofModalApplicant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl border border-ink/10 space-y-5 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-ink/10">
+              <div>
+                <h3 className="font-display text-xl font-bold text-ink">Bukti Transfer Pendaftaran</h3>
+                <p className="text-xs text-ink-400 mt-0.5 font-mono">
+                  {proofModalApplicant.registration_no} • {proofModalApplicant.student_name}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setProofModalApplicant(null)}
+                className="w-8 h-8 rounded-full bg-cloud flex items-center justify-center text-ink-400 hover:text-ink transition"
+              >
+                <XCircle size={20} />
+              </button>
+            </div>
+
+            <div className="bg-cloud/50 rounded-2xl p-4 border border-ink/5 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-ink-400">Orang Tua / Kontak:</span>
+                <span className="font-bold text-ink">
+                  {proofModalApplicant.guardians?.[0]?.full_name || "-"} ({proofModalApplicant.guardians?.[0]?.phone || "-"})
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-400">Nominal Transfer:</span>
+                <span className="font-bold text-ink">Rp 1.000.000 ({proofModalApplicant.payment_method || "Transfer BNI"})</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-ink-400">Status Saat Ini:</span>
+                <span className="font-bold text-gold-600 uppercase">
+                  {proofModalApplicant.payment_status || "PENDING_VERIFICATION"}
+                </span>
+              </div>
+            </div>
+
+            {/* Proof Image / File Preview */}
+            <div className="rounded-2xl border border-ink/10 overflow-hidden bg-slate-950 flex items-center justify-center min-h-[260px] max-h-[420px] p-2">
+              {proofModalApplicant.doc_payment_proof_signed ? (
+                proofModalApplicant.doc_payment_proof_signed.includes(".pdf") ? (
+                  <div className="text-center p-8 space-y-3">
+                    <FileText className="w-12 h-12 text-sky mx-auto" />
+                    <p className="text-sm font-bold text-white">Dokumen Bukti Transfer (PDF)</p>
+                    <a
+                      href={proofModalApplicant.doc_payment_proof_signed}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky text-white text-xs font-bold hover:bg-sky-600 transition"
+                    >
+                      Buka Dokumen PDF
+                    </a>
+                  </div>
+                ) : (
+                  <img
+                    src={proofModalApplicant.doc_payment_proof_signed}
+                    alt="Bukti Transfer"
+                    className="max-h-[380px] w-auto object-contain rounded-xl"
+                  />
+                )
+              ) : (
+                <p className="text-xs text-slate-400">Berkas bukti transfer tidak dapat ditampilkan.</p>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex items-center justify-end gap-2.5 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setProofModalApplicant(null)}
+                className="h-11 px-4 rounded-xl border-ink/15 font-bold text-xs"
+              >
+                Tutup
+              </Button>
+              {proofModalApplicant.payment_status !== "PAID" && (
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => handleOpenRejectPayment(proofModalApplicant)}
+                    disabled={isProcessingPayment}
+                    className="h-11 px-4 rounded-xl border-coral-200 text-coral hover:bg-coral-50 font-bold text-xs"
+                  >
+                    Tolak Pembayaran
+                  </Button>
+                  <Button
+                    onClick={() => handleApprovePayment(proofModalApplicant)}
+                    disabled={isProcessingPayment}
+                    className="h-11 px-5 rounded-xl bg-leaf-600 hover:bg-leaf-700 text-white font-bold text-xs shadow-md"
+                  >
+                    {isProcessingPayment ? "Memproses..." : "Approve Pembayaran & Kirim Link"}
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reject Payment Modal */}
+      {rejectPaymentApplicant && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-ink/10 space-y-5">
+            <div>
+              <div className="w-11 h-11 rounded-2xl bg-coral-50 text-coral flex items-center justify-center mb-3">
+                <XCircle size={22} />
+              </div>
+              <h3 className="font-display text-xl font-bold text-ink">Tolak Pembayaran Pendaftaran</h3>
+              <p className="text-xs text-ink-400 mt-1">
+                Berikan catatan alasan penolakan untuk pendaftar ananda{" "}
+                <strong className="text-ink">{rejectPaymentApplicant.student_name}</strong>. Catatan ini akan dikirimkan langsung ke email orang tua.
+              </p>
+            </div>
+
+            <div>
+              <Label className="block text-xs font-bold mb-1.5 text-ink">
+                Catatan / Alasan Penolakan <span className="text-coral">*</span>
+              </Label>
+              <textarea
+                value={rejectReasonInput}
+                onChange={(e) => setRejectReasonInput(e.target.value)}
+                placeholder="Contoh: Bukti transfer tidak jelas / nominal transfer tidak sesuai (Rp 1.000.000). Harap transfer ulang atau hubungi admin."
+                className="w-full h-28 p-3.5 rounded-2xl border border-ink/15 bg-cloud/50 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-coral/20 focus:border-coral outline-none resize-none"
+                required
+              />
+            </div>
+
+            <div className="flex gap-2.5 pt-1">
+              <Button
+                variant="outline"
+                onClick={() => setRejectPaymentApplicant(null)}
+                className="flex-1 h-11 rounded-xl border-ink/15 font-bold text-xs"
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={handleConfirmRejectPayment}
+                disabled={isProcessingPayment || !rejectReasonInput.trim()}
+                className="flex-1 h-11 rounded-xl bg-coral hover:bg-coral-600 text-white font-bold text-xs shadow-md"
+              >
+                {isProcessingPayment ? "Memproses..." : "Kirim Penolakan"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Approved Success & WhatsApp Reminder Modal */}
+      {approvedSuccessData && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-ink/10 space-y-5 text-center">
+            <div className="w-16 h-16 rounded-3xl bg-leaf-50 text-leaf-600 mx-auto flex items-center justify-center border border-leaf-200 shadow-xs">
+              <CheckCircle2 size={32} />
+            </div>
+
+            <div className="space-y-1">
+              <h3 className="font-display text-xl font-bold text-ink">Pembayaran Berhasil Disetujui!</h3>
+              <p className="text-xs text-ink-400">
+                Email berisi link unik telah otomatis dikirim ke{" "}
+                <strong className="text-ink">{approvedSuccessData.applicant.guardians?.[0]?.email || "email orang tua"}</strong>.
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-cloud/60 border border-ink/5 text-left space-y-2 text-xs">
+              <div className="flex justify-between items-center">
+                <span className="text-ink-400 font-bold uppercase tracking-wider">Link Unik Formulir</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard?.writeText(approvedSuccessData.uniqueLink);
+                    setCopiedLink(true);
+                    setTimeout(() => setCopiedLink(false), 2000);
+                  }}
+                  className="inline-flex items-center gap-1 text-[11px] font-bold text-sky hover:underline"
+                >
+                  {copiedLink ? <Check size={12} className="text-leaf-600" /> : <Copy size={12} />}
+                  {copiedLink ? "Tersalin!" : "Salin Link"}
+                </button>
+              </div>
+              <p className="font-mono text-xs text-sky font-bold truncate bg-white p-2.5 rounded-xl border border-ink/10">
+                {approvedSuccessData.uniqueLink}
+              </p>
+            </div>
+
+            <div className="space-y-2 pt-1">
+              {approvedSuccessData.waPhone && (
+                <a
+                  href={`https://wa.me/${approvedSuccessData.waPhone}?text=${encodeURIComponent(approvedSuccessData.waMessage)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="w-full inline-flex items-center justify-center gap-2 h-12 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold text-xs sm:text-sm shadow-md transition active:scale-[0.98]"
+                >
+                  <Phone size={15} />
+                  Kirim Pengingat Link via WhatsApp
+                </a>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => setApprovedSuccessData(null)}
+                className="w-full h-11 rounded-xl border-ink/15 font-bold text-xs"
+              >
+                Selesai / Tutup
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Header Banner */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-sky-50 via-white to-cloud border border-sky-100 p-5 sm:p-7 lg:p-8 shadow-sm">
         <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-64 h-64 bg-gradient-to-br from-sky-200/40 to-sky-100/10 rounded-full blur-3xl pointer-events-none" />
@@ -421,7 +776,7 @@ export default function AdmisiPage() {
         >
           <div className="flex items-center gap-2">
             <Users size={15} />
-            <span>1. Private Admission</span>
+            <span>1. Direct Admin</span>
           </div>
           <span
             className={`text-xs px-2 py-0.5 rounded-full font-mono font-bold ${
@@ -430,6 +785,34 @@ export default function AdmisiPage() {
           >
             {applicants.length}
           </span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("public")}
+          className={`flex items-center justify-between sm:justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all ${
+            activeTab === "public"
+              ? "bg-sky-800 text-white shadow-md shadow-sky-900/20"
+              : "text-ink-400 hover:text-ink hover:bg-cloud"
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Globe size={15} />
+            <span>2. Public Admission</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            {publicStats.waitingPayment > 0 && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-extrabold animate-pulse">
+                {publicStats.waitingPayment} Perlu Cek
+              </span>
+            )}
+            <span
+              className={`text-xs px-2 py-0.5 rounded-full font-mono font-bold ${
+                activeTab === "public" ? "bg-white/20 text-white" : "bg-cloud text-ink-400"
+              }`}
+            >
+              {publicApplicants.length}
+            </span>
+          </div>
         </button>
 
         <button
@@ -442,7 +825,7 @@ export default function AdmisiPage() {
         >
           <div className="flex items-center gap-2">
             <Layers size={15} />
-            <span>2. Batch Approval</span>
+            <span>3. Batch Approval</span>
           </div>
           <span
             className={`text-xs px-2 py-0.5 rounded-full font-mono font-bold ${
@@ -450,23 +833,6 @@ export default function AdmisiPage() {
             }`}
           >
             {batchStudents.length}
-          </span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("public")}
-          className={`flex items-center justify-between sm:justify-center gap-2 px-4 py-3 rounded-xl font-bold text-xs sm:text-sm transition-all ${
-            activeTab === "public"
-              ? "bg-ink text-white shadow-md"
-              : "text-ink-400 hover:text-ink hover:bg-cloud"
-          }`}
-        >
-          <div className="flex items-center gap-2">
-            <Globe size={15} />
-            <span>3. Public Admission</span>
-          </div>
-          <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-gold-100 text-gold-700">
-            Next
           </span>
         </button>
       </div>
@@ -1145,62 +1511,352 @@ export default function AdmisiPage() {
       )}
 
       {/* ========================================================================= */}
-      {/* SUB-SECTION 3: PUBLIC ADMISSION (Portal Utama Pendaftaran) */}
+      {/* SUB-SECTION 2: PUBLIC ADMISSION (Manajemen Pendaftaran Online Terbuka) */}
       {/* ========================================================================= */}
       {activeTab === "public" && (
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-ink/5 shadow-sm space-y-6 sm:space-y-8 animate-in fade-in duration-300">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-gold-50 text-gold-700 text-xs font-bold border border-gold-200 mb-3">
-              <Sparkles size={14} /> Jalur Pendaftaran Terbuka (Public Domain)
+        <div className="space-y-5 animate-in fade-in duration-300">
+          {/* Quick Stats Grid */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            <div className="p-4 sm:p-5 rounded-2xl bg-white border border-ink/10 shadow-2xs">
+              <span className="text-[11px] font-bold text-ink-300 uppercase tracking-wider block">
+                Total Pendaftar Publik
+              </span>
+              <p className="font-display text-2xl sm:text-3xl font-bold text-ink mt-1">
+                {publicStats.total}
+              </p>
             </div>
-            <h2 className="font-display text-2xl sm:text-3xl font-bold text-ink">
-              Public Admission Portal
-            </h2>
-            <p className="text-ink-400 mt-2 leading-relaxed text-xs sm:text-sm">
-              Jalur pendaftaran langsung dari domain utama admission JACOS untuk umum tanpa memerlukan private link dari admin. Sub-section ini akan diaktifkan setelah flow approval selesai terintegrasi.
-            </p>
+
+            <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200/80 shadow-2xs">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider block">
+                  Perlu Verifikasi Transfer
+                </span>
+                {publicStats.waitingPayment > 0 && (
+                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+                )}
+              </div>
+              <p className="font-display text-2xl sm:text-3xl font-bold text-amber-900 mt-1">
+                {publicStats.waitingPayment}
+              </p>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-2xl bg-leaf-50/70 border border-leaf-200/80 shadow-2xs">
+              <span className="text-[11px] font-bold text-leaf-700 uppercase tracking-wider block">
+                Lunas &amp; Link Terkirim
+              </span>
+              <p className="font-display text-2xl sm:text-3xl font-bold text-leaf-900 mt-1">
+                {publicStats.paid}
+              </p>
+            </div>
+
+            <div className="p-4 sm:p-5 rounded-2xl bg-coral-50/60 border border-coral-200/70 shadow-2xs">
+              <span className="text-[11px] font-bold text-coral-700 uppercase tracking-wider block">
+                Pembayaran Ditolak
+              </span>
+              <p className="font-display text-2xl sm:text-3xl font-bold text-coral-900 mt-1">
+                {publicStats.rejected}
+              </p>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-            <div className="p-5 rounded-2xl bg-cloud/50 border border-ink/5 space-y-2">
-              <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky flex items-center justify-center font-bold text-sm">1</div>
-              <h4 className="font-bold text-sm text-ink">Landing Page Public</h4>
-              <p className="text-xs text-ink-400 leading-relaxed">
-                Halaman informasi kurikulum, fasilitas, biaya, dan formulir pendaftaran terbuka untuk orang tua.
-              </p>
+          {/* Filters & Search */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-ink/10 shadow-2xs">
+            <div className="relative flex-1">
+              <Search
+                size={16}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-300"
+              />
+              <Input
+                type="text"
+                placeholder="Cari siswa, no. registrasi, nama ortu, nomor WA..."
+                value={publicSearchQuery}
+                onChange={(e) => setPublicSearchQuery(e.target.value)}
+                className="pl-10 h-10 rounded-xl bg-cloud/60 border-ink/10 text-xs sm:text-sm font-medium w-full"
+              />
             </div>
 
-            <div className="p-5 rounded-2xl bg-cloud/50 border border-ink/5 space-y-2">
-              <div className="w-9 h-9 rounded-xl bg-leaf-50 text-leaf-600 flex items-center justify-center font-bold text-sm">2</div>
-              <h4 className="font-bold text-sm text-ink">Payment Gateway</h4>
-              <p className="text-xs text-ink-400 leading-relaxed">
-                Pembayaran otomatis via Virtual Account &amp; QRIS langsung memvalidasi formulir masuk ke sistem admin.
-              </p>
-            </div>
-
-            <div className="p-5 rounded-2xl bg-cloud/50 border border-ink/5 space-y-2">
-              <div className="w-9 h-9 rounded-xl bg-gold-50 text-gold-700 flex items-center justify-center font-bold text-sm">3</div>
-              <h4 className="font-bold text-sm text-ink">Batch Approval Otomatis</h4>
-              <p className="text-xs text-ink-400 leading-relaxed">
-                Pendaftar yang disetujui akan langsung terkelompokkan ke Batch 1, Batch 2, atau Batch 3 secara presisi.
-              </p>
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+              <button
+                onClick={() => setPublicStatusFilter("ALL")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                  publicStatusFilter === "ALL"
+                    ? "bg-ink text-white"
+                    : "bg-cloud/60 text-ink-400 hover:text-ink"
+                }`}
+              >
+                Semua ({publicApplicants.length})
+              </button>
+              <button
+                onClick={() => setPublicStatusFilter("WAITING_PAYMENT")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                  publicStatusFilter === "WAITING_PAYMENT"
+                    ? "bg-amber-500 text-white shadow-xs"
+                    : "bg-amber-50 text-amber-800 hover:bg-amber-100"
+                }`}
+              >
+                Perlu Cek ({publicStats.waitingPayment})
+              </button>
+              <button
+                onClick={() => setPublicStatusFilter("PAID")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                  publicStatusFilter === "PAID"
+                    ? "bg-leaf-600 text-white shadow-xs"
+                    : "bg-leaf-50 text-leaf-800 hover:bg-leaf-100"
+                }`}
+              >
+                Lunas ({publicStats.paid})
+              </button>
+              <button
+                onClick={() => setPublicStatusFilter("REJECTED")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                  publicStatusFilter === "REJECTED"
+                    ? "bg-coral text-white shadow-xs"
+                    : "bg-coral-50 text-coral hover:bg-coral-100"
+                }`}
+              >
+                Ditolak ({publicStats.rejected})
+              </button>
             </div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-sky-50 border border-sky-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5">
-              <Clock size={18} className="text-sky-600 shrink-0" />
-              <p className="text-xs sm:text-sm font-semibold text-sky-900">
-                Fitur ini sedang dalam antrian pengembangan dan akan dirilis segera.
-              </p>
+          {/* Public Applicants Table */}
+          <div className="bg-white rounded-3xl border border-ink/10 shadow-sm overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-ink/10 bg-cloud/40 text-[11px] font-bold text-ink-400 uppercase tracking-wider">
+                    <th className="py-3.5 px-4 sm:px-6">No. Registrasi &amp; Tanggal</th>
+                    <th className="py-3.5 px-4">Calon Siswa</th>
+                    <th className="py-3.5 px-4">Orang Tua / Kontak</th>
+                    <th className="py-3.5 px-4">Bukti Transfer (Rp 1jt)</th>
+                    <th className="py-3.5 px-4">Status</th>
+                    <th className="py-3.5 px-4 sm:px-6 text-right">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ink/5 text-xs sm:text-sm">
+                  {paginatedPublicApplicants.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-12 text-center text-ink-300">
+                        Tidak ada data pendaftaran publik yang sesuai dengan filter.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedPublicApplicants.map((app) => {
+                      const guardian = app.guardians?.[0];
+                      const rawPhone = (guardian?.phone || "").replace(/[^0-9]/g, "");
+                      const waPhone = rawPhone.startsWith("0") ? `62${rawPhone.slice(1)}` : rawPhone;
+                      const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://jacosmanagement.vercel.app";
+                      const uniqueLink = `${baseUrl}/reg/${app.registration_token}`;
+                      const waReminderMessage = `Assalamu'alaikum Warahmatullahi Wabarakatuh Bapak/Ibu ${guardian?.full_name || ""},\n\nBerikut tautan formulir pendaftaran eksklusif calon siswa ananda *${app.student_name}* di JACOS:\n👉 ${uniqueLink}\n\nSilakan isi formulir dengan lengkap dan lampirkan dokumen pendukung.\n\nSalam hangat,\n*Tim Admisi JACOS*`;
+
+                      const isPending =
+                        app.payment_status === "PENDING_VERIFICATION" ||
+                        app.status === "WAITING_PAYMENT_REVIEW";
+                      const isPaid = app.payment_status === "PAID";
+                      const isRejected =
+                        app.payment_status === "REJECTED" || app.status === "REJECTED";
+
+                      return (
+                        <tr key={app.id} className="hover:bg-cloud/25 transition">
+                          {/* 1. Reg No & Date */}
+                          <td className="py-4 px-4 sm:px-6">
+                            <span className="font-mono font-bold text-sky text-xs block">
+                              {app.registration_no}
+                            </span>
+                            <span className="text-[11px] text-ink-300">
+                              {app.submitted_at
+                                ? new Date(app.submitted_at).toLocaleDateString("id-ID", {
+                                    day: "numeric",
+                                    month: "short",
+                                    year: "numeric",
+                                  })
+                                : "-"}
+                            </span>
+                          </td>
+
+                          {/* 2. Student Info */}
+                          <td className="py-4 px-4">
+                            <p className="font-bold text-ink">{app.student_name}</p>
+                            <div className="flex items-center gap-1.5 mt-0.5">
+                              <span className="text-[11px] font-semibold text-ink-400">
+                                {getProgramLabel(app.program)}
+                              </span>
+                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-cloud text-ink-400">
+                                {app.gender === "MALE" ? "L" : "P"}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* 3. Guardian & Contacts */}
+                          <td className="py-4 px-4">
+                            <p className="font-semibold text-ink">{guardian?.full_name || "-"}</p>
+                            <div className="flex flex-col gap-0.5 text-[11px] text-ink-400 mt-0.5">
+                              {guardian?.phone && (
+                                <a
+                                  href={`https://wa.me/${waPhone}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="text-green-600 hover:underline inline-flex items-center gap-1 font-mono"
+                                >
+                                  <Phone size={11} /> {guardian.phone}
+                                </a>
+                              )}
+                              <span className="text-slate-400 truncate max-w-[150px]">
+                                {guardian?.email || "-"}
+                              </span>
+                            </div>
+                          </td>
+
+                          {/* 4. Payment Proof */}
+                          <td className="py-4 px-4">
+                            {app.doc_payment_proof_signed ? (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => setProofModalApplicant(app)}
+                                className="h-8 px-2.5 rounded-xl border-sky-200 bg-sky-50/50 hover:bg-sky-100 text-sky-700 font-bold text-xs inline-flex items-center gap-1.5"
+                              >
+                                <Eye size={13} />
+                                <span>Lihat Bukti</span>
+                              </Button>
+                            ) : (
+                              <span className="text-xs text-slate-400 italic">Belum ada file</span>
+                            )}
+                          </td>
+
+                          {/* 5. Status Badges */}
+                          <td className="py-4 px-4">
+                            {isPending && (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold">
+                                <Clock size={12} /> Cek Transfer
+                              </span>
+                            )}
+                            {isPaid && (
+                              <div className="space-y-1">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-leaf-50 text-leaf-700 border border-leaf-200 text-xs font-bold">
+                                  <CheckCircle2 size={12} /> Lunas
+                                </span>
+                                <p className="text-[10px] text-slate-400">
+                                  {app.form_submitted ? "Form Lengkap" : "Menunggu Form"}
+                                </p>
+                              </div>
+                            )}
+                            {isRejected && (
+                              <div className="space-y-0.5">
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-coral-50 text-coral border border-coral-200 text-xs font-bold">
+                                  <XCircle size={12} /> Ditolak
+                                </span>
+                                {app.rejection_reason && (
+                                  <p className="text-[10px] text-coral-600 truncate max-w-[140px]" title={app.rejection_reason}>
+                                    {app.rejection_reason}
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* 6. Actions */}
+                          <td className="py-4 px-4 sm:px-6 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              {isPending && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    onClick={() => handleApprovePayment(app)}
+                                    disabled={isProcessingPayment}
+                                    className="h-8 px-3 rounded-xl bg-leaf-600 hover:bg-leaf-700 text-white font-bold text-xs shadow-xs"
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => handleOpenRejectPayment(app)}
+                                    disabled={isProcessingPayment}
+                                    className="h-8 px-2.5 rounded-xl border-coral-200 text-coral hover:bg-coral-50 font-bold text-xs"
+                                  >
+                                    Tolak
+                                  </Button>
+                                </>
+                              )}
+
+                              {isPaid && (
+                                <>
+                                  {waPhone && (
+                                    <a
+                                      href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waReminderMessage)}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex items-center gap-1 h-8 px-2.5 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 font-bold text-xs transition"
+                                      title="Kirim tautan pendaftaran via WhatsApp"
+                                    >
+                                      <Phone size={12} />
+                                      <span className="hidden sm:inline">WA Link</span>
+                                    </a>
+                                  )}
+                                  <Link href={`/management/admisi/${app.id}`}>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-8 px-2.5 rounded-xl border-ink/15 font-bold text-xs hover:bg-cloud"
+                                    >
+                                      Detail
+                                    </Button>
+                                  </Link>
+                                </>
+                              )}
+
+                              {isRejected && (
+                                <Link href={`/management/admisi/${app.id}`}>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-8 px-2.5 rounded-xl border-ink/15 font-bold text-xs hover:bg-cloud"
+                                  >
+                                    Detail
+                                  </Button>
+                                </Link>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
             </div>
-            <Button
-              onClick={() => setActiveTab("private")}
-              variant="outline"
-              className="rounded-xl border-sky-200 text-sky-700 hover:bg-sky-100 font-bold text-xs h-9 self-start sm:self-auto"
-            >
-              Kembali ke Private Admission →
-            </Button>
+
+            {/* Pagination Controls */}
+            <div className="p-4 sm:p-5 border-t border-ink/10 flex flex-col sm:flex-row items-center justify-between gap-3 bg-cloud/20 text-xs">
+              <span className="text-ink-300">
+                Menampilkan {paginatedPublicApplicants.length} dari {filteredPublicApplicants.length} pendaftar publik
+              </span>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={publicCurrentPage === 1}
+                  onClick={() => setPublicCurrentPage((p) => Math.max(1, p - 1))}
+                  className="h-8 px-2.5 rounded-xl border-ink/15 font-bold"
+                >
+                  <ChevronLeft size={14} className="mr-1" /> Prev
+                </Button>
+                <span className="font-bold text-ink px-2">
+                  {publicCurrentPage} / {publicTotalPages}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={publicCurrentPage >= publicTotalPages}
+                  onClick={() => setPublicCurrentPage((p) => p + 1)}
+                  className="h-8 px-2.5 rounded-xl border-ink/15 font-bold"
+                >
+                  Next <ChevronRight size={14} className="ml-1" />
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

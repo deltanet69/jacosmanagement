@@ -695,6 +695,7 @@ export default function ApplicantDetail({
             {/* General Documents Grid */}
             {(() => {
               const generalDocs = [
+                { key: "doc_payment_proof", label: "Bukti Transfer Biaya Pendaftaran (Rp 1.000.000)" },
                 { key: "doc_photo_4x3", label: "Pas Foto 3x4 / 4x3" },
                 { key: "doc_birth_certificate", label: "Akta Kelahiran" },
                 { key: "doc_family_card", label: "Kartu Keluarga (KK)" },

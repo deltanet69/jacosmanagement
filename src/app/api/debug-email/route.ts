@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { sendFormReceivedEmail } from "@/lib/email";
+import { sendFormWaitingApprovalEmail } from "@/lib/email";
 
 export async function GET() {
   const resendKey = process.env.RESEND_API_KEY;
@@ -18,15 +18,12 @@ export async function POST(req: Request) {
   try {
     const { email } = await req.json();
     if (!email) return NextResponse.json({ error: "email required" }, { status: 400 });
-    const result = await sendFormReceivedEmail({
+    const result = await sendFormWaitingApprovalEmail({
       parentName: "Test Orang Tua",
       parentEmail: email,
       studentName: "Test Siswa",
       registrationNo: "JCS-2026-TEST",
       program: "Primary School",
-      portalUrl: process.env.NEXT_PUBLIC_PARENT_URL || "https://jacosmanagement.vercel.app/parent-portal",
-      portalEmail: email,
-      portalPassword: "TestPassword123!",
     });
     return NextResponse.json({ result, resend_key_set: !!process.env.RESEND_API_KEY });
   } catch (err: any) {

@@ -75,7 +75,14 @@ export default function ParentDashboardPage() {
 
         // 4. Set state berdasarkan data yang ditemukan
         if (applicantData) {
-          if (applicantData.documents) {
+          if (applicantData.doc_jacos_agreement) {
+            setAgreementDoc({
+              file_path: applicantData.doc_jacos_agreement,
+              status: applicantData.doc_jacos_agreement_status || 'PENDING',
+              verification: applicantData.doc_jacos_agreement_status || 'PENDING',
+              review_note: applicantData.doc_jacos_agreement_note || null,
+            });
+          } else if (applicantData.documents) {
             const agreement = applicantData.documents.find((d: any) => d.type === 'JACOS_AGREEMENT');
             if (agreement) {
               setAgreementDoc(agreement);
@@ -250,9 +257,9 @@ export default function ParentDashboardPage() {
   }
 
   // Enum verification yang valid: PENDING, REJECTED, VERIFIED
-  const isAgreementApproved = agreementDoc && agreementDoc.verification === 'VERIFIED';
-  const isAgreementPending = agreementDoc && (agreementDoc.verification === 'PENDING' || agreementDoc.verification === 'REVIEWING');
-  const isAgreementRejected = agreementDoc && agreementDoc.verification === 'REJECTED';
+  const isAgreementApproved = agreementDoc && (agreementDoc.verification === 'VERIFIED' || agreementDoc.status === 'VERIFIED');
+  const isAgreementPending = agreementDoc && (agreementDoc.verification === 'PENDING' || agreementDoc.verification === 'REVIEWING' || agreementDoc.status === 'PENDING' || agreementDoc.status === 'WAITING_VERIFICATION');
+  const isAgreementRejected = agreementDoc && (agreementDoc.verification === 'REJECTED' || agreementDoc.status === 'REJECTED');
 
   // Modal Dokumen Agreement
   const renderAgreementOverlay = () => {

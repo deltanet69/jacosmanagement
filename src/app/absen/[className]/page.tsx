@@ -20,7 +20,19 @@ export default async function AbsenPage(props: { params: Promise<{ className: st
     notFound();
   }
 
+  const { count: totalStudents } = await supabase
+    .from("students")
+    .select("id", { count: "exact", head: true })
+    .eq("class_id", cls.id)
+    .eq("is_active", true);
+
   const attendance = await getTodayAttendanceByClass(cls.id);
 
-  return <AbsenClientPage classData={cls} initialAttendance={attendance} />;
+  return (
+    <AbsenClientPage
+      classData={cls}
+      initialAttendance={attendance}
+      totalStudents={totalStudents || 0}
+    />
+  );
 }

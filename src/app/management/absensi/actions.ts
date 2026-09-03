@@ -104,7 +104,10 @@ export async function getTodayAttendanceByClass(classId: string) {
       students (
         id,
         full_name,
-        profile_picture
+        nis,
+        nisn,
+        profile_picture,
+        gender
       )
     `)
     .eq("class_id", classId)
@@ -126,23 +129,29 @@ export async function addPickupQueue(
   const supabase = createAdminClient();
   const today = new Date().toISOString().split("T")[0];
 
-  // Resolve student by id or NIS if string given
   let targetStudentId = studentIdOrNis;
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
     studentIdOrNis
   );
 
-  if (!isUuid) {
-    const { data: foundStudent } = await supabase
-      .from("students")
-      .select("id, full_name, class_id")
-      .or(`nis.eq.${studentIdOrNis},nisn.eq.${studentIdOrNis},id.eq.${studentIdOrNis}`)
-      .maybeSingle();
+  let studentQuery = supabase
+    .from("students")
+    .select("id, full_name, class_id, school_classes(name, grade)");
 
-    if (foundStudent) {
-      targetStudentId = foundStudent.id;
-    }
+  if (isUuid) {
+    studentQuery = studentQuery.eq("id", studentIdOrNis);
+  } else {
+    studentQuery = studentQuery.or(`nis.eq.${studentIdOrNis},nisn.eq.${studentIdOrNis}`);
   }
+
+  const { data: targetStudent } = await studentQuery.maybeSingle();
+
+  if (targetStudent) {
+    targetStudentId = targetStudent.id;
+  }
+
+  const studentName = targetStudent?.full_name || "Siswa JACOS";
+  const className = (targetStudent as any)?.school_classes?.name || `Kelas ${(targetStudent as any)?.school_classes?.grade || ""}`.trim() || "";
 
   const { data: existingQueue } = await supabase
     .from("pickup_queue")
@@ -153,13 +162,21 @@ export async function addPickupQueue(
 
   if (existingQueue) {
     if (existingQueue.status === "PICKED_UP") {
-      return { success: false, message: "Siswa sudah dijemput sebelumnya hari ini." };
+      return { 
+        success: false, 
+        message: `Ananda ${studentName} sudah dijemput sebelumnya hari ini.`,
+        studentName,
+        className,
+      };
     }
     if (existingQueue.status === "WAITING" || existingQueue.status === "CALLED") {
       return {
         success: true,
-        message: "Siswa sudah berada dalam antrian penjemputan.",
+        message: `Ananda ${studentName} sudah berada dalam antrian penjemputan.`,
+        studentName,
+        className,
         alreadyQueued: true,
+        queueId: existingQueue.id,
       };
     }
     // If was cancelled, re-activate
@@ -176,7 +193,13 @@ export async function addPickupQueue(
     revalidatePath("/penjemputan-app");
     revalidatePath("/management/absensi/penjemputan");
     revalidatePath("/management/absensi/penjemputan/scanner");
-    return { success: true, message: "Antrian siswa berhasil diaktifkan kembali." };
+    return { 
+      success: true, 
+      message: `Antrian Ananda ${studentName} berhasil diaktifkan kembali.`,
+      studentName,
+      className,
+      queueId: existingQueue.id,
+    };
   }
 
   const { data: inserted, error } = await supabase
@@ -199,7 +222,13 @@ export async function addPickupQueue(
   revalidatePath("/penjemputan-app");
   revalidatePath("/management/absensi/penjemputan");
   revalidatePath("/management/absensi/penjemputan/scanner");
-  return { success: true, message: "Siswa berhasil masuk antrian penjemputan!", queueId: inserted?.id };
+  return { 
+    success: true, 
+    message: `Ananda ${studentName} berhasil masuk antrian penjemputan!`, 
+    queueId: inserted?.id,
+    studentName,
+    className,
+  };
 }
 
 export async function callPickupStudent(queueId: string) {

@@ -1,7 +1,7 @@
 "use server";
 
 import { createAdminClient } from "@/lib/supabase/server";
-import { sendFormReceivedEmail } from "@/lib/email";
+import { sendFormWaitingApprovalEmail } from "@/lib/email";
 import { isValidEmail, getFirstValidEmail } from "@/lib/utils";
 
 // Verifikasi token dan kembalikan data pendaftar (prefill)
@@ -224,63 +224,16 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
       PRIMARY_SCHOOL: "Primary School",
     };
 
-    let portalPassword = "";
-    
     let resendResult: any = null;
     if (emailTarget) {
-      // Create user auto-generate password
-      portalPassword = Math.random().toString(36).slice(-8) + "Aa1!"; // Secure random password
-      
-      const { data: createdUser, error: createUserError } = await supabase.auth.admin.createUser({
-        email: emailTarget,
-        password: portalPassword,
-        email_confirm: true,
-        user_metadata: {
-          first_login: true,
-          applicant_id: applicant.id,
-          role: "PARENT",
-        },
-      });
-
-      if (createUserError) {
-        // Kalau user sudah ada, reset passwordnya ke password baru yang akan kita kirim via email
-        const isAlreadyExists = createUserError.message.toLowerCase().includes("already") || 
-                                createUserError.message.toLowerCase().includes("exist") ||
-                                createUserError.code === "email_exists";
-        
-        if (isAlreadyExists) {
-          // Cari user ID dan update passwordnya
-          const { data: userList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-          const existingUser = userList?.users?.find(u => u.email?.toLowerCase() === emailTarget.toLowerCase());
-          if (existingUser) {
-            await supabase.auth.admin.updateUserById(existingUser.id, {
-              password: portalPassword,
-              user_metadata: { ...(existingUser.user_metadata || {}), first_login: true, applicant_id: applicant.id, role: "PARENT" },
-            });
-            console.log("Existing user password reset for:", emailTarget);
-          }
-        } else {
-          console.error("Error creating parent user:", createUserError);
-          portalPassword = ""; // Tidak kirim password kalau error tidak dikenal
-        }
-      }
-
-      const isProduction = process.env.NEXT_PUBLIC_PARENT_URL?.includes("parent.jacos.id");
-      const portalUrl = isProduction 
-        ? "https://parent.jacos.id" 
-        : "https://jacosmanagement.vercel.app/parent-portal";
-
-      resendResult = await sendFormReceivedEmail({
+      resendResult = await sendFormWaitingApprovalEmail({
         parentName,
         parentEmail: emailTarget,
         studentName,
         registrationNo: applicant.registration_no,
-        program: programLabel[applicant.program] || applicant.program,
-        portalUrl,
-        portalEmail: emailTarget,
-        portalPassword,
+        program: applicant.program,
       });
-      console.log("Form received email sent to", emailTarget, "result:", resendResult);
+      console.log("Form waiting approval email sent to", emailTarget, "result:", resendResult);
     } else {
       console.warn("No valid parent email found for applicant:", applicant.registration_no);
     }

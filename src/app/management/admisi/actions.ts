@@ -5,7 +5,9 @@ import { revalidatePath } from "next/cache";
 import crypto from "crypto";
 import { isValidEmail, getFirstValidEmail } from "@/lib/utils";
 import {
-  sendFormReceivedEmail,
+  sendInitialGreetingEmail,
+  sendPublicAdmissionReceivedEmail,
+  sendFormWaitingApprovalEmail,
   sendApprovalEmail,
   sendRejectionEmail,
   sendAgreementApprovedEmail,
@@ -104,11 +106,15 @@ export async function getApplicantDetail(id: string) {
     "doc_family_card",
     "doc_parent_id",
     "doc_jacos_agreement",
+    "doc_payment_proof",
   ] as const;
 
   const signedUrls: Record<string, string> = {};
   for (const field of docFields) {
-    const filePath = (data as any)[field];
+    let filePath = (data as any)[field];
+    if (!filePath && field === "doc_payment_proof" && data.payment_note?.includes("Bukti: ")) {
+      filePath = data.payment_note.split("Bukti: ")[1]?.trim();
+    }
     if (filePath) {
       const { data: urlData } = await supabase.storage
         .from("admission-documents")
@@ -278,11 +284,12 @@ export async function createNewAdmission(formData: {
         primary_language: "-",
         blood_type: "-",
         category: "NEW_STUDENT",
-        status: "SUBMITTED",
+        status: "PENDING_FORM",
         payment_status: "PAID",
         payment_amount: formData.paymentAmount,
         payment_method: formData.paymentMethod,
         payment_note: formData.paymentNote,
+        form_submitted: false,
         submitted_at: new Date().toISOString(),
       })
       .select()
@@ -311,66 +318,20 @@ export async function createNewAdmission(formData: {
       console.error("Error creating guardian:", guardianError);
     }
 
-    // Kirim email konfirmasi pendaftaran ke orang tua
+    // Kirim email greetings awal pendaftaran lengkap dengan link unik ke orang tua
     const cleanEmail = formData.parentEmail?.trim();
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jacosmanagement.vercel.app";
+    const uniqueLink = `${baseUrl}/reg/${registrationToken}`;
+
     if (cleanEmail && isValidEmail(cleanEmail)) {
       try {
-        const tempPassword = generateTempPassword();
-        const portalUrl = process.env.NEXT_PUBLIC_PARENT_URL || "https://parent.jacos.id";
-
-        let finalPassword = tempPassword;
-        const { error: authError } = await supabase.auth.admin.createUser({
-          email: cleanEmail,
-          password: tempPassword,
-          user_metadata: {
-            full_name: formData.parentName,
-            role: "PARENT",
-            first_login: true,
-            applicant_id: newApplicant.id,
-            admission_status: "Waiting for approval",
-          },
-          email_confirm: true,
-        });
-
-        if (authError) {
-          const isAlreadyExists =
-            authError.message.toLowerCase().includes("already") ||
-            authError.message.toLowerCase().includes("exist") ||
-            authError.code === "email_exists";
-
-          if (isAlreadyExists) {
-            const { data: userList } = await supabase.auth.admin.listUsers({ perPage: 1000 });
-            const existingUser = userList?.users?.find(
-              (u) => u.email?.toLowerCase() === cleanEmail.toLowerCase()
-            );
-            if (existingUser) {
-              await supabase.auth.admin.updateUserById(existingUser.id, {
-                password: tempPassword,
-                user_metadata: {
-                  ...(existingUser.user_metadata || {}),
-                  full_name: formData.parentName,
-                  role: "PARENT",
-                  first_login: true,
-                  applicant_id: newApplicant.id,
-                  admission_status: "Waiting for approval",
-                },
-              });
-            }
-          } else {
-            console.error("[createNewAdmission] Error creating parent auth user:", authError);
-            finalPassword = "";
-          }
-        }
-
-        await sendFormReceivedEmail({
+        await sendInitialGreetingEmail({
           parentName: formData.parentName,
           parentEmail: cleanEmail,
           studentName: formData.studentName,
           registrationNo,
           program: formData.program,
-          portalUrl,
-          portalEmail: cleanEmail,
-          portalPassword: finalPassword,
+          uniqueLink,
         });
       } catch (emailErr) {
         console.error("[createNewAdmission] Email error (non-fatal):", emailErr);
@@ -378,7 +339,7 @@ export async function createNewAdmission(formData: {
     }
 
     revalidatePath("/management/admisi");
-    return { success: true, applicantId: newApplicant.id, registrationToken };
+    return { success: true, applicantId: newApplicant.id, registrationToken, uniqueLink };
   } catch (err: any) {
     console.error(err);
     return { success: false, message: err.message || "Terjadi kesalahan sistem." };
@@ -904,3 +865,182 @@ export async function resetParentAccountPassword(applicantId: string, customPass
     studentName: applicant.student_name,
   };
 }
+
+// ============================================================
+// PUBLIC ADMISSION — Ambil Pendaftar Jalur Public
+// ============================================================
+
+export async function getPublicAdmissionApplicants() {
+  const supabase = createAdminClient();
+  try {
+    const { data, error } = await supabase
+      .from("applicants")
+      .select(`*, guardians (*)`)
+      .or("status.eq.WAITING_PAYMENT_REVIEW,payment_note.ilike.%[PUBLIC_ADMISSION]%")
+      .order("submitted_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching public applicants:", error);
+      return [];
+    }
+
+    const applicantsWithSignedUrls = await Promise.all(
+      (data || []).map(async (item: any) => {
+        let proofPath = item.doc_payment_proof;
+        if (!proofPath && item.payment_note?.includes("Bukti: ")) {
+          proofPath = item.payment_note.split("Bukti: ")[1]?.trim();
+        }
+
+        let paymentProofSigned: string | null = null;
+        if (proofPath) {
+          const { data: urlData } = await supabase.storage
+            .from("admission-documents")
+            .createSignedUrl(proofPath, 3600);
+          if (urlData) paymentProofSigned = urlData.signedUrl;
+        }
+
+        return {
+          ...item,
+          doc_payment_proof_signed: paymentProofSigned,
+        };
+      })
+    );
+
+    return applicantsWithSignedUrls;
+  } catch (err) {
+    console.error("Exception in getPublicAdmissionApplicants:", err);
+    return [];
+  }
+}
+
+// ============================================================
+// PUBLIC ADMISSION — Approve Bukti Transfer & Kirim Link Unik
+// ============================================================
+
+export async function approvePublicPayment(applicantId: string) {
+  const supabase = createAdminClient();
+  try {
+    const { data: applicant, error: findError } = await supabase
+      .from("applicants")
+      .select("*, guardians(*)")
+      .eq("id", applicantId)
+      .single();
+
+    if (findError || !applicant) {
+      return { success: false, message: "Pendaftar tidak ditemukan." };
+    }
+
+    const registrationToken = applicant.registration_token || generateToken();
+
+    const { error: updateError } = await supabase
+      .from("applicants")
+      .update({
+        payment_status: "PAID",
+        status: applicant.form_submitted ? "WAITING_REVIEW" : "PENDING_FORM",
+        registration_token: registrationToken,
+      })
+      .eq("id", applicantId);
+
+    if (updateError) {
+      return { success: false, message: updateError.message };
+    }
+
+    const guardiansList = applicant.guardians
+      ? (Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians])
+      : [];
+    const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
+    const targetEmail = guardian?.email;
+    const parentName = guardian?.full_name || "Bapak/Ibu";
+
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jacosmanagement.vercel.app";
+    const uniqueLink = `${baseUrl}/reg/${registrationToken}`;
+
+    let emailSent = false;
+    if (targetEmail && isValidEmail(targetEmail)) {
+      try {
+        const res = await sendInitialGreetingEmail({
+          parentName,
+          parentEmail: targetEmail,
+          studentName: applicant.student_name,
+          registrationNo: applicant.registration_no,
+          program: applicant.program,
+          uniqueLink,
+        });
+        emailSent = res.success ?? false;
+      } catch (e) {
+        console.error("Error sending initial greeting email on payment approval:", e);
+      }
+    }
+
+    const rawPhone = (guardian?.phone || "").replace(/[^0-9]/g, "");
+    const waPhone = rawPhone.startsWith("0") ? `62${rawPhone.slice(1)}` : rawPhone;
+    const waMessage = `Assalamu'alaikum Warahmatullahi Wabarakatuh Bapak/Ibu ${parentName},\n\nPembayaran pendaftaran calon siswa ananda *${applicant.student_name}* di JACOS telah berhasil diverifikasi oleh Tim Admisi.\n\nBerikut tautan formulir pendaftaran eksklusif ananda:\n👉 ${uniqueLink}\n\nSilakan isi formulir dengan lengkap dan lampirkan dokumen pendukung.\n\nSalam hangat,\n*Tim Admisi JACOS*`;
+
+    revalidatePath("/management/admisi");
+    revalidatePath(`/management/admisi/${applicantId}`);
+
+    return {
+      success: true,
+      uniqueLink,
+      waPhone,
+      waMessage,
+      emailSent,
+    };
+  } catch (err: any) {
+    console.error("Exception in approvePublicPayment:", err);
+    return { success: false, message: err.message || "Gagal memproses approval pembayaran." };
+  }
+}
+
+// ============================================================
+// PUBLIC ADMISSION — Tolak Pembayaran & Beri Catatan
+// ============================================================
+
+export async function rejectPublicPayment(applicantId: string, reason: string) {
+  const supabase = createAdminClient();
+  try {
+    const { data: applicant } = await supabase
+      .from("applicants")
+      .select("*, guardians(*)")
+      .eq("id", applicantId)
+      .single();
+
+    if (!applicant) return { success: false, message: "Data tidak ditemukan." };
+
+    await supabase
+      .from("applicants")
+      .update({
+        payment_status: "REJECTED",
+        status: "REJECTED",
+        rejection_reason: reason,
+      })
+      .eq("id", applicantId);
+
+    const guardiansList = applicant.guardians
+      ? (Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians])
+      : [];
+    const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
+    const targetEmail = guardian?.email;
+
+    if (targetEmail && isValidEmail(targetEmail)) {
+      try {
+        await sendRejectionEmail({
+          parentName: guardian?.full_name || "Bapak/Ibu",
+          parentEmail: targetEmail,
+          studentName: applicant.student_name,
+          registrationNo: applicant.registration_no,
+          reason,
+        });
+      } catch (e) {
+        console.error("Error sending rejection email:", e);
+      }
+    }
+
+    revalidatePath("/management/admisi");
+    revalidatePath(`/management/admisi/${applicantId}`);
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, message: err.message || "Gagal menolak pembayaran." };
+  }
+}
+
