@@ -24,14 +24,15 @@ export default function PenjemputanPage() {
     const fetchStudentData = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        const studentId = session?.user?.user_metadata?.student_id;
+        const user = session?.user;
+        const studentId = user?.user_metadata?.student_id;
         
         let loadedStudent = null;
 
         if (studentId) {
           const { data: studentData, error } = await supabase
             .from('students')
-            .select('id, full_name, school_classes(name)')
+            .select('id, full_name, nis, nisn, school_classes(name, grade)')
             .eq('id', studentId)
             .maybeSingle();
             
@@ -40,12 +41,39 @@ export default function PenjemputanPage() {
           }
         }
 
+        // If not found in metadata, check guardians by email
+        if (!loadedStudent && user?.email) {
+          const { data: guardians } = await supabase
+            .from('guardians')
+            .select('applicant_id, applicants(student_record_id, student_name)')
+            .ilike('email', user.email)
+            .limit(1);
+
+          const studentRecordId = (guardians?.[0] as any)?.applicants?.student_record_id;
+          if (studentRecordId) {
+            const { data: studentData } = await supabase
+              .from('students')
+              .select('id, full_name, nis, nisn, school_classes(name, grade)')
+              .eq('id', studentRecordId)
+              .maybeSingle();
+
+            if (studentData) loadedStudent = studentData;
+          }
+        }
+
+        // Fallback to first active student if still null (for testing/demo)
         if (!loadedStudent) {
-          loadedStudent = {
-            id: studentId || 'student-demo',
-            full_name: session?.user?.user_metadata?.student_name || 'Ananda Siswa JACOS',
-            school_classes: [{ name: 'Grade 1 - Al-Fatih' }]
-          };
+          const { data: firstStudent } = await supabase
+            .from('students')
+            .select('id, full_name, nis, nisn, school_classes(name, grade)')
+            .eq('is_active', true)
+            .order('full_name', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (firstStudent) {
+            loadedStudent = firstStudent;
+          }
         }
 
         setStudent(loadedStudent);

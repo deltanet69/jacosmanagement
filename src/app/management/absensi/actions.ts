@@ -129,34 +129,60 @@ export async function addPickupQueue(
   const supabase = createAdminClient();
   const today = new Date().toISOString().split("T")[0];
 
-  let targetStudentId = studentIdOrNis;
   const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-    studentIdOrNis
+    studentIdOrNis.trim()
   );
 
-  let studentQuery = supabase
-    .from("students")
-    .select("id, full_name, class_id, school_classes(name, grade)");
+  let targetStudent: any = null;
 
   if (isUuid) {
-    studentQuery = studentQuery.eq("id", studentIdOrNis);
-  } else {
-    studentQuery = studentQuery.or(`nis.eq.${studentIdOrNis},nisn.eq.${studentIdOrNis}`);
+    const { data } = await supabase
+      .from("students")
+      .select("id, full_name, class_id, is_active, authorized_pickup_name, school_classes(name, grade)")
+      .eq("id", studentIdOrNis.trim())
+      .maybeSingle();
+    targetStudent = data;
   }
 
-  const { data: targetStudent } = await studentQuery.maybeSingle();
-
-  if (targetStudent) {
-    targetStudentId = targetStudent.id;
+  if (!targetStudent) {
+    const { data } = await supabase
+      .from("students")
+      .select("id, full_name, class_id, is_active, authorized_pickup_name, school_classes(name, grade)")
+      .or(`nis.eq.${studentIdOrNis.trim()},nisn.eq.${studentIdOrNis.trim()},rf_id.eq.${studentIdOrNis.trim()}`)
+      .maybeSingle();
+    targetStudent = data;
   }
 
-  const studentName = targetStudent?.full_name || "Siswa JACOS";
-  const className = (targetStudent as any)?.school_classes?.name || `Kelas ${(targetStudent as any)?.school_classes?.grade || ""}`.trim() || "";
+  if (!targetStudent && studentIdOrNis.trim().length >= 2) {
+    const { data } = await supabase
+      .from("students")
+      .select("id, full_name, class_id, is_active, authorized_pickup_name, school_classes(name, grade)")
+      .ilike("full_name", `%${studentIdOrNis.trim()}%`)
+      .limit(1)
+      .maybeSingle();
+    targetStudent = data;
+  }
+
+  if (!targetStudent) {
+    return {
+      success: false,
+      message: `Data siswa "${studentIdOrNis}" tidak ditemukan di database sekolah.`,
+    };
+  }
+
+  const finalStudentId = targetStudent.id;
+  const studentName = targetStudent.full_name || "Siswa JACOS";
+  const className =
+    (targetStudent as any)?.school_classes?.name ||
+    `Kelas ${(targetStudent as any)?.school_classes?.grade || ""}`.trim() ||
+    "";
+  const finalPicker =
+    parentName.trim() || targetStudent.authorized_pickup_name || "Orang Tua/Wali";
 
   const { data: existingQueue } = await supabase
     .from("pickup_queue")
     .select("id, status")
-    .eq("student_id", targetStudentId)
+    .eq("student_id", finalStudentId)
     .eq("pickup_date", today)
     .maybeSingle();
 
@@ -184,7 +210,7 @@ export async function addPickupQueue(
       .from("pickup_queue")
       .update({
         status: "WAITING",
-        picked_by_name: parentName,
+        picked_by_name: finalPicker,
         picked_by_relation: relation,
         created_at: new Date().toISOString(),
       })
@@ -205,10 +231,10 @@ export async function addPickupQueue(
   const { data: inserted, error } = await supabase
     .from("pickup_queue")
     .insert({
-      student_id: targetStudentId,
+      student_id: finalStudentId,
       pickup_date: today,
       status: "WAITING",
-      picked_by_name: parentName,
+      picked_by_name: finalPicker,
       picked_by_relation: relation,
     })
     .select("id")
@@ -216,7 +242,7 @@ export async function addPickupQueue(
 
   if (error) {
     console.error("addPickupQueue error:", error);
-    return { success: false, message: "Gagal menambahkan ke antrian." };
+    return { success: false, message: `Gagal menambahkan ke antrian: ${error.message}` };
   }
 
   revalidatePath("/penjemputan-app");
@@ -512,13 +538,11 @@ export async function getPickupHistory(filter: PickupHistoryFilter) {
   return results;
 }
 
-export async function searchStudentsForPickup(query: string) {
-  if (!query || query.trim().length < 2) return [];
-
+export async function searchStudentsForPickup(query?: string) {
   const supabase = createAdminClient();
-  const q = query.trim().toLowerCase();
+  const q = (query || "").trim().toLowerCase();
 
-  const { data: students, error } = await supabase
+  let studentQuery = supabase
     .from("students")
     .select(`
       id,
@@ -532,8 +556,15 @@ export async function searchStudentsForPickup(query: string) {
       emergency_contact_phone,
       emergency_contact_name
     `)
-    .or(`full_name.ilike.%${q}%,nis.ilike.%${q}%,nisn.ilike.%${q}%`)
-    .limit(10);
+    .eq("is_active", true)
+    .order("full_name", { ascending: true })
+    .limit(15);
+
+  if (q.length > 0) {
+    studentQuery = studentQuery.or(`full_name.ilike.%${q}%,nis.ilike.%${q}%,nisn.ilike.%${q}%`);
+  }
+
+  const { data: students, error } = await studentQuery;
 
   if (error || !students) return [];
 
