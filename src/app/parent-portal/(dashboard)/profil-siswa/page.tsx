@@ -24,7 +24,7 @@ export default function ProfilSiswaPage() {
         if (studentId) {
           const { data: studentData, error } = await supabase
             .from('students')
-            .select('id, full_name, nis, nisn, gender, birth_date, birth_place, program, school_classes(name)')
+            .select('id, full_name, nis, nisn, gender, birth_date, birth_place, program, school_classes(name, grade)')
             .eq('id', studentId)
             .maybeSingle();
             
@@ -33,20 +33,39 @@ export default function ProfilSiswaPage() {
           }
         }
 
-        // If no student found via ID, check if there's any active student or fallback to parent metadata
+        // If not found in metadata, check guardians by email
+        if (!loadedStudent && session?.user?.email) {
+          const { data: guardians } = await supabase
+            .from('guardians')
+            .select('applicant_id, applicants(student_record_id)')
+            .ilike('email', session.user.email)
+            .limit(1);
+
+          const studentRecordId = (guardians?.[0] as any)?.applicants?.student_record_id;
+          if (studentRecordId) {
+            const { data: studentData } = await supabase
+              .from('students')
+              .select('id, full_name, nis, nisn, gender, birth_date, birth_place, program, school_classes(name, grade)')
+              .eq('id', studentRecordId)
+              .maybeSingle();
+
+            if (studentData) loadedStudent = studentData;
+          }
+        }
+
+        // Fallback to first active student if still null (for demo)
         if (!loadedStudent) {
-          // Fallback mockup/default based on logged in user
-          loadedStudent = {
-            id: studentId || 'student-demo',
-            full_name: session?.user?.user_metadata?.student_name || 'Ananda Siswa JACOS',
-            nis: '202601001',
-            nisn: '0089123456',
-            gender: 'MALE',
-            program: 'Primary (SD)',
-            birth_place: 'Jakarta',
-            birth_date: '2018-05-12',
-            school_classes: [{ name: 'Grade 1 - Al-Fatih' }]
-          };
+          const { data: firstStudent } = await supabase
+            .from('students')
+            .select('id, full_name, nis, nisn, gender, birth_date, birth_place, program, school_classes(name, grade)')
+            .eq('is_active', true)
+            .order('full_name', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (firstStudent) {
+            loadedStudent = firstStudent;
+          }
         }
 
         setStudent(loadedStudent);

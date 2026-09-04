@@ -40,6 +40,7 @@ import {
   getClasses,
   assignStudentToClass,
   getPublicAdmissionApplicants,
+  getPaymentProofSignedUrl,
   approvePublicPayment,
   rejectPublicPayment,
 } from "./actions";
@@ -76,6 +77,7 @@ export default function AdmisiPage() {
   const [publicCurrentPage, setPublicCurrentPage] = useState(1);
   const [publicPageSize, setPublicPageSize] = useState(10);
   const [proofModalApplicant, setProofModalApplicant] = useState<any | null>(null);
+  const [isLoadingProofUrl, setIsLoadingProofUrl] = useState(false);
   const [rejectPaymentApplicant, setRejectPaymentApplicant] = useState<any | null>(null);
   const [rejectReasonInput, setRejectReasonInput] = useState("");
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -294,7 +296,7 @@ export default function AdmisiPage() {
       if (publicStatusFilter === "WAITING_PAYMENT") {
         matchStatus =
           app.payment_status === "PENDING_VERIFICATION" ||
-          app.status === "WAITING_PAYMENT_REVIEW";
+          app.status === "WAITING_REVIEW";
       } else if (publicStatusFilter === "PAID") {
         matchStatus = app.payment_status === "PAID";
       } else if (publicStatusFilter === "REJECTED") {
@@ -315,7 +317,7 @@ export default function AdmisiPage() {
   const publicStats = useMemo(() => {
     const total = publicApplicants.length;
     const waitingPayment = publicApplicants.filter(
-      (a) => a.payment_status === "PENDING_VERIFICATION" || a.status === "WAITING_PAYMENT_REVIEW"
+      (a) => a.payment_status === "PENDING_VERIFICATION" || a.status === "WAITING_REVIEW"
     ).length;
     const paid = publicApplicants.filter((a) => a.payment_status === "PAID").length;
     const rejected = publicApplicants.filter(
@@ -336,7 +338,7 @@ export default function AdmisiPage() {
             ? {
                 ...a,
                 payment_status: "PAID",
-                status: a.form_submitted ? "WAITING_REVIEW" : "PENDING_FORM",
+                status: a.form_submitted ? "WAITING_REVIEW" : "PENDING",
                 registration_token: res.uniqueLink?.split("/reg/")[1] || a.registration_token,
               }
             : a
@@ -353,6 +355,17 @@ export default function AdmisiPage() {
       });
     } else {
       alert(res.message || "Gagal menyetujui pembayaran.");
+    }
+  };
+
+  const handleOpenProofModal = async (applicant: any) => {
+    setProofModalApplicant(applicant);
+    if (!applicant.doc_payment_proof_signed) {
+      setIsLoadingProofUrl(true);
+      const proofPath = applicant.payment_proof_path || applicant.doc_payment_proof || applicant.id;
+      const signedUrl = await getPaymentProofSignedUrl(proofPath);
+      setIsLoadingProofUrl(false);
+      setProofModalApplicant((prev: any) => prev ? { ...prev, doc_payment_proof_signed: signedUrl } : null);
     }
   };
 
@@ -542,7 +555,12 @@ export default function AdmisiPage() {
 
             {/* Proof Image / File Preview */}
             <div className="rounded-2xl border border-ink/10 overflow-hidden bg-slate-950 flex items-center justify-center min-h-[260px] max-h-[420px] p-2">
-              {proofModalApplicant.doc_payment_proof_signed ? (
+              {isLoadingProofUrl ? (
+                <div className="text-center p-8 space-y-3">
+                  <div className="w-8 h-8 border-3 border-sky border-t-transparent rounded-full animate-spin mx-auto" />
+                  <p className="text-xs text-slate-300 font-medium">Memuat berkas bukti transfer...</p>
+                </div>
+              ) : proofModalApplicant.doc_payment_proof_signed ? (
                 proofModalApplicant.doc_payment_proof_signed.includes(".pdf") ? (
                   <div className="text-center p-8 space-y-3">
                     <FileText className="w-12 h-12 text-sky mx-auto" />
@@ -1651,7 +1669,7 @@ export default function AdmisiPage() {
 
                       const isPending =
                         app.payment_status === "PENDING_VERIFICATION" ||
-                        app.status === "WAITING_PAYMENT_REVIEW";
+                        app.status === "WAITING_REVIEW";
                       const isPaid = app.payment_status === "PAID";
                       const isRejected =
                         app.payment_status === "REJECTED" || app.status === "REJECTED";
@@ -1709,11 +1727,11 @@ export default function AdmisiPage() {
 
                           {/* 4. Payment Proof */}
                           <td className="py-4 px-4">
-                            {app.doc_payment_proof_signed ? (
+                            {app.has_payment_proof || app.doc_payment_proof || app.doc_payment_proof_signed || app.payment_note?.includes("Bukti: ") ? (
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => setProofModalApplicant(app)}
+                                onClick={() => handleOpenProofModal(app)}
                                 className="h-8 px-2.5 rounded-xl border-sky-200 bg-sky-50/50 hover:bg-sky-100 text-sky-700 font-bold text-xs inline-flex items-center gap-1.5"
                               >
                                 <Eye size={13} />

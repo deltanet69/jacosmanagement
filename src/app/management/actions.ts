@@ -66,24 +66,57 @@ export async function getAdminDashboardData(): Promise<DashboardData> {
   const todayStr = new Date().toISOString().split("T")[0];
 
   try {
-    // 1. Fetch Students Count & Distribution
-    const { data: studentsData } = await supabase
-      .from("students")
-      .select("id, program, is_active");
+    // Parallel fetch of all 7 independent dashboard data sources
+    const [
+      studentsRes,
+      applicantsRes,
+      teachersRes,
+      staffAttendanceRes,
+      pickupRes,
+      classesRes,
+      announcementsRes,
+    ] = await Promise.all([
+      // 1. Students Count & Distribution
+      supabase.from("students").select("id, program, is_active"),
+      // 2. Admissions / Applicants Data (excluding soft deleted)
+      supabase
+        .from("applicants")
+        .select("id, registration_no, student_name, program, status, created_at, batch, payment_note")
+        .or("is_deleted.is.null,is_deleted.eq.false")
+        .order("created_at", { ascending: false }),
+      // 3. Teachers
+      supabase.from("teachers").select("id, full_name"),
+      // 4. Staff Attendance for today
+      supabase
+        .from("staff_attendance")
+        .select("id, check_in_time, status, teachers ( full_name )")
+        .eq("date", todayStr)
+        .order("check_in_time", { ascending: false }),
+      // 5. Pickup Queue for today
+      supabase
+        .from("pickup_queue")
+        .select("id, pickup_date, status, picked_by_name, picked_by_relation, created_at, students ( full_name, class_id )")
+        .eq("pickup_date", todayStr)
+        .order("created_at", { ascending: true }),
+      // 6. School Classes
+      supabase.from("school_classes").select("id, name, grade"),
+      // 7. Announcements
+      supabase
+        .from("announcements")
+        .select("id, title, category, created_at")
+        .order("created_at", { ascending: false })
+        .limit(3),
+    ]);
 
-    const studentsList = studentsData || [];
+    // 1. Process Students
+    const studentsList = studentsRes.data || [];
     const totalStudents = studentsList.length;
     const preschool = studentsList.filter((s) => s.program === "PRESCHOOL").length;
     const kindergarten = studentsList.filter((s) => s.program === "KINDERGARTEN").length;
     const primary = studentsList.filter((s) => s.program === "PRIMARY_SCHOOL" || !s.program).length;
 
-    // 2. Fetch Admissions / Applicants Data
-    const { data: applicantsData } = await supabase
-      .from("applicants")
-      .select("id, registration_no, student_name, program, status, created_at, batch, payment_note")
-      .order("created_at", { ascending: false });
-
-    const applicantsList = applicantsData || [];
+    // 2. Process Admissions
+    const applicantsList = applicantsRes.data || [];
     const totalApplicants = applicantsList.length;
     const pendingApplicants = applicantsList.filter(
       (a) => a.status === "PENDING" || a.status === "WAITING_REVIEW" || a.status === "SUBMITTED"
@@ -106,24 +139,9 @@ export async function getAdminDashboardData(): Promise<DashboardData> {
       batch: a.batch || null,
     }));
 
-    // 3. Fetch Teachers & Today Attendance
-    const { data: teachersData } = await supabase
-      .from("teachers")
-      .select("id, full_name");
-    const totalTeachers = teachersData?.length || 0;
-
-    const { data: staffAttendance } = await supabase
-      .from("staff_attendance")
-      .select(`
-        id,
-        check_in_time,
-        status,
-        teachers ( full_name )
-      `)
-      .eq("date", todayStr)
-      .order("check_in_time", { ascending: false });
-
-    const staffLogs = staffAttendance || [];
+    // 3. Process Teachers
+    const totalTeachers = teachersRes.data?.length || 0;
+    const staffLogs = staffAttendanceRes.data || [];
     const presentStaff = staffLogs.filter((l) => l.status === "HADIR").length;
     const attendanceRate =
       totalTeachers > 0 ? Math.round((presentStaff / totalTeachers) * 100) : 0;
@@ -135,33 +153,16 @@ export async function getAdminDashboardData(): Promise<DashboardData> {
       status: l.status || "HADIR",
     }));
 
-    // 4. Fetch Pickup Queue for Today
-    const { data: pickupData } = await supabase
-      .from("pickup_queue")
-      .select(`
-        id,
-        pickup_date,
-        status,
-        picked_by_name,
-        picked_by_relation,
-        created_at,
-        students ( full_name, class_id )
-      `)
-      .eq("pickup_date", todayStr)
-      .order("created_at", { ascending: true });
-
-    const pickupList = pickupData || [];
+    // 4. Process Pickup Queue
+    const pickupList = pickupRes.data || [];
     const totalPickupsToday = pickupList.length;
     const waitingPickups = pickupList.filter(
       (p) => p.status === "WAITING" || p.status === "CALLED"
     );
     const completedPickups = pickupList.filter((p) => p.status === "PICKED_UP").length;
 
-    // Fetch classes for nice names
-    const { data: classesData } = await supabase
-      .from("school_classes")
-      .select("id, name, grade");
-    const classMap = new Map((classesData || []).map((c) => [c.id, c.name || `Kelas ${c.grade}`]));
+    const classesData = classesRes.data || [];
+    const classMap = new Map(classesData.map((c) => [c.id, c.name || `Kelas ${c.grade}`]));
 
     const activePickupQueue = waitingPickups.slice(0, 4).map((p: any) => ({
       id: p.id,
@@ -175,14 +176,8 @@ export async function getAdminDashboardData(): Promise<DashboardData> {
       status: p.status,
     }));
 
-    // 5. Fetch Announcements
-    const { data: announcementsData } = await supabase
-      .from("announcements")
-      .select("id, title, category, created_at")
-      .order("created_at", { ascending: false })
-      .limit(3);
-
-    const announcements = (announcementsData || []).map((a) => ({
+    // 5. Process Announcements
+    const announcements = (announcementsRes.data || []).map((a) => ({
       id: a.id,
       title: a.title,
       category: a.category || "GENERAL",

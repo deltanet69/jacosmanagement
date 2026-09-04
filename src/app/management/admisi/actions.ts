@@ -75,6 +75,7 @@ export async function getApplicants() {
   const { data, error } = await supabase
     .from("applicants")
     .select(`*, guardians (*)`)
+    .or('is_deleted.is.null,is_deleted.eq.false')
     .order("submitted_at", { ascending: false });
 
   if (error) {
@@ -284,7 +285,7 @@ export async function createNewAdmission(formData: {
         primary_language: "-",
         blood_type: "-",
         category: "NEW_STUDENT",
-        status: "PENDING_FORM",
+        status: "PENDING",
         payment_status: "PAID",
         payment_amount: formData.paymentAmount,
         payment_method: formData.paymentMethod,
@@ -876,7 +877,8 @@ export async function getPublicAdmissionApplicants() {
     const { data, error } = await supabase
       .from("applicants")
       .select(`*, guardians (*)`)
-      .or("status.eq.WAITING_PAYMENT_REVIEW,payment_note.ilike.%[PUBLIC_ADMISSION]%")
+      .or('is_deleted.is.null,is_deleted.eq.false')
+      .or("status.eq.WAITING_REVIEW,payment_note.ilike.%[PUBLIC_ADMISSION]%")
       .order("submitted_at", { ascending: false });
 
     if (error) {
@@ -884,32 +886,59 @@ export async function getPublicAdmissionApplicants() {
       return [];
     }
 
-    const applicantsWithSignedUrls = await Promise.all(
-      (data || []).map(async (item: any) => {
-        let proofPath = item.doc_payment_proof;
-        if (!proofPath && item.payment_note?.includes("Bukti: ")) {
-          proofPath = item.payment_note.split("Bukti: ")[1]?.trim();
-        }
+    return (data || []).map((item: any) => {
+      let proofPath = item.doc_payment_proof;
+      if (!proofPath && item.payment_note?.includes("Bukti: ")) {
+        proofPath = item.payment_note.split("Bukti: ")[1]?.trim();
+      }
 
-        let paymentProofSigned: string | null = null;
-        if (proofPath) {
-          const { data: urlData } = await supabase.storage
-            .from("admission-documents")
-            .createSignedUrl(proofPath, 3600);
-          if (urlData) paymentProofSigned = urlData.signedUrl;
-        }
-
-        return {
-          ...item,
-          doc_payment_proof_signed: paymentProofSigned,
-        };
-      })
-    );
-
-    return applicantsWithSignedUrls;
+      return {
+        ...item,
+        has_payment_proof: !!proofPath,
+        payment_proof_path: proofPath || null,
+        doc_payment_proof_signed: null, // Loaded on-demand when user clicks modal
+      };
+    });
   } catch (err) {
     console.error("Exception in getPublicAdmissionApplicants:", err);
     return [];
+  }
+}
+
+export async function getPaymentProofSignedUrl(proofPathOrApplicantId: string): Promise<string | null> {
+  const supabase = createAdminClient();
+  try {
+    let filePath = proofPathOrApplicantId;
+    if (!filePath.includes("/")) {
+      // It might be an applicantId
+      const { data: applicant } = await supabase
+        .from("applicants")
+        .select("doc_payment_proof, payment_note")
+        .eq("id", proofPathOrApplicantId)
+        .single();
+      if (applicant) {
+        filePath = applicant.doc_payment_proof;
+        if (!filePath && applicant.payment_note?.includes("Bukti: ")) {
+          filePath = applicant.payment_note.split("Bukti: ")[1]?.trim();
+        }
+      }
+    }
+
+    if (!filePath) return null;
+
+    const { data: urlData, error } = await supabase.storage
+      .from("admission-documents")
+      .createSignedUrl(filePath, 3600);
+
+    if (error || !urlData) {
+      console.error("Error creating signed URL:", error);
+      return null;
+    }
+
+    return urlData.signedUrl;
+  } catch (err) {
+    console.error("Exception in getPaymentProofSignedUrl:", err);
+    return null;
   }
 }
 
@@ -936,7 +965,7 @@ export async function approvePublicPayment(applicantId: string) {
       .from("applicants")
       .update({
         payment_status: "PAID",
-        status: applicant.form_submitted ? "WAITING_REVIEW" : "PENDING_FORM",
+        status: applicant.form_submitted ? "WAITING_REVIEW" : "PENDING",
         registration_token: registrationToken,
       })
       .eq("id", applicantId);
@@ -1044,3 +1073,23 @@ export async function rejectPublicPayment(applicantId: string, reason: string) {
   }
 }
 
+// ============================================================
+// SOFT DELETE
+// ============================================================
+export async function softDeleteApplicant(applicantId: string) {
+  const supabase = createAdminClient();
+  try {
+    const { error } = await supabase
+      .from("applicants")
+      .update({ is_deleted: true })
+      .eq("id", applicantId);
+
+    if (error) throw error;
+    revalidatePath("/management/admisi");
+    revalidatePath(`/management/admisi/${applicantId}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error("Error soft deleting applicant:", err);
+    return { success: false, message: err.message || "Gagal menghapus data pendaftar." };
+  }
+}

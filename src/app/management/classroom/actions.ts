@@ -16,19 +16,12 @@ export async function getAllClasses() {
 // Get class detail + student count
 export async function getClassDetail(classId: string) {
   const supabase = createAdminClient();
-  const { data: cls } = await supabase
-    .from("school_classes")
-    .select("*")
-    .eq("id", classId)
-    .single();
+  const [clsRes, countRes] = await Promise.all([
+    supabase.from("school_classes").select("*").eq("id", classId).single(),
+    supabase.from("students").select("id", { count: "exact", head: true }).eq("class_id", classId).eq("is_active", true),
+  ]);
 
-  const { count: studentCount } = await supabase
-    .from("students")
-    .select("id", { count: "exact", head: true })
-    .eq("class_id", classId)
-    .eq("is_active", true);
-
-  return { cls, studentCount: studentCount || 0 };
+  return { cls: clsRes.data, studentCount: countRes.count || 0 };
 }
 
 // Get students in a class with attendance stats
@@ -218,34 +211,34 @@ export async function getTodayAttendanceSummary(classId: string) {
   const supabase = createAdminClient();
   const today = new Date().toISOString().split("T")[0];
 
-  const { count: totalStudents } = await supabase
-    .from("students")
-    .select("id", { count: "exact", head: true })
-    .eq("class_id", classId)
-    .eq("is_active", true);
+  const [totalRes, presentRes, pendingRes] = await Promise.all([
+    supabase
+      .from("students")
+      .select("id", { count: "exact", head: true })
+      .eq("class_id", classId)
+      .eq("is_active", true),
+    supabase
+      .from("student_attendance")
+      .select("id", { count: "exact", head: true })
+      .eq("class_id", classId)
+      .eq("date", today)
+      .eq("status", "HADIR"),
+    supabase
+      .from("student_absences")
+      .select("id", { count: "exact", head: true })
+      .eq("class_id", classId)
+      .eq("status", "PENDING"),
+  ]);
 
-  const { count: presentToday } = await supabase
-    .from("student_attendance")
-    .select("id", { count: "exact", head: true })
-    .eq("class_id", classId)
-    .eq("date", today)
-    .eq("status", "HADIR");
-
-  const { count: pendingAbsences } = await supabase
-    .from("student_absences")
-    .select("id", { count: "exact", head: true })
-    .eq("class_id", classId)
-    .eq("status", "PENDING");
-
-  const total = totalStudents || 0;
-  const present = presentToday || 0;
+  const total = totalRes.count || 0;
+  const present = presentRes.count || 0;
   const pct = total > 0 ? Math.round((present / total) * 100) : 0;
 
   return {
     totalStudents: total,
     presentToday: present,
     todayPct: pct,
-    pendingAbsences: pendingAbsences || 0,
+    pendingAbsences: pendingRes.count || 0,
   };
 }
 

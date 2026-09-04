@@ -342,40 +342,38 @@ export async function getPickupQueue() {
   const supabase = createAdminClient();
   const today = new Date().toISOString().split("T")[0];
 
-  const { data: queueData, error } = await supabase
-    .from("pickup_queue")
-    .select(`
-      id,
-      student_id,
-      pickup_date,
-      status,
-      picked_by_name,
-      picked_by_relation,
-      created_at,
-      picked_up_at,
-      students (
+  const [queueRes, classesRes] = await Promise.all([
+    supabase
+      .from("pickup_queue")
+      .select(`
         id,
-        full_name,
-        nis,
-        nisn,
-        profile_picture,
-        class_id,
-        gender,
-        authorized_pickup_name,
-        emergency_contact_phone
-      )
-    `)
-    .eq("pickup_date", today)
-    .order("created_at", { ascending: true });
+        student_id,
+        pickup_date,
+        status,
+        picked_by_name,
+        picked_by_relation,
+        created_at,
+        picked_up_at,
+        students (
+          id,
+          full_name,
+          nis,
+          nisn,
+          profile_picture,
+          class_id,
+          gender,
+          authorized_pickup_name,
+          emergency_contact_phone
+        )
+      `)
+      .eq("pickup_date", today)
+      .order("created_at", { ascending: true }),
+    supabase.from("school_classes").select("id, name, grade, level"),
+  ]);
 
-  if (error || !queueData) return [];
-
-  // Fetch school classes to attach friendly names
-  const { data: classes } = await supabase
-    .from("school_classes")
-    .select("id, name, grade, level");
-
-  const classMap = new Map((classes || []).map((c) => [c.id, c.name || `Kelas ${c.grade}`]));
+  const queueData = queueRes.data || [];
+  const classes = classesRes.data || [];
+  const classMap = new Map(classes.map((c) => [c.id, c.name || `Kelas ${c.grade}`]));
 
   return queueData.map((item: any) => ({
     ...item,
@@ -491,15 +489,14 @@ export async function getPickupHistory(filter: PickupHistoryFilter) {
     query = query.eq("status", filter.status);
   }
 
-  const { data: list, error } = await query;
-  if (error || !list) return [];
+  const [listRes, classesRes] = await Promise.all([
+    query,
+    supabase.from("school_classes").select("id, name, grade, level"),
+  ]);
 
-  // Fetch school classes
-  const { data: classes } = await supabase
-    .from("school_classes")
-    .select("id, name, grade, level");
-
-  const classMap = new Map((classes || []).map((c) => [c.id, c.name || `Kelas ${c.grade}`]));
+  const list = listRes.data || [];
+  const classes = classesRes.data || [];
+  const classMap = new Map(classes.map((c) => [c.id, c.name || `Kelas ${c.grade}`]));
 
   let results = list.map((item: any) => {
     let waitMinutes: number | null = null;
@@ -629,7 +626,6 @@ export async function getStudentAttendanceRecap(filterDate?: string, classId?: s
   const supabase = createAdminClient();
   const date = filterDate || new Date().toISOString().split("T")[0];
 
-  // 1. Get all active students
   let studentQuery = supabase
     .from("students")
     .select("id, full_name, nis, nisn, profile_picture, class_id")
@@ -640,43 +636,33 @@ export async function getStudentAttendanceRecap(filterDate?: string, classId?: s
     studentQuery = studentQuery.eq("class_id", classId);
   }
 
-  const { data: students } = await studentQuery;
-  const studentList = students || [];
-  const studentIds = studentList.map((s) => s.id);
-
-  // 2. Fetch classes map
-  const { data: classes } = await supabase
-    .from("school_classes")
-    .select("id, name, grade, level")
-    .order("grade", { ascending: true });
-
-  const classMap = new Map((classes || []).map((c) => [c.id, c.name || `Kelas ${c.grade}`]));
-
-  // 3. Fetch attendance for date
   let attendanceQuery = supabase
     .from("student_attendance")
     .select("*")
     .eq("date", date);
 
-  if (studentIds.length > 0) {
-    attendanceQuery = attendanceQuery.in("student_id", studentIds);
-  }
-
-  const { data: attendanceRecords } = await attendanceQuery;
-  const attendanceMap = new Map((attendanceRecords || []).map((a) => [a.student_id, a]));
-
-  // 4. Fetch absences/permissions for date
   let absenceQuery = supabase
     .from("student_absences")
     .select("*")
     .eq("date", date);
 
-  if (studentIds.length > 0) {
-    absenceQuery = absenceQuery.in("student_id", studentIds);
-  }
+  // Parallel fetch: students, classes, attendance records, and absence records
+  const [studentsRes, classesRes, attendanceRes, absencesRes] = await Promise.all([
+    studentQuery,
+    supabase.from("school_classes").select("id, name, grade, level").order("grade", { ascending: true }),
+    attendanceQuery,
+    absenceQuery,
+  ]);
 
-  const { data: absenceRecords } = await absenceQuery;
-  const absenceMap = new Map((absenceRecords || []).map((a) => [a.student_id, a]));
+  const studentList = studentsRes.data || [];
+  const classes = classesRes.data || [];
+  const classMap = new Map(classes.map((c) => [c.id, c.name || `Kelas ${c.grade}`]));
+
+  const attendanceRecords = attendanceRes.data || [];
+  const attendanceMap = new Map(attendanceRecords.map((a) => [a.student_id, a]));
+
+  const absenceRecords = absencesRes.data || [];
+  const absenceMap = new Map(absenceRecords.map((a) => [a.student_id, a]));
 
   // Combine results
   const items = studentList.map((student) => {

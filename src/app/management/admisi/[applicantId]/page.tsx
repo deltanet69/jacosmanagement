@@ -24,7 +24,9 @@ import {
   User,
   Download,
   ExternalLink,
+  Trash,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +36,7 @@ import {
   rejectApplicant,
   verifyDocumentAgreement,
   resetParentAccountPassword,
+  softDeleteApplicant,
 } from "../actions";
 import {
   BATCH_CONFIG,
@@ -51,11 +54,29 @@ export default function ApplicantDetail({
   const { applicantId } = use(params);
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const router = useRouter();
 
   // Approval Modal States (Batch Selection)
   const [showApprovalModal, setShowApprovalModal] = useState(false);
   const [selectedBatch, setSelectedBatch] = useState<AdmissionBatchKey>("BATCH_1");
   const [isApproving, setIsApproving] = useState(false);
+
+  // Soft Delete Modal
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    const res = await softDeleteApplicant(applicantId);
+    if (res.success) {
+      router.push("/management/admisi");
+    } else {
+      alert(res.message);
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
 
   // Rejection Modal States
   const [showRejectModal, setShowRejectModal] = useState(false);
@@ -310,6 +331,43 @@ export default function ApplicantDetail({
 
   return (
     <div className="space-y-6 max-w-full mx-auto relative pb-16">
+      {/* ========================================================================= */}
+      {/* SOFT DELETE MODAL */}
+      {/* ========================================================================= */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-ink/5 space-y-6">
+            <div>
+              <div className="w-12 h-12 rounded-2xl bg-coral-50 text-coral flex items-center justify-center mb-4">
+                <Trash size={24} />
+              </div>
+              <h3 className="font-display text-2xl font-bold text-ink">
+                Hapus Pendaftaran
+              </h3>
+              <p className="text-ink-400 text-sm mt-1">
+                Apakah Anda yakin ingin menghapus data pendaftaran ananda <strong className="text-ink">{data.student_name}</strong>? Data akan disembunyikan (Soft Delete) dari daftar admin.
+              </p>
+            </div>
+            <div className="flex gap-3 pt-2">
+              <Button
+                variant="outline"
+                onClick={() => setShowDeleteModal(false)}
+                className="flex-1 h-12 rounded-xl border-ink/15 font-bold text-sm"
+              >
+                Batal
+              </Button>
+              <Button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="flex-1 h-12 rounded-xl bg-coral hover:bg-coral-600 text-white font-bold text-sm shadow-md"
+              >
+                {isDeleting ? "Menghapus..." : "Ya, Hapus"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ========================================================================= */}
       {/* APPROVAL & BATCH SELECTION MODAL */}
       {/* ========================================================================= */}
@@ -838,6 +896,17 @@ export default function ApplicantDetail({
                 <XCircle size={16} className="mr-2" />
                 Tolak Pendaftaran
               </Button>
+
+              <div className="pt-2">
+                <Button
+                  onClick={() => setShowDeleteModal(true)}
+                  variant="ghost"
+                  className="w-full text-ink-300 hover:text-coral hover:bg-coral-50 font-bold h-10 rounded-xl text-xs"
+                >
+                  <Trash size={14} className="mr-2" />
+                  Hapus Data (Soft Delete)
+                </Button>
+              </div>
             </div>
 
             {/* Quick Details */}

@@ -75,7 +75,10 @@ export default function LobbyDisplayPage() {
     setMounted(true);
     setCurrentTime(new Date());
     fetchData();
-    const interval = setInterval(fetchData, 3000);
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      fetchData();
+    }, 4000);
     return () => clearInterval(interval);
   }, [soundEnabled]);
 

@@ -5,6 +5,13 @@ const nextConfig: NextConfig = {
     serverActions: {
       bodySizeLimit: '10mb',
     },
+    optimizePackageImports: [
+      'lucide-react',
+      '@tanstack/react-query',
+      'clsx',
+      'tailwind-merge',
+      'papaparse',
+    ],
   },
 };
 

@@ -163,8 +163,11 @@ export default function PenjemputanAdminPage() {
     fetchLiveData();
     getAllClassesList().then((res) => setClassList(res || []));
 
-    // Polling live queue every 3.5 seconds
-    const interval = setInterval(fetchLiveData, 3500);
+    // Polling live queue when tab is active
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      fetchLiveData();
+    }, 4500);
     return () => clearInterval(interval);
   }, []);
 

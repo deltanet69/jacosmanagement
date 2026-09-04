@@ -120,7 +120,7 @@ export async function submitPublicAdmission(formData: FormData) {
       primary_language: "-",
       blood_type: "-",
       category: "NEW_STUDENT",
-      status: "WAITING_PAYMENT_REVIEW",
+      status: "WAITING_REVIEW",
       payment_status: "PENDING_VERIFICATION",
       payment_amount: 1000000,
       payment_method: paymentMethod,

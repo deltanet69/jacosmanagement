@@ -39,7 +39,10 @@ export default function DashboardOverview() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 10000); // 10s live poll
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
+      loadData();
+    }, 12000); // 12s live poll when active
     return () => clearInterval(interval);
   }, []);
 

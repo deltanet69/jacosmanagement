@@ -52,26 +52,29 @@ export default function ParentDashboardPage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) { setLoading(false); return; }
 
-        // Refresh session untuk mendapatkan user_metadata terbaru
-        await supabase.auth.refreshSession();
-        const { data: { session: freshSession } } = await supabase.auth.getSession();
-        const user = freshSession?.user || session.user;
+        const user = session.user;
         const userEmail = user.email;
         const studentIdFromMeta = user.user_metadata?.student_id;
-
         const applicantIdFromMeta = user.user_metadata?.applicant_id;
 
-        let resolvedStatus = 'Approved'; // default: biarkan masuk
-        
-        // Fetch data via server action to bypass RLS on documents table
-        const { applicantData, applicantId: resolvedApplicantId, studentId } = await getParentDashboardData(
-          applicantIdFromMeta || null, 
-          userEmail || null, 
-          studentIdFromMeta || null
-        );
-        
+        // Fetch dashboard metadata and announcements in parallel
+        const [dashboardRes, annRes] = await Promise.all([
+          getParentDashboardData(
+            applicantIdFromMeta || null, 
+            userEmail || null, 
+            studentIdFromMeta || null
+          ),
+          getParentAnnouncements(),
+        ]);
+
+        if (annRes.success && annRes.data) {
+          setAnnouncements(annRes.data);
+        }
+
+        const { applicantData, applicantId: resolvedApplicantId, studentId } = dashboardRes;
         let applicantId = resolvedApplicantId;
         let resolvedStudentId = studentId;
+        let resolvedStatus = 'Approved'; // default: biarkan masuk
 
         // 4. Set state berdasarkan data yang ditemukan
         if (applicantData) {
@@ -111,28 +114,49 @@ export default function ParentDashboardPage() {
         if (resolvedStudentId) {
           const { data: studentData } = await supabase
             .from('students')
-            .select('id, full_name, nis, school_classes(name)')
+            .select('id, full_name, nis, nisn, school_classes(name, grade)')
             .eq('id', resolvedStudentId)
             .maybeSingle();
 
           if (studentData) loadedStudent = studentData;
         }
 
+        // Fallback: check guardians by email
+        if (!loadedStudent && userEmail) {
+          const { data: guardians } = await supabase
+            .from('guardians')
+            .select('applicant_id, applicants(student_record_id)')
+            .ilike('email', userEmail)
+            .limit(1);
+
+          const studentRecordId = (guardians?.[0] as any)?.applicants?.student_record_id;
+          if (studentRecordId) {
+            const { data: studentData } = await supabase
+              .from('students')
+              .select('id, full_name, nis, nisn, school_classes(name, grade)')
+              .eq('id', studentRecordId)
+              .maybeSingle();
+
+            if (studentData) loadedStudent = studentData;
+          }
+        }
+
+        // Fallback to first active student if still null (for demo)
         if (!loadedStudent) {
-          loadedStudent = {
-            id: resolvedStudentId || 'student-demo',
-            full_name: user.user_metadata?.student_name || 'Ananda Siswa JACOS',
-            school_classes: [{ name: 'Grade 1 - Al-Fatih' }]
-          };
+          const { data: firstStudent } = await supabase
+            .from('students')
+            .select('id, full_name, nis, nisn, school_classes(name, grade)')
+            .eq('is_active', true)
+            .order('full_name', { ascending: true })
+            .limit(1)
+            .maybeSingle();
+
+          if (firstStudent) {
+            loadedStudent = firstStudent;
+          }
         }
 
         setStudent(loadedStudent);
-
-        // Load real-time announcements for parent
-        const annRes = await getParentAnnouncements();
-        if (annRes.success && annRes.data) {
-          setAnnouncements(annRes.data);
-        }
       } catch (err) {
         console.error("Error loading dashboard data:", err);
       } finally {
