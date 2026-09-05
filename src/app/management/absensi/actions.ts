@@ -363,7 +363,6 @@ export async function getPickupQueue() {
           class_id,
           gender,
           applicant_id
-          emergency_contact_phone
         )
       `)
       .eq("pickup_date", today)
@@ -549,9 +548,7 @@ export async function searchStudentsForPickup(query?: string) {
       class_id,
       profile_picture,
       gender,
-      applicant_id,
-      emergency_contact_phone,
-      emergency_contact_name
+      applicant_id
     `)
     .eq("is_active", true)
     .order("full_name", { ascending: true })
