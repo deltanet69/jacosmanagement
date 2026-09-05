@@ -1,22 +1,15 @@
-import { UnderDevelopment } from "@/components/shared/UnderDevelopment";
+import { getHrDashboardData } from "./actions";
+import HrDashboardClient from "./client-page";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Dashboard Utama HR - JACOS HR Management",
+  title: "Dashboard HR - JACOS HR Management",
+  description: "Dashboard overview HR dan manajemen kepegawaian Jakarta Cosmopolite Islamic School",
 };
 
-export default function HrDashboardPage() {
-  return (
-    <UnderDevelopment
-      title="Dashboard Utama HR Management"
-      category="HR Management"
-      description="Pusat kendali dan ringkasan eksekutif sumber daya manusia, statistik pegawai, distribusi produktivitas, dan pengumuman HR."
-      iconName="dashboard"
-      expectedFeatures={[
-        "Metrik jumlah staf, rasio keaktifan guru, dan turnover pegawai",
-        "Widget persetujuan cepat (Pending Izin, Lembur, dan Reimbursement)",
-        "Kalender acara internal HR, evaluasi KPI, dan ulang tahun pegawai",
-        "Grafik tren produktivitas dan kehadiran bulanan"
-      ]}
-    />
-  );
+export default async function HrDashboardPage() {
+  const initialData = await getHrDashboardData();
+
+  return <HrDashboardClient initialData={initialData} />;
 }
