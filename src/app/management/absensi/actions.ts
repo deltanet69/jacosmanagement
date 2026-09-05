@@ -205,12 +205,12 @@ export async function addPickupQueue(
         queueId: existingQueue.id,
       };
     }
-    // If was cancelled, re-activate
+    // If was cancelled or called, re-activate as pure WAITING
     await supabase
       .from("pickup_queue")
       .update({
         status: "WAITING",
-        picked_by_name: finalPicker,
+        picked_by_name: finalPicker.replace("[CALLED] ", "").trim(),
         picked_by_relation: relation,
         created_at: new Date().toISOString(),
       })
@@ -260,9 +260,15 @@ export async function addPickupQueue(
 export async function callPickupStudent(queueId: string) {
   const supabase = createAdminClient();
 
+  // DB enum pickup_status only supports WAITING and PICKED_UP
+  // We prepend [CALLED] to picked_by_name to store state safely
+  const { data: existing } = await supabase.from("pickup_queue").select("picked_by_name").eq("id", queueId).single();
+  const currentName = existing?.picked_by_name || "";
+  const newName = currentName.startsWith("[CALLED] ") ? currentName : `[CALLED] ${currentName}`;
+
   const { error } = await supabase
     .from("pickup_queue")
-    .update({ status: "CALLED" })
+    .update({ picked_by_name: newName })
     .eq("id", queueId);
 
   if (error) {
@@ -325,7 +331,7 @@ export async function cancelPickup(queueId: string) {
 
   const { error } = await supabase
     .from("pickup_queue")
-    .update({ status: "CANCELLED" })
+    .delete()
     .eq("id", queueId);
 
   if (error) {
@@ -374,12 +380,25 @@ export async function getPickupQueue() {
   const classes = classesRes.data || [];
   const classMap = new Map(classes.map((c) => [c.id, c.name || `Kelas ${c.grade}`]));
 
-  return queueData.map((item: any) => ({
-    ...item,
-    className: item.students?.class_id
-      ? classMap.get(item.students.class_id) || item.students.class_id
-      : "Belum Ada Kelas",
-  }));
+  return queueData.map((item: any) => {
+    let status = item.status;
+    let pickerName = item.picked_by_name || "";
+    
+    // Reverse the CALLED hack
+    if (status === "WAITING" && pickerName.startsWith("[CALLED] ")) {
+      status = "CALLED";
+      pickerName = pickerName.replace("[CALLED] ", "");
+    }
+
+    return {
+      ...item,
+      status,
+      picked_by_name: pickerName,
+      className: item.students?.class_id
+        ? classMap.get(item.students.class_id) || item.students.class_id
+        : "Belum Ada Kelas",
+    };
+  });
 }
 
 export async function getPickupStats(dateStr?: string) {
