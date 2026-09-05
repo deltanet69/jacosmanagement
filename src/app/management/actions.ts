@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getCurrentActiveBatch, getBatchInfo } from "@/lib/admission-config";
 
@@ -61,7 +62,7 @@ export interface DashboardData {
   classroomsCount: number;
 }
 
-export async function getAdminDashboardData(): Promise<DashboardData> {
+export const getAdminDashboardData = cache(async function getAdminDashboardData(): Promise<DashboardData> {
   const supabase = createAdminClient();
   const todayStr = new Date().toISOString().split("T")[0];
 
@@ -81,9 +82,9 @@ export async function getAdminDashboardData(): Promise<DashboardData> {
       // 2. Admissions / Applicants Data (excluding soft deleted)
       supabase
         .from("applicants")
-        .select("id, registration_no, student_name, program, status, created_at, batch, payment_note")
+        .select("id, registration_no, student_name, program, status, submitted_at, batch, payment_note")
         .or("is_deleted.is.null,is_deleted.eq.false")
-        .order("created_at", { ascending: false }),
+        .order("submitted_at", { ascending: false }),
       // 3. Teachers
       supabase.from("teachers").select("id, full_name"),
       // 4. Staff Attendance for today
@@ -135,7 +136,7 @@ export async function getAdminDashboardData(): Promise<DashboardData> {
       student_name: a.student_name,
       program: a.program,
       status: a.status,
-      created_at: a.created_at,
+      created_at: a.submitted_at || new Date().toISOString(),
       batch: a.batch || null,
     }));
 
@@ -236,4 +237,4 @@ export async function getAdminDashboardData(): Promise<DashboardData> {
       classroomsCount: 0,
     };
   }
-}
+});

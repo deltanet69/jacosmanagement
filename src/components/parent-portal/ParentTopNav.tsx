@@ -91,8 +91,8 @@ export function ParentTopNav() {
             <SheetContent side="left" className="w-80 p-0 flex flex-col bg-white">
               <div className="px-8 py-8 border-b border-ink/5">
                 <Link href="/parent-portal" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-                  <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={150} height={40} className="dark:hidden object-contain" />
-                  <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={140} height={40} className="hidden dark:block object-contain" />
+                  <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={150} height={40} style={{ width: "auto", height: "auto" }} className="dark:hidden object-contain" />
+                  <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={140} height={40} style={{ width: "auto", height: "auto" }} className="hidden dark:block object-contain" />
                 </Link>
               </div>
 

@@ -278,6 +278,7 @@ export default function ParentInformasiPage() {
                           src={item.thumbnail_url}
                           alt={item.title}
                           fill
+                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                           className="object-cover group-hover:scale-105 transition-transform duration-500"
                           unoptimized
                         />
@@ -443,6 +444,7 @@ export default function ParentInformasiPage() {
                     src={activeItem.thumbnail_url}
                     alt={activeItem.title}
                     fill
+                    sizes="(max-width: 768px) 100vw, 672px"
                     className="object-cover"
                     unoptimized
                   />

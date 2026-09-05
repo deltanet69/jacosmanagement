@@ -7,14 +7,27 @@ import { isValidEmail, getFirstValidEmail } from "@/lib/utils";
 // Verifikasi token dan kembalikan data pendaftar (prefill)
 export async function getApplicantByToken(token: string) {
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  const { data: applicant, error } = await supabase
     .from("applicants")
-    .select("*, guardians(*)")
+    .select("*")
     .eq("registration_token", token)
     .single();
 
-  if (error || !data) return null;
-  return data;
+  if (error || !applicant) return null;
+
+  const { data: guardians, error: guardianError } = await supabase
+    .from("guardians")
+    .select("*")
+    .eq("applicant_id", applicant.id);
+
+  if (guardianError) {
+    console.error("Error fetching guardians for token:", guardianError);
+  }
+
+  return {
+    ...applicant,
+    guardians: Array.isArray(guardians) ? guardians : guardians ? [guardians] : [],
+  };
 }
 
 // Submit form lengkap dari orang tua
@@ -105,8 +118,8 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
         nik: data.fatherNik || "-",
         occupation: data.fatherJob || "-",
         relation: "FATHER",
-        phone: data.fatherPhone,
-        email: data.fatherEmail,
+        phone: data.fatherPhone || "-",
+        email: data.fatherEmail || "-",
         birth_place: "-",
         birth_date: new Date().toISOString(),
         education_level: "S1",
@@ -121,8 +134,8 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
         nik: data.motherNik || "-",
         occupation: data.motherJob || "-",
         relation: "MOTHER",
-        phone: data.motherPhone,
-        email: data.motherEmail,
+        phone: data.motherPhone || "-",
+        email: data.motherEmail || "-",
         birth_place: "-",
         birth_date: new Date().toISOString(),
         education_level: "S1",
@@ -159,7 +172,9 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
         insertGuardiansErr = retry.error;
       }
 
-      if (insertGuardiansErr) console.error("Error inserting guardians:", insertGuardiansErr);
+      if (insertGuardiansErr) {
+        console.error("Error inserting guardians:", JSON.stringify(insertGuardiansErr), "code:", insertGuardiansErr.code, "message:", insertGuardiansErr.message);
+      }
     }
 
     // 4. Upload dokumen — simpan URL ke kolom doc_* di applicants

@@ -1,5 +1,6 @@
 "use server";
 
+import { cache } from "react";
 import { createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import crypto from "crypto";
@@ -70,7 +71,7 @@ function generateTempPassword(): string {
 // READ — Applicants & Classes
 // ============================================================
 
-export async function getApplicants() {
+export const getApplicants = cache(async function getApplicants() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("applicants")
@@ -82,21 +83,48 @@ export async function getApplicants() {
     console.error("Error fetching applicants:", error);
     return [];
   }
-  return data || [];
-}
+  
+  return (data || []).map((app: any) => ({
+    ...app,
+    guardians: Array.isArray(app.guardians) ? app.guardians : app.guardians ? [app.guardians] : [],
+  }));
+});
 
-export async function getApplicantDetail(id: string) {
+export const getApplicantDetail = cache(async function getApplicantDetail(id: string) {
   const supabase = createAdminClient();
-  const { data, error } = await supabase
+  
+  // 1. Fetch applicant base record
+  const { data: applicant, error } = await supabase
     .from("applicants")
-    .select(`*, guardians (*)`)
+    .select("*")
     .eq("id", id)
     .single();
 
-  if (error) {
+  if (error || !applicant) {
     console.error("Error fetching applicant detail:", error);
     return null;
   }
+
+  // 2. Direct fetch from guardians table by applicant_id for 100% data reliability
+  const { data: guardians, error: guardianError } = await supabase
+    .from("guardians")
+    .select("*")
+    .eq("applicant_id", id);
+
+  if (guardianError) {
+    console.error("Error fetching guardians for applicant:", guardianError.message);
+  }
+
+  const guardiansList = Array.isArray(guardians)
+    ? guardians
+    : guardians
+    ? [guardians]
+    : [];
+
+  const mergedData = {
+    ...applicant,
+    guardians: guardiansList,
+  };
 
   // Generate signed URLs for doc_* columns on applicants
   const docFields = [
@@ -112,9 +140,9 @@ export async function getApplicantDetail(id: string) {
 
   const signedUrls: Record<string, string> = {};
   for (const field of docFields) {
-    let filePath = (data as any)[field];
-    if (!filePath && field === "doc_payment_proof" && data.payment_note?.includes("Bukti: ")) {
-      filePath = data.payment_note.split("Bukti: ")[1]?.trim();
+    let filePath = (mergedData as any)[field];
+    if (!filePath && field === "doc_payment_proof" && mergedData.payment_note?.includes("Bukti: ")) {
+      filePath = mergedData.payment_note.split("Bukti: ")[1]?.trim();
     }
     if (filePath) {
       const { data: urlData } = await supabase.storage
@@ -124,10 +152,10 @@ export async function getApplicantDetail(id: string) {
     }
   }
 
-  return { ...data, ...signedUrls };
-}
+  return { ...mergedData, ...signedUrls };
+});
 
-export async function getClasses() {
+export const getClasses = cache(async function getClasses() {
   const supabase = createAdminClient();
   const { data, error } = await supabase
     .from("school_classes")
@@ -139,13 +167,13 @@ export async function getClasses() {
     return [];
   }
   return data || [];
-}
+});
 
 // ============================================================
 // READ — Batch Approved Students
 // ============================================================
 
-export async function getBatchApprovedStudents() {
+export const getBatchApprovedStudents = cache(async function getBatchApprovedStudents() {
   const supabase = createAdminClient();
 
   try {
@@ -239,7 +267,7 @@ export async function getBatchApprovedStudents() {
     console.error("Exception in getBatchApprovedStudents:", err);
     return [];
   }
-}
+});
 
 // ============================================================
 // CREATE — Pendaftaran Baru oleh Admin
@@ -347,6 +375,26 @@ export async function createNewAdmission(formData: {
   }
 }
 
+async function getApplicantWithGuardians(supabase: any, applicantId: string) {
+  const { data: applicant, error } = await supabase
+    .from("applicants")
+    .select("*")
+    .eq("id", applicantId)
+    .single();
+
+  if (error || !applicant) return null;
+
+  const { data: guardians } = await supabase
+    .from("guardians")
+    .select("*")
+    .eq("applicant_id", applicantId);
+
+  return {
+    ...applicant,
+    guardians: Array.isArray(guardians) ? guardians : guardians ? [guardians] : [],
+  };
+}
+
 // ============================================================
 // APPROVAL — Approve Siswa dengan Assignment BATCH
 // ============================================================
@@ -361,14 +409,10 @@ export async function approveApplicantWithBatch(
   try {
     const selectedBatch = (batchKey as AdmissionBatchKey) || getCurrentActiveBatch();
 
-    // 1. Ambil data applicant
-    const { data: applicant, error: applicantError } = await supabase
-      .from("applicants")
-      .select("*, guardians(*)")
-      .eq("id", applicantId)
-      .single();
+    // 1. Ambil data applicant beserta data guardians secara reliabel
+    const applicant = await getApplicantWithGuardians(supabase, applicantId);
 
-    if (applicantError || !applicant) {
+    if (!applicant) {
       return { success: false, message: "Pendaftar tidak ditemukan." };
     }
 
@@ -475,6 +519,7 @@ export async function approveApplicantWithBatch(
             );
             if (existingUser) {
               await supabase.auth.admin.updateUserById(existingUser.id, {
+                password: tempPassword,
                 user_metadata: {
                   ...(existingUser.user_metadata || {}),
                   full_name: guardian.full_name,
@@ -485,7 +530,7 @@ export async function approveApplicantWithBatch(
                 },
               });
               shouldSendEmail = true;
-              isExistingUser = true;
+              isExistingUser = false; // Set to false so the password is included in the email
             }
           } else {
             console.error("Error creating auth user:", authError);
@@ -595,11 +640,7 @@ export async function rejectApplicant(applicantId: string, reason?: string) {
   let resendResult: any = null;
 
   try {
-    const { data: applicant } = await supabase
-      .from("applicants")
-      .select("*, guardians(*)")
-      .eq("id", applicantId)
-      .single();
+    const applicant = await getApplicantWithGuardians(supabase, applicantId);
 
     await supabase
       .from("applicants")
@@ -607,11 +648,7 @@ export async function rejectApplicant(applicantId: string, reason?: string) {
       .eq("id", applicantId);
 
     if (applicant) {
-      const guardiansList = applicant.guardians
-        ? Array.isArray(applicant.guardians)
-          ? applicant.guardians
-          : [applicant.guardians]
-        : [];
+      const guardiansList = applicant.guardians || [];
       const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
       const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
 
@@ -679,18 +716,10 @@ export async function verifyDocumentAgreement(_documentId: string, applicantId: 
 
   if (dbStatus === "VERIFIED") {
     try {
-      const { data: applicant } = await supabase
-        .from("applicants")
-        .select("*, guardians(*)")
-        .eq("id", applicantId)
-        .single();
+      const applicant = await getApplicantWithGuardians(supabase, applicantId);
 
       if (applicant) {
-        const guardiansList = applicant.guardians
-          ? Array.isArray(applicant.guardians)
-            ? applicant.guardians
-            : [applicant.guardians]
-          : [];
+        const guardiansList = applicant.guardians || [];
         const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
         const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
 
@@ -731,21 +760,13 @@ export async function verifyDocumentAgreement(_documentId: string, applicantId: 
 export async function getParentAccountStatus(applicantId: string) {
   const supabase = createAdminClient();
 
-  const { data: applicant } = await supabase
-    .from("applicants")
-    .select("*, guardians(*)")
-    .eq("id", applicantId)
-    .single();
+  const applicant = await getApplicantWithGuardians(supabase, applicantId);
 
   if (!applicant) {
     return { success: false, message: "Data pendaftaran tidak ditemukan" };
   }
 
-  const guardiansList = applicant.guardians
-    ? Array.isArray(applicant.guardians)
-      ? applicant.guardians
-      : [applicant.guardians]
-    : [];
+  const guardiansList = applicant.guardians || [];
 
   const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
   const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
@@ -781,21 +802,13 @@ export async function getParentAccountStatus(applicantId: string) {
 export async function resetParentAccountPassword(applicantId: string, customPassword?: string) {
   const supabase = createAdminClient();
 
-  const { data: applicant } = await supabase
-    .from("applicants")
-    .select("*, guardians(*)")
-    .eq("id", applicantId)
-    .single();
+  const applicant = await getApplicantWithGuardians(supabase, applicantId);
 
   if (!applicant) {
     return { success: false, message: "Data pendaftaran tidak ditemukan" };
   }
 
-  const guardiansList = applicant.guardians
-    ? Array.isArray(applicant.guardians)
-      ? applicant.guardians
-      : [applicant.guardians]
-    : [];
+  const guardiansList = applicant.guardians || [];
 
   const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
   const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
@@ -871,7 +884,7 @@ export async function resetParentAccountPassword(applicantId: string, customPass
 // PUBLIC ADMISSION — Ambil Pendaftar Jalur Public
 // ============================================================
 
-export async function getPublicAdmissionApplicants() {
+export const getPublicAdmissionApplicants = cache(async function getPublicAdmissionApplicants() {
   const supabase = createAdminClient();
   try {
     const { data, error } = await supabase
@@ -894,6 +907,7 @@ export async function getPublicAdmissionApplicants() {
 
       return {
         ...item,
+        guardians: Array.isArray(item.guardians) ? item.guardians : item.guardians ? [item.guardians] : [],
         has_payment_proof: !!proofPath,
         payment_proof_path: proofPath || null,
         doc_payment_proof_signed: null, // Loaded on-demand when user clicks modal
@@ -903,7 +917,7 @@ export async function getPublicAdmissionApplicants() {
     console.error("Exception in getPublicAdmissionApplicants:", err);
     return [];
   }
-}
+});
 
 export async function getPaymentProofSignedUrl(proofPathOrApplicantId: string): Promise<string | null> {
   const supabase = createAdminClient();
@@ -949,13 +963,9 @@ export async function getPaymentProofSignedUrl(proofPathOrApplicantId: string): 
 export async function approvePublicPayment(applicantId: string) {
   const supabase = createAdminClient();
   try {
-    const { data: applicant, error: findError } = await supabase
-      .from("applicants")
-      .select("*, guardians(*)")
-      .eq("id", applicantId)
-      .single();
+    const applicant = await getApplicantWithGuardians(supabase, applicantId);
 
-    if (findError || !applicant) {
+    if (!applicant) {
       return { success: false, message: "Pendaftar tidak ditemukan." };
     }
 
@@ -974,9 +984,7 @@ export async function approvePublicPayment(applicantId: string) {
       return { success: false, message: updateError.message };
     }
 
-    const guardiansList = applicant.guardians
-      ? (Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians])
-      : [];
+    const guardiansList = applicant.guardians || [];
     const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
     const targetEmail = guardian?.email;
     const parentName = guardian?.full_name || "Bapak/Ibu";
@@ -1028,11 +1036,7 @@ export async function approvePublicPayment(applicantId: string) {
 export async function rejectPublicPayment(applicantId: string, reason: string) {
   const supabase = createAdminClient();
   try {
-    const { data: applicant } = await supabase
-      .from("applicants")
-      .select("*, guardians(*)")
-      .eq("id", applicantId)
-      .single();
+    const applicant = await getApplicantWithGuardians(supabase, applicantId);
 
     if (!applicant) return { success: false, message: "Data tidak ditemukan." };
 
@@ -1045,9 +1049,7 @@ export async function rejectPublicPayment(applicantId: string, reason: string) {
       })
       .eq("id", applicantId);
 
-    const guardiansList = applicant.guardians
-      ? (Array.isArray(applicant.guardians) ? applicant.guardians : [applicant.guardians])
-      : [];
+    const guardiansList = applicant.guardians || [];
     const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
     const targetEmail = guardian?.email;
 
@@ -1091,5 +1093,77 @@ export async function softDeleteApplicant(applicantId: string) {
   } catch (err: any) {
     console.error("Error soft deleting applicant:", err);
     return { success: false, message: err.message || "Gagal menghapus data pendaftar." };
+  }
+}
+
+// ============================================================
+// UPSERT GUARDIANS — Admin can add/update guardian data manually
+// ============================================================
+export async function upsertGuardians(
+  applicantId: string,
+  guardians: Array<{
+    id?: string;
+    relation: string;
+    full_name: string;
+    nik?: string;
+    phone?: string;
+    email?: string;
+    occupation?: string;
+    monthly_income?: string;
+    education_level?: string;
+    address?: string;
+  }>
+) {
+  const supabase = createAdminClient();
+  try {
+    // Build base payload without optional columns
+    const buildPayload = (g: (typeof guardians)[0]) => ({
+      applicant_id: applicantId,
+      full_name: g.full_name,
+      nik: g.nik || "-",
+      relation: g.relation,
+      phone: g.phone || "-",
+      email: g.email || "-",
+      occupation: g.occupation || "-",
+      education_level: g.education_level || "S1",
+      address: g.address || "-",
+      birth_place: "-",
+      birth_date: new Date().toISOString(),
+    });
+
+    // Delete existing guardians then re-insert
+    await supabase.from("guardians").delete().eq("applicant_id", applicantId);
+
+    const payloads = guardians
+      .filter((g) => g.full_name?.trim())
+      .map((g) => {
+        const base = buildPayload(g);
+        // Try to include monthly_income — will be stripped on fallback if column missing
+        return { ...base, monthly_income: g.monthly_income || null };
+      });
+
+    if (payloads.length === 0) {
+      return { success: false, message: "Tidak ada data orang tua untuk disimpan." };
+    }
+
+    let { error } = await supabase.from("guardians").insert(payloads);
+
+    // Fallback: remove monthly_income if column doesn't exist
+    if (error && error.message?.toLowerCase().includes("monthly_income")) {
+      const fallback = payloads.map(({ monthly_income, ...rest }: any) => rest);
+      const retry = await supabase.from("guardians").insert(fallback);
+      error = retry.error;
+    }
+
+    if (error) {
+      console.error("Error upserting guardians:", error);
+      return { success: false, message: error.message };
+    }
+
+    revalidatePath(`/management/admisi/${applicantId}`);
+    return { success: true };
+  } catch (err: any) {
+    console.error("Exception in upsertGuardians:", err);
+    return { success: false, message: err.message || "Gagal menyimpan data orang tua." };
   }
 }

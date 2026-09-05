@@ -54,6 +54,7 @@ export default function LandingPage() {
               alt="JACOS Logo"
               width={160}
               height={44}
+              style={{ width: "auto", height: "auto" }}
               className="dark:hidden object-contain transition group-hover:opacity-90"
               priority
             />
@@ -62,6 +63,7 @@ export default function LandingPage() {
               alt="JACOS Logo"
               width={160}
               height={44}
+              style={{ width: "auto", height: "auto" }}
               className="hidden dark:block object-contain"
               priority
             />
@@ -187,6 +189,7 @@ export default function LandingPage() {
                     src="/publicjacos/campus/building.png"
                     alt="JACOS Campus"
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 450px"
                     className="object-cover object-center"
                     priority
                   />
@@ -615,6 +618,7 @@ export default function LandingPage() {
                     src={facility.img}
                     alt={facility.title}
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover group-hover:scale-105 transition duration-500"
                   />
                 </div>
@@ -697,6 +701,7 @@ export default function LandingPage() {
                 alt="JACOS Logo"
                 width={160}
                 height={45}
+                style={{ width: "auto", height: "auto" }}
                 className="object-contain"
               />
               <p className="text-xs text-slate-400 leading-relaxed max-w-sm">

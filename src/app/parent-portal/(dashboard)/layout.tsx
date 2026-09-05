@@ -22,26 +22,40 @@ export default function DashboardLayout({
       const { data: { session } } = await supabase.auth.getSession();
       
       if (!session || session.user?.user_metadata?.role !== 'PARENT') {
-        const isSubdomain = window.location.hostname.startsWith('parent.');
+        const isSubdomain = typeof window !== 'undefined' && window.location.hostname.startsWith('parent.');
         router.push(isSubdomain ? '/login' : '/parent-portal/login');
         return;
       }
 
-      await supabase.auth.refreshSession();
-      const { data: { session: freshSession } } = await supabase.auth.getSession();
-      const user = freshSession?.user || session.user;
-      
-      // Bypass first_login check if user is already approved in DB
+      const user = session.user;
+
+      // Check metadata first — fastest path
+      const metaStatus = user.user_metadata?.admission_status || "";
+      const metaStudentId = user.user_metadata?.student_id;
+      const isApprovedByMeta = metaStatus === "Approved" || !!metaStudentId;
+
+      if (isApprovedByMeta) {
+        // Still check first_login gate
+        if (user.user_metadata?.first_login) {
+          router.push("/parent-portal/change-password");
+          return;
+        }
+        setIsApproved(true);
+        setLoading(false);
+        return;
+      }
+
+      // Fallback: verify via guardians table (handles legacy accounts)
       let isApprovedInDB = false;
       if (user?.email) {
         const { data: guardians } = await supabase
-          .from('guardians')
-          .select('applicant_id, applicants(status, student_record_id)')
-          .ilike('email', user.email)
+          .from("guardians")
+          .select("applicant_id, applicants(status, student_record_id)")
+          .ilike("email", user.email)
           .limit(1);
-          
+
         const applicant = (guardians?.[0] as any)?.applicants;
-        if (applicant?.status === 'ENROLLED' || applicant?.student_record_id) {
+        if (applicant?.status === "ENROLLED" || applicant?.student_record_id) {
           isApprovedInDB = true;
         }
       }
@@ -50,15 +64,11 @@ export default function DashboardLayout({
         setIsApproved(true);
       } else {
         if (user.user_metadata?.first_login) {
-          router.push('/parent-portal/change-password');
+          router.push("/parent-portal/change-password");
           return;
         }
-        const status = user.user_metadata?.admission_status || 'Waiting for approval';
-        if (status === 'Approved') {
-          setIsApproved(true);
-        }
       }
-      
+
       setLoading(false);
     };
 

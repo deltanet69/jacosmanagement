@@ -375,6 +375,7 @@ export function FormInformasi({ initialData, classes, isEdit = false }: FormInfo
                   src={thumbnailUrl}
                   alt="Thumbnail Preview"
                   fill
+                  sizes="(max-width: 768px) 100vw, 400px"
                   className="object-cover"
                   unoptimized
                 />

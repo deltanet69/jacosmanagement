@@ -116,9 +116,26 @@ export default async function RegPage({
   }
 
   // Siapkan prefill data dari apa yang sudah diisi admin
-  const guardian = Array.isArray(applicant.guardians)
-    ? applicant.guardians[0]
-    : applicant.guardians;
+  const rawGuardians = applicant.guardians || [];
+  const guardiansList: any[] = Array.isArray(rawGuardians)
+    ? rawGuardians
+    : rawGuardians
+    ? [rawGuardians]
+    : [];
+
+  const father = guardiansList.find((g: any) => {
+    const rel = (g?.relation || "").toUpperCase().trim();
+    return rel === "FATHER" || rel === "AYAH";
+  });
+
+  const mother = guardiansList.find((g: any) => {
+    const rel = (g?.relation || "").toUpperCase().trim();
+    return rel === "MOTHER" || rel === "IBU";
+  });
+
+  const fallbackGuardian = guardiansList[0];
+  const isFallbackFather = fallbackGuardian && ["FATHER", "AYAH"].includes((fallbackGuardian.relation || "").toUpperCase().trim());
+  const isFallbackMother = fallbackGuardian && ["MOTHER", "IBU"].includes((fallbackGuardian.relation || "").toUpperCase().trim());
 
   const prefill = {
     fullName: applicant.student_name || "",
@@ -129,12 +146,12 @@ export default async function RegPage({
         : applicant.program === "KINDERGARTEN"
         ? "Kindergarten"
         : "Primary",
-    fatherName: guardian?.relation === "FATHER" ? guardian.full_name || "" : "",
-    fatherPhone: guardian?.relation === "FATHER" ? guardian.phone || "" : "",
-    fatherEmail: guardian?.relation === "FATHER" ? guardian.email || "" : "",
-    motherName: guardian?.relation === "MOTHER" ? guardian.full_name || "" : "",
-    motherPhone: guardian?.relation === "MOTHER" ? guardian.phone || "" : "",
-    motherEmail: guardian?.relation === "MOTHER" ? guardian.email || "" : "",
+    fatherName: father?.full_name || (isFallbackFather ? fallbackGuardian.full_name : "") || "",
+    fatherPhone: father?.phone || (isFallbackFather ? fallbackGuardian.phone : "") || "",
+    fatherEmail: father?.email || (isFallbackFather ? fallbackGuardian.email : "") || "",
+    motherName: mother?.full_name || (isFallbackMother ? fallbackGuardian.full_name : "") || "",
+    motherPhone: mother?.phone || (isFallbackMother ? fallbackGuardian.phone : "") || "",
+    motherEmail: mother?.email || (isFallbackMother ? fallbackGuardian.email : "") || "",
   };
 
   return (

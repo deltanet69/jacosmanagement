@@ -220,6 +220,106 @@ export default function RegFormClient({
     }
   }, [formData, currentStep, isHydrated, isSuccess, STORAGE_KEY]);
 
+  const digitRegex = /^\d+$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  // Validasi realtime per langkah (Step 1 - 5)
+  const isStep1Valid = Boolean(
+    formData.program?.trim() &&
+    formData.fullName?.trim() &&
+    formData.gender?.trim() &&
+    formData.birthPlace?.trim() &&
+    formData.birthDate?.trim() &&
+    formData.nik?.trim()?.length === 16 &&
+    digitRegex.test(formData.nik.trim()) &&
+    formData.religion?.trim() &&
+    formData.nationality?.trim() &&
+    formData.bloodType?.trim() &&
+    formData.address?.trim() &&
+    formData.primaryLanguage?.trim()
+  );
+
+  const hasFatherData = Boolean(
+    formData.fatherName?.trim() ||
+    formData.fatherNik?.trim() ||
+    formData.fatherJob?.trim() ||
+    formData.fatherIncome?.trim() ||
+    formData.fatherPhone?.trim() ||
+    formData.fatherEmail?.trim()
+  );
+
+  const isFatherComplete = Boolean(
+    formData.fatherName?.trim() &&
+    formData.fatherNik?.trim()?.length === 16 &&
+    digitRegex.test(formData.fatherNik.trim()) &&
+    formData.fatherJob?.trim() &&
+    formData.fatherPhone?.trim()?.length >= 9 &&
+    digitRegex.test(formData.fatherPhone.trim()) &&
+    formData.fatherEmail?.trim() &&
+    emailRegex.test(formData.fatherEmail.trim())
+  );
+
+  const hasMotherData = Boolean(
+    formData.motherName?.trim() ||
+    formData.motherNik?.trim() ||
+    formData.motherJob?.trim() ||
+    formData.motherIncome?.trim() ||
+    formData.motherPhone?.trim() ||
+    formData.motherEmail?.trim()
+  );
+
+  const isMotherComplete = Boolean(
+    formData.motherName?.trim() &&
+    formData.motherNik?.trim()?.length === 16 &&
+    digitRegex.test(formData.motherNik.trim()) &&
+    formData.motherJob?.trim() &&
+    formData.motherPhone?.trim()?.length >= 9 &&
+    digitRegex.test(formData.motherPhone.trim()) &&
+    formData.motherEmail?.trim() &&
+    emailRegex.test(formData.motherEmail.trim())
+  );
+
+  const isStep2Valid = Boolean(
+    (hasFatherData || hasMotherData) &&
+    (!hasFatherData || isFatherComplete) &&
+    (!hasMotherData || isMotherComplete)
+  );
+
+  const isStep3Valid = Boolean(
+    formData.emergencyContactName?.trim() &&
+    formData.emergencyContactRelation?.trim() &&
+    formData.emergencyContactPhone?.trim()?.length >= 9 &&
+    digitRegex.test(formData.emergencyContactPhone.trim()) &&
+    formData.dailyTransportation?.trim()
+  );
+
+  const isStep4Valid = Boolean(
+    (docUploaded.akte || docFiles.akte) &&
+    (docUploaded.kk || docFiles.kk) &&
+    (docUploaded.ktp_orangtua || docFiles.ktp_orangtua) &&
+    (docUploaded.foto4x3 || docFiles.foto4x3) &&
+    !Object.values(compressingKeys).some(Boolean)
+  );
+
+  const isStep5Valid = Boolean(formData.agreed);
+
+  const isCurrentStepValid = (() => {
+    switch (currentStep) {
+      case 1:
+        return isStep1Valid;
+      case 2:
+        return isStep2Valid;
+      case 3:
+        return isStep3Valid;
+      case 4:
+        return isStep4Valid;
+      case 5:
+        return isStep5Valid;
+      default:
+        return false;
+    }
+  })();
+
   const updateForm = (key: string, value: any) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
     if (errors[key]) {
@@ -228,8 +328,6 @@ export default function RegFormClient({
   };
 
   const nextStep = async () => {
-    const digitRegex = /^\d+$/;
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const newErrors: Record<string, string> = {};
 
     // Validasi Step 1: Informasi Calon Siswa
@@ -297,6 +395,14 @@ export default function RegFormClient({
       if (!formData.emergencyContactPhone.trim() || formData.emergencyContactPhone.length < 9 || !digitRegex.test(formData.emergencyContactPhone)) {
         newErrors.emergencyContactPhone = "No. HP kontak darurat minimal 9 digit angka.";
       }
+    }
+
+    // Validasi Step 4: Upload Dokumen
+    if (currentStep === 4) {
+      if (!docFiles.akte && !docUploaded.akte) newErrors.akte = "Akta Kelahiran wajib diunggah.";
+      if (!docFiles.kk && !docUploaded.kk) newErrors.kk = "Kartu Keluarga (KK) wajib diunggah.";
+      if (!docFiles.ktp_orangtua && !docUploaded.ktp_orangtua) newErrors.ktp_orangtua = "KTP Orang Tua wajib diunggah.";
+      if (!docFiles.foto4x3 && !docUploaded.foto4x3) newErrors.foto4x3 = "Pas Foto 3x4 / 4x3 calon siswa wajib diunggah.";
     }
 
     setErrors(newErrors);
@@ -392,6 +498,7 @@ export default function RegFormClient({
               alt="JACOS Logo"
               width={160}
               height={46}
+              style={{ width: "auto", height: "auto" }}
               className="dark:hidden object-contain mx-auto mb-4"
               priority
             />
@@ -529,6 +636,7 @@ export default function RegFormClient({
               alt="JACOS Logo"
               width={140}
               height={38}
+              style={{ width: "auto", height: "auto" }}
               className="dark:hidden object-contain"
               priority
             />
@@ -591,18 +699,30 @@ export default function RegFormClient({
             {stepMeta.map((item) => {
               const isActive = item.step === currentStep;
               const isPast = item.step < currentStep;
+              const canGoNext = item.step === currentStep + 1 && isCurrentStepValid;
+              const isClickable = isPast || canGoNext;
 
               return (
                 <button
                   key={item.step}
                   type="button"
-                  onClick={() => setCurrentStep(item.step)}
-                  className={`p-2 sm:p-3 rounded-2xl flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+                  disabled={!isClickable && !isActive}
+                  onClick={() => {
+                    if (isPast) {
+                      setCurrentStep(item.step);
+                      window.scrollTo({ top: 0, behavior: "smooth" });
+                    } else if (canGoNext) {
+                      nextStep();
+                    }
+                  }}
+                  className={`p-2 sm:p-3 rounded-2xl flex flex-col items-center justify-center text-center transition-all ${
                     isActive
-                      ? "bg-sky-50 text-sky border-2 border-sky shadow-xs"
+                      ? "bg-sky-50 text-sky border-2 border-sky shadow-xs cursor-default"
                       : isPast
-                      ? "bg-slate-50 text-leaf-700 hover:bg-slate-100 border border-slate-200/60"
-                      : "text-slate-400 hover:bg-slate-50 border border-transparent"
+                      ? "bg-slate-50 text-leaf-700 hover:bg-slate-100 border border-slate-200/60 cursor-pointer"
+                      : canGoNext
+                      ? "bg-white text-sky hover:bg-sky-50/50 border border-sky-200 cursor-pointer"
+                      : "text-slate-300 opacity-50 border border-transparent cursor-not-allowed"
                   }`}
                 >
                   <div
@@ -611,14 +731,16 @@ export default function RegFormClient({
                         ? "bg-sky text-white shadow-sm"
                         : isPast
                         ? "bg-leaf text-white"
-                        : "bg-slate-200 text-slate-500"
+                        : canGoNext
+                        ? "bg-sky-100 text-sky-700 font-extrabold"
+                        : "bg-slate-100 text-slate-400"
                     }`}
                   >
                     {isPast ? <Check className="w-4 h-4 stroke-[3]" /> : item.step}
                   </div>
                   <span
                     className={`text-[11px] font-bold hidden md:inline truncate max-w-full ${
-                      isActive ? "text-sky" : isPast ? "text-slate-700" : "text-slate-400"
+                      isActive ? "text-sky" : isPast ? "text-slate-700" : canGoNext ? "text-sky-700" : "text-slate-400"
                     }`}
                   >
                     {item.title}
@@ -1031,6 +1153,14 @@ export default function RegFormClient({
                   </div>
                 </div>
 
+                {/* Info Note Banner */}
+                <div className="flex items-start gap-3 p-4 rounded-2xl bg-sky-50/80 border border-sky-100 text-sky-900 text-xs leading-relaxed">
+                  <Info className="w-4 h-4 text-sky-600 shrink-0 mt-0.5" />
+                  <p>
+                    <strong>Wajib diisi:</strong> Silakan lengkapi data <strong>Ayah</strong> dan/atau <strong>Ibu</strong>. Minimal salah satu (Ayah atau Ibu) wajib diisi lengkap untuk penerbitan akun portal &amp; komunikasi sekolah.
+                  </p>
+                </div>
+
                 {/* DATA AYAH / DADDY CARD */}
                 <div className="bg-gradient-to-br from-sky-50/50 via-white to-slate-50/50 rounded-3xl p-6 sm:p-8 border border-sky-100 shadow-xs space-y-5">
                   <div className="flex items-center gap-2 text-sky-700 font-extrabold text-sm uppercase tracking-wider">
@@ -1040,7 +1170,7 @@ export default function RegFormClient({
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Nama Lengkap Ayah
+                        Nama Lengkap Ayah <span className="text-coral">*</span>
                       </label>
                       <input
                         type="text"
@@ -1056,7 +1186,7 @@ export default function RegFormClient({
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        NIK Ayah (16 Digit)
+                        NIK Ayah (16 Digit) <span className="text-coral">*</span>
                       </label>
                       <input
                         type="text"
@@ -1075,7 +1205,7 @@ export default function RegFormClient({
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Pekerjaan Ayah
+                        Pekerjaan Ayah <span className="text-coral">*</span>
                       </label>
                       <input
                         type="text"
@@ -1091,7 +1221,7 @@ export default function RegFormClient({
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Penghasilan Bulanan Ayah
+                        Penghasilan Bulanan Ayah <span className="text-coral">*</span>
                       </label>
                       <div className="relative">
                         <select
@@ -1112,7 +1242,7 @@ export default function RegFormClient({
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        No. HP / WhatsApp Ayah
+                        No. HP / WhatsApp Ayah <span className="text-coral">*</span>
                       </label>
                       <input
                         type="tel"
@@ -1130,7 +1260,7 @@ export default function RegFormClient({
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Email Ayah (Untuk Akun Portal)
+                        Email Ayah (Untuk Akun Portal) <span className="text-coral">*</span>
                       </label>
                       <input
                         type="email"
@@ -1155,7 +1285,7 @@ export default function RegFormClient({
                   <div className="grid sm:grid-cols-2 gap-5">
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Nama Lengkap Ibu
+                        Nama Lengkap Ibu <span className="text-coral">*</span>
                       </label>
                       <input
                         type="text"
@@ -1171,7 +1301,7 @@ export default function RegFormClient({
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        NIK Ibu (16 Digit)
+                        NIK Ibu (16 Digit) <span className="text-coral">*</span>
                       </label>
                       <input
                         type="text"
@@ -1190,7 +1320,7 @@ export default function RegFormClient({
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Pekerjaan Ibu
+                        Pekerjaan Ibu <span className="text-coral">*</span>
                       </label>
                       <input
                         type="text"
@@ -1206,7 +1336,7 @@ export default function RegFormClient({
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Penghasilan Bulanan Ibu
+                        Penghasilan Bulanan Ibu <span className="text-coral">*</span>
                       </label>
                       <div className="relative">
                         <select
@@ -1227,7 +1357,7 @@ export default function RegFormClient({
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        No. HP / WhatsApp Ibu
+                        No. HP / WhatsApp Ibu <span className="text-coral">*</span>
                       </label>
                       <input
                         type="tel"
@@ -1245,7 +1375,7 @@ export default function RegFormClient({
 
                     <div className="space-y-1.5">
                       <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Email Ibu (Untuk Akun Portal)
+                        Email Ibu (Untuk Akun Portal) <span className="text-coral">*</span>
                       </label>
                       <input
                         type="email"
@@ -1703,10 +1833,24 @@ export default function RegFormClient({
               </div>
             )}
 
+            {/* Helper Alert When Form Is Incomplete */}
+            {!isCurrentStepValid && (
+              <div className="flex items-center gap-2.5 text-xs font-bold text-amber-800 bg-amber-50/90 border border-amber-200/90 px-4 py-3 rounded-2xl mt-8 animate-in fade-in slide-in-from-bottom-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>
+                  {currentStep === 1 && "Lengkapi semua kolom bertanda bintang (*) seperti Tempat Lahir, Tanggal Lahir, NIK 16 digit, dan Alamat untuk mengaktifkan tombol lanjut."}
+                  {currentStep === 2 && "Lengkapi semua data bertanda (*) untuk Ayah atau Ibu (Nama, NIK 16 digit, Pekerjaan, No. HP, Email) untuk mengaktifkan tombol lanjut."}
+                  {currentStep === 3 && "Lengkapi data Kontak Darurat bertanda (*) (Nama, Hubungan, No. HP) untuk mengaktifkan tombol lanjut."}
+                  {currentStep === 4 && "Unggah 4 dokumen wajib (Akta Kelahiran, KK, KTP Orang Tua, Pas Foto) untuk mengaktifkan tombol lanjut."}
+                  {currentStep === 5 && "Centang persetujuan Pernyataan Kebenaran Data di atas untuk mengaktifkan tombol kirim."}
+                </span>
+              </div>
+            )}
+
             {/* ======================================================== */}
             {/* NAVIGATION BUTTONS                                       */}
             {/* ======================================================== */}
-            <div className="flex items-center justify-between pt-8 sm:pt-10 border-t border-slate-100 mt-8 sm:mt-10">
+            <div className="flex items-center justify-between pt-6 sm:pt-8 border-t border-slate-100 mt-6 sm:mt-8">
               <Button
                 type="button"
                 variant="outline"
@@ -1723,8 +1867,12 @@ export default function RegFormClient({
               <Button
                 type="button"
                 onClick={nextStep}
-                disabled={isSubmitting}
-                className="h-13 px-8 rounded-2xl bg-sky hover:bg-sky-600 active:scale-[0.98] text-white font-extrabold text-sm shadow-xl shadow-sky/25 transition-all flex items-center gap-2 cursor-pointer"
+                disabled={!isCurrentStepValid || isSubmitting}
+                className={`h-13 px-8 rounded-2xl font-extrabold text-sm transition-all flex items-center gap-2 ${
+                  !isCurrentStepValid || isSubmitting
+                    ? "bg-slate-200 text-slate-400 cursor-not-allowed border border-slate-300/60 shadow-none opacity-80"
+                    : "bg-sky hover:bg-sky-600 active:scale-[0.98] text-white shadow-xl shadow-sky/25 cursor-pointer"
+                }`}
               >
                 {isSubmitting ? (
                   <>

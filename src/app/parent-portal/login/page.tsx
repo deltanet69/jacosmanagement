@@ -78,6 +78,7 @@ export default function LoginPage() {
           src="/publicjacos/bglogin.jpeg"
           alt="JACOS School Building"
           fill
+          sizes="(max-width: 1024px) 0vw, 50vw"
           className="object-cover object-center"
           priority
         />
@@ -91,6 +92,7 @@ export default function LoginPage() {
               alt="JACOS Logo"
               width={140}
               height={40}
+              style={{ width: "auto", height: "auto" }}
               className="object-contain"
             />
           </div>
@@ -137,7 +139,7 @@ export default function LoginPage() {
         <div className="w-full max-w-md relative z-10">
           {/* Mobile logo */}
           <div className="flex justify-center mb-8 lg:hidden">
-            <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={120} height={36} className="object-contain" />
+            <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={120} height={36} style={{ width: "auto", height: "auto" }} className="object-contain" />
           </div>
 
           {/* Card */}

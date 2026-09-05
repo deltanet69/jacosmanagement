@@ -54,8 +54,8 @@ export function TopNav() {
               {/* Sheet Header */}
               <div className="px-6 py-5 border-b border-ink/5">
                 <Link href="/management" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-                  <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={140} height={38} className="dark:hidden object-contain" />
-                  <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={130} height={38} className="hidden dark:block object-contain" />
+                  <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={140} height={38} style={{ width: "auto", height: "auto" }} className="dark:hidden object-contain" />
+                  <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={130} height={38} style={{ width: "auto", height: "auto" }} className="hidden dark:block object-contain" />
                 </Link>
               </div>
 
@@ -100,6 +100,7 @@ export function TopNav() {
                         <Link
                           key={item.href}
                           href={item.href}
+                          prefetch={true}
                           onClick={() => setOpen(false)}
                           className={`flex items-center justify-between px-3 py-2.5 rounded-xl transition-all text-sm ${
                             active

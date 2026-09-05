@@ -1,5 +1,6 @@
 'use server';
 
+import { cache } from 'react';
 import { createAdminClient } from '@/lib/supabase/server';
 import { Resend } from 'resend';
 import { revalidatePath } from 'next/cache';
@@ -27,7 +28,7 @@ export interface OpenHouseStats {
 /**
  * 1. Ambil Semua Data Pendaftaran Open House & Statistik
  */
-export async function getOpenHouseRegistrations(): Promise<{
+export const getOpenHouseRegistrations = cache(async function getOpenHouseRegistrations(): Promise<{
   registrations: OpenHouseLead[];
   stats: OpenHouseStats;
   setting: OpenHouseSetting;
@@ -79,7 +80,7 @@ export async function getOpenHouseRegistrations(): Promise<{
       setting: memorySetting,
     };
   }
-}
+});
 
 /**
  * 2. Update Status Lead & Catatan Follow-Up

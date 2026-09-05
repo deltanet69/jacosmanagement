@@ -222,6 +222,7 @@ export default function OpenHousePage() {
               alt="JACOS Logo"
               width={150}
               height={42}
+              style={{ width: "auto", height: "auto" }}
               priority
               className="object-contain transition-transform group-hover:scale-105"
             />
@@ -1065,6 +1066,7 @@ export default function OpenHousePage() {
               alt="JACOS Logo"
               width={120}
               height={34}
+              style={{ width: "auto", height: "auto" }}
               className="object-contain opacity-75"
             />
           </div>

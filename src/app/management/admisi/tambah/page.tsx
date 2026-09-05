@@ -316,9 +316,9 @@ export default function TambahAdmisiPage() {
             {form.paymentMethod === "QRIS" && (
               <div className="bg-cloud rounded-2xl p-5 border border-ink/5 mt-4 text-center">
                  <p className="text-sm font-bold text-ink mb-3">Scan QRIS</p>
-                 <div className="flex justify-center">
-                   <Image src="/publicjacos/finance/qr.png" alt="QRIS" width={250} height={250} className="rounded-xl shadow-sm" />
-                 </div>
+                  <div className="flex justify-center">
+                    <Image src="/publicjacos/finance/qr.png" alt="QRIS" width={250} height={250} style={{ width: "auto", height: "auto" }} className="rounded-xl shadow-sm" />
+                  </div>
               </div>
             )}
 

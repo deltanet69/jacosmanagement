@@ -149,8 +149,8 @@ export function DashboardSidebar() {
       {/* Brand Header */}
       <div className="px-8 py-6 border-b border-ink/5">
         <Link href="/management" className="flex items-center gap-2.5">
-          <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={150} height={40} className="dark:hidden object-contain" />
-          <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={140} height={40} className="hidden dark:block object-contain" />
+          <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={150} height={40} style={{ width: "auto", height: "auto" }} className="dark:hidden object-contain" />
+          <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={140} height={40} style={{ width: "auto", height: "auto" }} className="hidden dark:block object-contain" />
         </Link>
       </div>
 
@@ -195,6 +195,7 @@ export function DashboardSidebar() {
                 <Link
                   key={item.href}
                   href={item.href}
+                  prefetch={true}
                   className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all ${
                     active
                       ? "bg-sky-50 text-sky font-bold"

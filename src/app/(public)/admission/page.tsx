@@ -168,6 +168,7 @@ export default function PublicAdmissionPage() {
               alt="JACOS Logo"
               width={135}
               height={36}
+              style={{ width: "auto", height: "auto" }}
               className="dark:hidden object-contain"
               priority
             />
@@ -176,6 +177,7 @@ export default function PublicAdmissionPage() {
               alt="JACOS Logo"
               width={135}
               height={36}
+              style={{ width: "auto", height: "auto" }}
               className="hidden dark:block object-contain"
               priority
             />

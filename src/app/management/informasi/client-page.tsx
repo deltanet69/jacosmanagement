@@ -341,6 +341,7 @@ export default function InformasiClientPage({
                       src={item.thumbnail_url}
                       alt={item.title}
                       fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                       className="object-cover group-hover:scale-105 transition-transform duration-500"
                       unoptimized
                     />
@@ -524,6 +525,7 @@ export default function InformasiClientPage({
                                   src={item.thumbnail_url}
                                   alt={item.title}
                                   fill
+                                  sizes="40px"
                                   className="object-cover"
                                   unoptimized
                                 />
@@ -751,6 +753,7 @@ export default function InformasiClientPage({
                   src={previewItem.thumbnail_url}
                   alt={previewItem.title}
                   fill
+                  sizes="(max-width: 768px) 100vw, 672px"
                   className="object-cover"
                   unoptimized
                 />
