@@ -106,9 +106,9 @@ export default function LobbyDisplayPage() {
   const waitingStudents = queue.filter((q) => q.status === "WAITING");
 
   return (
-    <div className="min-h-screen bg-[#060B16] text-white relative overflow-hidden flex flex-col font-sans selection:bg-gold/30">
+    <div className="min-h-screen bg-[#060B16] text-white relative overflow-hidden flex flex-col font-sans selection:bg-sky-500/30">
       {/* Cinematic Studio Glow & Gradients */}
-      <div className="absolute top-0 inset-x-0 h-96 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(232,166,46,0.18),transparent)] pointer-events-none" />
+      <div className="absolute top-0 inset-x-0 h-96 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(14,165,233,0.18),transparent)] pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-[radial-gradient(circle_at_bottom_right,rgba(47,111,237,0.15),transparent)] pointer-events-none" />
       <div className="absolute inset-0 star-texture opacity-[0.07] pointer-events-none" />
 
@@ -118,16 +118,16 @@ export default function LobbyDisplayPage() {
       <header className="relative z-20 px-8 lg:px-12 py-5 border-b border-white/10 bg-[#060B16]/85 backdrop-blur-2xl flex flex-col md:flex-row items-center justify-between gap-4">
         {/* Brand & Live TV Badge */}
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-gold to-yellow-500 flex items-center justify-center font-display text-white text-3xl font-black shadow-[0_0_30px_rgba(232,166,46,0.4)]">
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-sky-500 to-sky-500 flex items-center justify-center font-display text-white text-3xl font-black shadow-[0_0_30px_rgba(14,165,233,0.4)]">
             J
           </div>
           <div>
             <div className="flex items-center gap-2.5">
               <h1 className="font-display font-black text-2xl lg:text-3xl tracking-tight text-white">
-                JACOS <span className="text-gold font-normal">PICKUP DISPLAY</span>
+                JACOS <span className="text-sky-400 font-normal">PICKUP DISPLAY</span>
               </h1>
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/15 text-gold border border-gold/30 text-xs font-black tracking-wider uppercase">
-                <span className="w-2.5 h-2.5 rounded-full bg-gold animate-ping" />
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sky-500/15 text-sky-400 border border-sky-500/30 text-xs font-black tracking-wider uppercase">
+                <span className="w-2.5 h-2.5 rounded-full bg-sky-500 animate-ping" />
                 LOBBY PENJEMPUTAN
               </span>
             </div>
@@ -140,11 +140,11 @@ export default function LobbyDisplayPage() {
         {/* Center Live Clock */}
         <div className="flex flex-col items-center justify-center text-center px-8 py-2 rounded-2xl bg-white/[0.04] border border-white/10 shadow-inner">
           <div className="flex items-center gap-2.5" suppressHydrationWarning>
-            <Clock size={20} className="text-gold animate-pulse" />
-            <span className="font-mono text-3xl lg:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-yellow-100 to-gold">
+            <Clock size={20} className="text-sky-400 animate-pulse" />
+            <span className="font-mono text-3xl lg:text-4xl font-black tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-white via-sky-100 to-sky-400">
               {formattedTime}
             </span>
-            <span className="text-xs font-black uppercase px-2 py-0.5 rounded bg-gold/20 text-gold border border-gold/30">
+            <span className="text-xs font-black uppercase px-2 py-0.5 rounded bg-sky-500/20 text-sky-400 border border-sky-500/30">
               WIB
             </span>
           </div>
@@ -178,7 +178,7 @@ export default function LobbyDisplayPage() {
             className="w-12 h-12 rounded-2xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white border border-white/10"
             title={soundEnabled ? "Suara Panggilan Aktif" : "Suara Panggilan Mute"}
           >
-            {soundEnabled ? <Volume2 size={22} className="text-gold" /> : <VolumeX size={22} />}
+            {soundEnabled ? <Volume2 size={22} className="text-sky-400" /> : <VolumeX size={22} />}
           </Button>
         </div>
       </header>
@@ -190,15 +190,15 @@ export default function LobbyDisplayPage() {
         {/* TOP SECTION: CALLED STUDENTS (SPOTLIGHT) */}
         {calledStudents.length > 0 ? (
           <div className="space-y-4">
-            <div className="flex items-center justify-between pb-2 border-b border-gold/30">
+            <div className="flex items-center justify-between pb-2 border-b border-sky-500/30">
               <div className="flex items-center gap-3">
-                <span className="w-3.5 h-3.5 rounded-full bg-gold animate-ping" />
-                <h2 className="font-display text-2xl lg:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-gold via-yellow-200 to-white uppercase tracking-tight flex items-center gap-2">
-                  <Megaphone size={26} className="text-gold" />
+                <span className="w-3.5 h-3.5 rounded-full bg-sky-500 animate-ping" />
+                <h2 className="font-display text-2xl lg:text-3xl font-black text-transparent bg-clip-text bg-gradient-to-r from-sky-500 via-sky-200 to-white uppercase tracking-tight flex items-center gap-2">
+                  <Megaphone size={26} className="text-sky-400" />
                   SEDANG DIPANGGIL • MOHON MENUJU LOKET
                 </h2>
               </div>
-              <span className="bg-gold text-ink font-display font-black text-xs lg:text-sm px-4 py-1.5 rounded-full shadow-lg shadow-gold/30 uppercase tracking-wider">
+              <span className="bg-sky-500 text-ink font-display font-black text-xs lg:text-sm px-4 py-1.5 rounded-full shadow-lg shadow-sky-500/30 uppercase tracking-wider">
                 Loket Penjemputan Gerbang
               </span>
             </div>
@@ -208,43 +208,57 @@ export default function LobbyDisplayPage() {
               {calledStudents.map((item, idx) => (
                 <div
                   key={item.id}
-                  className="bg-gradient-to-br from-amber-500/20 via-[#131A2E] to-gold/15 border-2 border-gold/80 rounded-[2.5rem] p-7 shadow-[0_0_50px_rgba(232,166,46,0.25)] relative overflow-hidden animate-in zoom-in-95 duration-300"
+                  className={`relative overflow-hidden animate-in zoom-in-95 duration-300 ${
+                    idx === 0 
+                      ? "col-span-1 md:col-span-2 xl:col-span-3 bg-gradient-to-br from-sky-500/30 via-[#131A2E] to-sky-400/20 border-4 border-sky-400 rounded-[3rem] p-10 shadow-[0_0_80px_rgba(14,165,233,0.4)]"
+                      : "bg-gradient-to-br from-sky-500/20 via-[#131A2E] to-sky-400/15 border-2 border-sky-500/80 rounded-[2.5rem] p-7 shadow-[0_0_50px_rgba(14,165,233,0.25)]"
+                  }`}
                   style={{ animationDelay: `${idx * 100}ms` }}
                 >
-                  <div className="absolute top-0 right-0 w-40 h-40 bg-gold/15 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4" />
+                  <div className={`absolute top-0 right-0 rounded-full blur-3xl -translate-y-1/2 translate-x-1/4 ${
+                    idx === 0 ? "w-96 h-96 bg-sky-500/20" : "w-40 h-40 bg-sky-500/15"
+                  }`} />
                   <div className="relative z-10 flex items-start gap-5">
                     {/* Student Avatar */}
                     <div className="relative shrink-0">
                       {item.students?.profile_picture ? (
                         <img
                           src={item.students.profile_picture}
-                          className="w-24 h-24 rounded-3xl object-cover border-4 border-gold shadow-2xl"
+                          className={`${idx === 0 ? "w-40 h-40 border-8" : "w-24 h-24 border-4"} rounded-3xl object-cover border-sky-500 shadow-2xl`}
                           alt={item.students?.full_name}
                         />
                       ) : (
-                        <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-gold to-amber-600 text-white flex items-center justify-center font-display text-4xl font-black shadow-2xl border-4 border-white/20 uppercase">
+                        <div className={`${idx === 0 ? "w-40 h-40 text-7xl border-8" : "w-24 h-24 text-4xl border-4"} rounded-3xl bg-gradient-to-tr from-sky-500 to-sky-600 text-white flex items-center justify-center font-display font-black shadow-2xl border-white/20 uppercase`}>
                           {item.students?.full_name?.charAt(0) || "S"}
                         </div>
                       )}
-                      <div className="absolute -top-2 -left-2 w-8 h-8 rounded-full bg-gold text-ink font-display font-black text-sm flex items-center justify-center shadow-md">
+                      <div className={`absolute -top-2 -left-2 rounded-full bg-sky-500 text-ink font-display font-black flex items-center justify-center shadow-md ${
+                        idx === 0 ? "w-12 h-12 text-xl" : "w-8 h-8 text-sm"
+                      }`}>
                         #{idx + 1}
                       </div>
                     </div>
 
                     {/* Bio */}
                     <div className="flex-1 min-w-0">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gold/20 text-gold text-xs font-bold mb-1.5 border border-gold/40">
+                      <div className={`inline-flex items-center gap-1.5 rounded-full bg-sky-500/20 text-sky-400 font-bold border border-sky-500/40 ${
+                        idx === 0 ? "px-5 py-2 text-base mb-3" : "px-3 py-1 text-xs mb-1.5"
+                      }`}>
                         <GraduationCap size={14} />
                         <span>{item.className || "Siswa JACOS"}</span>
                       </div>
 
-                      <h3 className="font-display text-2xl lg:text-3xl font-black text-white truncate tracking-tight">
+                      <h3 className={`font-display font-black text-white truncate tracking-tight ${
+                        idx === 0 ? "text-4xl lg:text-6xl mb-2" : "text-2xl lg:text-3xl"
+                      }`}>
                         {item.students?.full_name}
                       </h3>
 
-                      <div className="mt-3 bg-black/40 backdrop-blur-md px-3.5 py-2 rounded-2xl border border-white/10 flex items-center gap-2">
-                        <span className="text-white/50 text-xs">Penjemput:</span>
-                        <span className="text-gold font-extrabold text-xs lg:text-sm truncate">
+                      <div className={`bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 flex items-center gap-2 ${
+                        idx === 0 ? "mt-6 px-6 py-4" : "mt-3 px-3.5 py-2"
+                      }`}>
+                        <span className={`text-white/50 ${idx === 0 ? "text-base" : "text-xs"}`}>Penjemput:</span>
+                        <span className={`text-sky-400 font-extrabold truncate ${idx === 0 ? "text-xl lg:text-2xl" : "text-xs lg:text-sm"}`}>
                           {item.picked_by_name || "Orang Tua"} ({item.picked_by_relation || "Wali"})
                         </span>
                       </div>
@@ -305,8 +319,8 @@ export default function LobbyDisplayPage() {
         {queue.length === 0 && (
           <div className="flex-1 flex flex-col items-center justify-center text-center py-16 px-6 bg-gradient-to-b from-white/[0.02] to-white/[0.04] rounded-[3rem] border-2 border-dashed border-white/10 shadow-2xl">
             <div className="relative w-32 h-32 flex items-center justify-center mb-6">
-              <div className="pulse-ring absolute inset-0 rounded-full border-2 border-gold/40" />
-              <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-gold to-yellow-600 flex items-center justify-center text-white shadow-2xl shadow-gold/30">
+              <div className="pulse-ring absolute inset-0 rounded-full border-2 border-sky-500/40" />
+              <div className="w-24 h-24 rounded-3xl bg-gradient-to-tr from-sky-500 to-sky-600 flex items-center justify-center text-white shadow-2xl shadow-sky-500/30">
                 <Car size={46} />
               </div>
             </div>
