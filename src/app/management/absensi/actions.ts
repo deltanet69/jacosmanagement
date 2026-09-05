@@ -138,7 +138,7 @@ export async function addPickupQueue(
   if (isUuid) {
     const { data } = await supabase
       .from("students")
-      .select("id, full_name, class_id, is_active, authorized_pickup_name, school_classes(name, grade)")
+      .select("id, full_name, class_id, is_active, school_classes(name, grade)")
       .eq("id", studentIdOrNis.trim())
       .maybeSingle();
     targetStudent = data;
@@ -147,7 +147,7 @@ export async function addPickupQueue(
   if (!targetStudent) {
     const { data } = await supabase
       .from("students")
-      .select("id, full_name, class_id, is_active, authorized_pickup_name, school_classes(name, grade)")
+      .select("id, full_name, class_id, is_active, school_classes(name, grade)")
       .or(`nis.eq.${studentIdOrNis.trim()},nisn.eq.${studentIdOrNis.trim()},rf_id.eq.${studentIdOrNis.trim()}`)
       .maybeSingle();
     targetStudent = data;
@@ -156,7 +156,7 @@ export async function addPickupQueue(
   if (!targetStudent && studentIdOrNis.trim().length >= 2) {
     const { data } = await supabase
       .from("students")
-      .select("id, full_name, class_id, is_active, authorized_pickup_name, school_classes(name, grade)")
+      .select("id, full_name, class_id, is_active, school_classes(name, grade)")
       .ilike("full_name", `%${studentIdOrNis.trim()}%`)
       .limit(1)
       .maybeSingle();
@@ -177,7 +177,7 @@ export async function addPickupQueue(
     `Kelas ${(targetStudent as any)?.school_classes?.grade || ""}`.trim() ||
     "";
   const finalPicker =
-    parentName.trim() || targetStudent.authorized_pickup_name || "Orang Tua/Wali";
+    parentName.trim() || "Orang Tua/Wali";
 
   const { data: existingQueue } = await supabase
     .from("pickup_queue")
@@ -362,7 +362,7 @@ export async function getPickupQueue() {
           profile_picture,
           class_id,
           gender,
-          authorized_pickup_name,
+          applicant_id
           emergency_contact_phone
         )
       `)
@@ -549,7 +549,7 @@ export async function searchStudentsForPickup(query?: string) {
       class_id,
       profile_picture,
       gender,
-      authorized_pickup_name,
+      applicant_id,
       emergency_contact_phone,
       emergency_contact_name
     `)

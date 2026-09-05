@@ -177,7 +177,9 @@ export default function PhoneQRScanner({
           else if (parsed.id) targetStudentId = parsed.id;
 
           if (parsed.picker) pickerName = parsed.picker;
+          else if (parsed.pickerName) pickerName = parsed.pickerName;
           if (parsed.role) relation = parsed.role;
+          else if (parsed.pickerRole) relation = parsed.pickerRole;
         } else if (decodedText.trim().startsWith("pickup:")) {
           const parts = decodedText.trim().split(":");
           if (parts[1]) targetStudentId = parts[1];

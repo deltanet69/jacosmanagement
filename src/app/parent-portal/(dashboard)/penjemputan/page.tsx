@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef } from "react";
 import { createParentClient } from "@/lib/supabase/client";
 import { getCompletePickupData } from "../../server-actions";
 import { QRCodeSVG } from "qrcode.react";
@@ -176,9 +176,9 @@ export default function PenjemputanPage() {
     setIsSubmitting(false);
   };
 
-  const handleQRExpire = () => {
+  const handleQRExpire = useCallback(() => {
     setQrKey(Date.now()); // auto renew
-  };
+  }, []);
 
   const pickerDisplay = pickerType === "parent" ? parentName : pickerName;
   const roleDisplay = pickerType === "parent" ? "Orang Tua / Wali Utama" : pickerRole;
@@ -489,7 +489,7 @@ export default function PenjemputanPage() {
                     }}
                   />
                 </div>
-                <QRTimer duration={30} onExpire={handleQRExpire} />
+                <QRTimer key={`timer-${qrKey}`} duration={30} onExpire={handleQRExpire} />
                 <p className="text-xs text-gray-400 text-center">
                   QR diperbarui otomatis setiap 30 detik
                 </p>
