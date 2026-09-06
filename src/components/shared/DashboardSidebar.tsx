@@ -149,8 +149,8 @@ export function DashboardSidebar() {
       {/* Brand Header */}
       <div className="px-8 py-6 border-b border-ink/5">
         <Link href="/management" className="flex items-center gap-2.5">
-          <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={150} height={40} style={{ width: "auto", height: "auto" }} className="dark:hidden object-contain" />
-          <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={140} height={40} style={{ width: "auto", height: "auto" }} className="hidden dark:block object-contain" />
+          <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={120} height={40} style={{ width: "auto", height: "auto" }} className="dark:hidden object-contain" />
+          <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={120} height={40} style={{ width: "auto", height: "auto" }} className="hidden dark:block object-contain" />
         </Link>
       </div>
 
@@ -165,7 +165,7 @@ export function DashboardSidebar() {
                 ? "bg-white text-sky shadow-xs border border-ink/5 font-bold"
                 : "text-ink-400 hover:text-ink font-semibold"
             }`}
-          >
+          > 
             Admin Portal
           </button>
           <button
