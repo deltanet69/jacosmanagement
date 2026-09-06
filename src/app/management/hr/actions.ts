@@ -112,9 +112,10 @@ export const getHrDashboardData = cache(async function getHrDashboardData(): Pro
       // 3. Announcements
       supabase
         .from("hr_announcements")
-        .select("id, title, category, is_priority, published_at, status")
-        .eq("status", "PUBLISHED")
-        .order("published_at", { ascending: false })
+        .select("id, title, category, is_important, created_at")
+        .eq("is_deleted", false)
+        .eq("is_archived", false)
+        .order("created_at", { ascending: false })
         .limit(5),
 
       // 4. KPI Scores
@@ -235,12 +236,12 @@ export const getHrDashboardData = cache(async function getHrDashboardData(): Pro
       : 87;
 
     // Announcements
-    const announcements = (announcementsRes.data || []).map((a) => ({
+    const announcements = (announcementsRes.data || []).map((a: any) => ({
       id: a.id,
       title: a.title,
-      category: a.category,
-      isPriority: a.is_priority,
-      publishedAt: a.published_at || new Date().toISOString(),
+      category: a.category || "LAINNYA",
+      isPriority: Boolean(a.is_important),
+      publishedAt: a.created_at || new Date().toISOString(),
     }));
 
     return {

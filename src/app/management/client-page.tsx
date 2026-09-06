@@ -16,6 +16,7 @@ import {
   Plus,
   Tv,
   ExternalLink,
+  ChevronRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAdminDashboardData, DashboardData } from "./actions";
@@ -97,12 +98,12 @@ export default function DashboardClient({
   return (
     <div className="space-y-6 sm:space-y-8 pb-14 w-full">
       {/* ========================================================================= */}
-      {/* 1. WELCOME HEADER & REAL-TIME BANNER */}
+      {/* 1. WELCOME HEADER & ACTIONS */}
       {/* ========================================================================= */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5">
         <div className="space-y-1">
           <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold text-ink tracking-tight">
-            Selamat Datang, Admin JACOS! 👋
+            Selamat Datang di Management Dashboard
           </h1>
           <p className="text-ink-400 text-xs sm:text-sm">
             Dashboard overview operasional harian Jakarta Cosmopolite Islamic School.
@@ -137,112 +138,252 @@ export default function DashboardClient({
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. PRIMARY METRICS CARDS (4 MASTER KPIs) */}
+      {/* 2. PRIMARY METRICS CARDS (4 MASTER KPIs - STANDOUT & CLEAN) */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
-        {/* KPI 1: Siswa Aktif */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-ink/5 shadow-sm space-y-3 relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-leaf-600 uppercase tracking-wider">Total Siswa Aktif</span>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-leaf-50 text-leaf flex items-center justify-center shrink-0">
-              <GraduationCap size={18} />
+        {/* KPI 1: Total Siswa Aktif */}
+        <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/3 to-white p-5 sm:p-6 rounded-[2rem] border border-emerald-200/80 shadow-[0_4px_24px_rgba(16,185,129,0.06)] hover:shadow-xl hover:shadow-emerald-500/10 hover:border-emerald-400 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+          <GraduationCap className="absolute -right-4 -bottom-4 w-32 h-32 text-emerald-600/5 pointer-events-none group-hover:scale-110 transition-transform duration-500" />
+          
+          <div className="relative z-10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-emerald-800 uppercase tracking-wider bg-emerald-100/70 px-2.5 py-1 rounded-xl">
+                Total Siswa Aktif
+              </span>
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white flex items-center justify-center shadow-md shadow-emerald-500/25 shrink-0 group-hover:scale-105 transition-transform">
+                <GraduationCap size={20} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-baseline gap-2">
+                <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.students.total}</p>
+                <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                  Terdaftar
+                </span>
+              </div>
+              
+              {/* Distribution Mini Pills */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 text-[11px] font-bold">
+                <span className="bg-white/80 border border-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  PS: {d.students.preschool}
+                </span>
+                <span className="bg-white/80 border border-teal-200/60 text-teal-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  TK: {d.students.kindergarten}
+                </span>
+                <span className="bg-white/80 border border-sky-200/60 text-sky-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  SD: {d.students.primary}
+                </span>
+              </div>
+
+              {/* Visual Distribution Ratio Bar */}
+              <div className="w-full bg-emerald-100/60 h-1.5 rounded-full overflow-hidden mt-3 flex">
+                <div
+                  className="bg-emerald-500 h-full transition-all duration-500"
+                  style={{
+                    width: `${d.students.total > 0 ? (d.students.preschool / d.students.total) * 100 : 33}%`,
+                  }}
+                  title={`Preschool: ${d.students.preschool}`}
+                />
+                <div
+                  className="bg-teal-400 h-full transition-all duration-500"
+                  style={{
+                    width: `${d.students.total > 0 ? (d.students.kindergarten / d.students.total) * 100 : 33}%`,
+                  }}
+                  title={`Kindergarten: ${d.students.kindergarten}`}
+                />
+                <div
+                  className="bg-sky-400 h-full transition-all duration-500"
+                  style={{
+                    width: `${d.students.total > 0 ? (d.students.primary / d.students.total) * 100 : 34}%`,
+                  }}
+                  title={`Primary: ${d.students.primary}`}
+                />
+              </div>
             </div>
           </div>
-          <div>
-            <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.students.total}</p>
-            <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 text-[11px] text-ink-400 font-semibold">
-              <span>PS: {d.students.preschool}</span> • <span>TK: {d.students.kindergarten}</span> • <span>SD: {d.students.primary}</span>
-            </div>
-          </div>
-          <div className="pt-2 border-t border-ink/5 flex items-center justify-between text-xs">
-            <span className="text-ink-400">Status data:</span>
-            <Link href="/management/siswa" className="font-bold text-sky hover:underline">
-              Kelola Siswa →
+
+          <div className="relative z-10 pt-3 mt-3 border-t border-emerald-100 flex items-center justify-between text-xs">
+            <span className="text-ink-400 text-[11px] font-medium">Data Siswa</span>
+            <Link
+              href="/management/siswa"
+              className="font-extrabold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
+            >
+              Kelola Siswa <ChevronRight size={13} />
             </Link>
           </div>
         </div>
 
         {/* KPI 2: Online Admission */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-ink/5 shadow-sm space-y-3 relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-coral uppercase tracking-wider">Online Admission</span>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-coral-50 text-coral flex items-center justify-center shrink-0">
-              <Users size={18} />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.admissions.total}</p>
-              <span className="text-xs font-bold text-gold-700 bg-gold-50 px-2 py-0.5 rounded-full border border-gold-200">
-                {d.admissions.pending} Menunggu
+        <div className="bg-gradient-to-br from-rose-500/10 via-amber-500/3 to-white p-5 sm:p-6 rounded-[2rem] border border-rose-200/80 shadow-[0_4px_24px_rgba(244,63,94,0.06)] hover:shadow-xl hover:shadow-rose-500/10 hover:border-rose-400 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+          <Users className="absolute -right-4 -bottom-4 w-32 h-32 text-rose-600/5 pointer-events-none group-hover:scale-110 transition-transform duration-500" />
+
+          <div className="relative z-10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-rose-800 uppercase tracking-wider bg-rose-100/70 px-2.5 py-1 rounded-xl">
+                Online Admission
               </span>
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-rose-500 to-amber-400 text-white flex items-center justify-center shadow-md shadow-rose-500/25 shrink-0 group-hover:scale-105 transition-transform">
+                <Users size={20} />
+              </div>
             </div>
-            <p className="text-[11px] font-semibold text-ink-400 mt-1.5">
-              {d.admissions.enrolled} Diterima ({d.admissions.activeBatchLabel})
-            </p>
+
+            <div>
+              <div className="flex items-baseline gap-2">
+                <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.admissions.total}</p>
+                {d.admissions.pending > 0 ? (
+                  <span className="text-xs font-extrabold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-300 animate-pulse">
+                    {d.admissions.pending} Menunggu Review
+                  </span>
+                ) : (
+                  <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                    Semua Terproses
+                  </span>
+                )}
+              </div>
+
+              {/* Distribution Mini Pills */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 text-[11px] font-bold">
+                <span className="bg-white/80 border border-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.admissions.enrolled} Diterima
+                </span>
+                <span className="bg-white/80 border border-rose-200/60 text-rose-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.admissions.activeBatchLabel}
+                </span>
+              </div>
+
+              {/* Visual Admission Ratio Bar */}
+              <div className="w-full bg-rose-100/60 h-1.5 rounded-full overflow-hidden mt-3 flex">
+                <div
+                  className="bg-emerald-500 h-full transition-all duration-500"
+                  style={{
+                    width: `${d.admissions.total > 0 ? (d.admissions.enrolled / d.admissions.total) * 100 : 0}%`,
+                  }}
+                  title={`Diterima: ${d.admissions.enrolled}`}
+                />
+                <div
+                  className="bg-amber-400 h-full transition-all duration-500"
+                  style={{
+                    width: `${d.admissions.total > 0 ? (d.admissions.pending / d.admissions.total) * 100 : 100}%`,
+                  }}
+                  title={`Menunggu: ${d.admissions.pending}`}
+                />
+              </div>
+            </div>
           </div>
-          <div className="pt-2 border-t border-ink/5 flex items-center justify-between text-xs">
-            <span className="text-ink-400">Review pendaftar:</span>
-            <Link href="/management/admisi" className="font-bold text-sky hover:underline">
-              Buka Admisi →
+
+          <div className="relative z-10 pt-3 mt-3 border-t border-rose-100 flex items-center justify-between text-xs">
+            <span className="text-ink-400 text-[11px] font-medium">Review Pendaftar</span>
+            <Link
+              href="/management/admisi"
+              className="font-extrabold text-rose-700 hover:text-rose-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
+            >
+              Buka Admisi <ChevronRight size={13} />
             </Link>
           </div>
         </div>
 
         {/* KPI 3: Penjemputan Hari Ini */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-ink/5 shadow-sm space-y-3 relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Penjemputan Hari Ini</span>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-              <Car size={18} />
+        <div className="bg-gradient-to-br from-purple-500/10 via-violet-500/3 to-white p-5 sm:p-6 rounded-[2rem] border border-purple-200/80 shadow-[0_4px_24px_rgba(168,85,247,0.06)] hover:shadow-xl hover:shadow-purple-500/10 hover:border-purple-400 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+          <Car className="absolute -right-4 -bottom-4 w-32 h-32 text-purple-600/5 pointer-events-none group-hover:scale-110 transition-transform duration-500" />
+
+          <div className="relative z-10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-purple-800 uppercase tracking-wider bg-purple-100/70 px-2.5 py-1 rounded-xl">
+                Penjemputan Hari Ini
+              </span>
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-purple-600 to-violet-400 text-white flex items-center justify-center shadow-md shadow-purple-500/25 shrink-0 group-hover:scale-105 transition-transform">
+                <Car size={20} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-baseline gap-2">
+                <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.pickups.totalToday}</p>
+                {d.pickups.waitingCount > 0 ? (
+                  <span className="text-xs font-extrabold text-purple-800 bg-purple-100 px-2.5 py-0.5 rounded-lg border border-purple-300 animate-pulse">
+                    {d.pickups.waitingCount} Antri
+                  </span>
+                ) : (
+                  <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                    Semua Selesai
+                  </span>
+                )}
+              </div>
+
+              {/* Details breakdown */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 text-[11px] font-bold">
+                <span className="bg-white/80 border border-purple-200/60 text-purple-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.pickups.completedCount} Diserahkan
+                </span>
+              </div>
+
+              {/* Visual Pickup Progress Bar */}
+              <div className="w-full bg-purple-100/60 h-1.5 rounded-full overflow-hidden mt-3">
+                <div
+                  className="bg-gradient-to-r from-purple-600 to-violet-500 h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${d.pickups.totalToday > 0 ? (d.pickups.completedCount / d.pickups.totalToday) * 100 : 100}%`,
+                  }}
+                />
+              </div>
             </div>
           </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.pickups.totalToday}</p>
-              {d.pickups.waitingCount > 0 ? (
-                <span className="text-xs font-bold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-full border border-sky-200 animate-pulse">
-                  {d.pickups.waitingCount} Antri
-                </span>
-              ) : (
-                <span className="text-xs font-bold text-leaf-600 bg-leaf-50 px-2 py-0.5 rounded-full">
-                  Semua Selesai
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] font-semibold text-ink-400 mt-1.5">
-              {d.pickups.completedCount} Siswa sudah diserahterimakan
-            </p>
-          </div>
-          <div className="pt-2 border-t border-ink/5 flex items-center justify-between text-xs">
-            <span className="text-ink-400">Live monitor:</span>
-            <Link href="/management/absensi/penjemputan" className="font-bold text-sky hover:underline">
-              Papan Antrian →
+
+          <div className="relative z-10 pt-3 mt-3 border-t border-purple-100 flex items-center justify-between text-xs">
+            <span className="text-ink-400 text-[11px] font-medium">Papan Penjemputan</span>
+            <Link
+              href="/management/absensi/penjemputan"
+              className="font-extrabold text-purple-700 hover:text-purple-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
+            >
+              Papan Antrian <ChevronRight size={13} />
             </Link>
           </div>
         </div>
 
-        {/* KPI 4: Guru & Kehadiran */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-ink/5 shadow-sm space-y-3 relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gold uppercase tracking-wider">Kehadiran Guru</span>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gold-50 text-gold flex items-center justify-center shrink-0">
-              <UserCheck size={18} />
+        {/* KPI 4: Kehadiran Guru */}
+        <div className="bg-gradient-to-br from-sky-500/10 via-blue-500/3 to-white p-5 sm:p-6 rounded-[2rem] border border-sky-200/80 shadow-[0_4px_24px_rgba(14,165,233,0.06)] hover:shadow-xl hover:shadow-sky-500/10 hover:border-sky-400 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+          <UserCheck className="absolute -right-4 -bottom-4 w-32 h-32 text-sky-600/5 pointer-events-none group-hover:scale-110 transition-transform duration-500" />
+
+          <div className="relative z-10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-sky-800 uppercase tracking-wider bg-sky-100/70 px-2.5 py-1 rounded-xl">
+                Kehadiran Guru
+              </span>
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-sky-600 to-blue-400 text-white flex items-center justify-center shadow-md shadow-sky-500/25 shrink-0 group-hover:scale-105 transition-transform">
+                <UserCheck size={20} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-baseline gap-2">
+                <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.teachers.presentToday}</p>
+                <span className="text-xs font-extrabold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+                  / {d.teachers.total} Guru ({d.teachers.attendanceRate}%)
+                </span>
+              </div>
+
+              <p className="text-[11px] font-bold text-sky-800 mt-2.5">
+                Tingkat kehadiran: {d.teachers.attendanceRate}% hari ini
+              </p>
+
+              {/* Visual Rate Progress Bar */}
+              <div className="w-full bg-sky-100/60 h-1.5 rounded-full overflow-hidden mt-3">
+                <div
+                  className="bg-gradient-to-r from-sky-600 to-blue-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, d.teachers.attendanceRate)}%` }}
+                />
+              </div>
             </div>
           </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.teachers.presentToday}</p>
-              <span className="text-xs font-bold text-ink-400">/ {d.teachers.total} Guru</span>
-            </div>
-            <p className="text-[11px] font-semibold text-leaf-600 mt-1.5">
-              Tingkat kehadiran: {d.teachers.attendanceRate}% hari ini
-            </p>
-          </div>
-          <div className="pt-2 border-t border-ink/5 flex items-center justify-between text-xs">
-            <span className="text-ink-400">Rekap staf:</span>
-            <Link href="/management/absensi" className="font-bold text-sky hover:underline">
-              Buka Absensi →
+
+          <div className="relative z-10 pt-3 mt-3 border-t border-sky-100 flex items-center justify-between text-xs">
+            <span className="text-ink-400 text-[11px] font-medium">Rekap Presensi</span>
+            <Link
+              href="/management/absensi"
+              className="font-extrabold text-sky-700 hover:text-sky-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
+            >
+              Buka Absensi <ChevronRight size={13} />
             </Link>
           </div>
         </div>

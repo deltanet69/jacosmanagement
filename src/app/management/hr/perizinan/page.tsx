@@ -1,22 +1,33 @@
-import { UnderDevelopment } from "@/components/shared/UnderDevelopment";
+import { getHrLeaveData } from "./actions";
+import { PerizinanListClient } from "@/components/hr/PerizinanListClient";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Perizinan HR - JACOS HR Management",
+  title: "Perizinan & Cuti HR - JACOS Management",
+  description: "Pusat manajemen permohonan cuti, izin sakit, dinas luar, dan kuota saldo cuti karyawan JACOS",
 };
 
-export default function HrPerizinanPage() {
+export default async function HrPerizinanPage() {
+  const result = await getHrLeaveData();
+
   return (
-    <UnderDevelopment
-      title="Manajemen Perizinan HR"
-      category="Kepegawaian HR"
-      description="Pusat validasi dan penyetujuan surat permohonan izin, sakit, cuti, dan tugas dinas dari divisi HR."
-      iconName="calendar-days"
-      expectedFeatures={[
-        "Panel approval cepat untuk Manager HR / Kepala Sekolah",
-        "Kalkulasi sisa kuota cuti tahunan pegawai secara realtime",
-        "Penanganan izin sakit dengan verifikasi surat medis resmi",
-        "Export laporan perizinan terintegrasi dengan penggajian"
-      ]}
-    />
+    <div className="max-w-full mx-auto pb-12 w-full">
+      <PerizinanListClient
+        initialRequests={result.requests || []}
+        initialBalances={result.balances || []}
+        leaveTypes={result.leaveTypes || []}
+        employees={result.employees || []}
+        initialStats={
+          result.stats || {
+            totalPending: 0,
+            totalApprovedThisMonth: 0,
+            totalRejectedThisMonth: 0,
+            activeLeaveToday: 0,
+            totalEmployees: 0,
+          }
+        }
+      />
+    </div>
   );
 }

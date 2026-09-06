@@ -100,7 +100,7 @@ export const HR_MENU_GROUPS: MenuGroup[] = [
   {
     title: "Kepegawaian",
     items: [
-      { href: "/management/guru", label: "Data Guru", icon: UserCheck, color: "text-gold-600", bgColor: "bg-gold-50" },
+      { href: "/management/hr/guru", label: "Data Guru & Staf", icon: UserCheck, color: "text-gold-600", bgColor: "bg-gold-50" },
       { href: "/management/hr/kpi", label: "KPI Staff", icon: TrendingUp, color: "text-emerald-600", bgColor: "bg-emerald-50" },
       { href: "/management/hr/perizinan", label: "Perizinan HR", icon: CalendarDays, color: "text-rose-600", bgColor: "bg-rose-50" },
       { href: "/management/hr/overtime", label: "Overtime Management", icon: Briefcase, color: "text-purple-600", bgColor: "bg-purple-50" },

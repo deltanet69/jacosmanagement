@@ -112,7 +112,7 @@ export default function HrDashboardClient({
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 sm:gap-5">
         <div className="space-y-1">
           <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-extrabold text-ink tracking-tight">
-            Selamat Datang di HR Management! 👥
+            Selamat Datang di HR Management
           </h1>
           <p className="text-ink-400 text-xs sm:text-sm">
             Dashboard overview data kepegawaian, presensi staf, pengajuan cuti, dan evaluasi kinerja JACOS.
@@ -134,7 +134,7 @@ export default function HrDashboardClient({
             </Button>
           </Link>
 
-          <Link href="/management/guru">
+          <Link href="/management/hr/guru">
             <Button
               variant="outline"
               className="h-10 sm:h-11 px-3.5 sm:px-4 rounded-xl sm:rounded-2xl bg-white border-sky-200 text-sky-700 hover:bg-sky-50 font-bold text-xs shadow-2xs cursor-pointer"
@@ -146,112 +146,254 @@ export default function HrDashboardClient({
       </div>
 
       {/* ========================================================================= */}
-      {/* 2. PRIMARY METRICS CARDS (4 MASTER KPIs) */}
+      {/* 2. PRIMARY METRICS CARDS (4 MASTER KPIs - STANDOUT & CLEAN) */}
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {/* KPI 1: Total Karyawan Aktif */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-ink/5 shadow-sm space-y-3 relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-leaf-600 uppercase tracking-wider">Total Karyawan Aktif</span>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-leaf-50 text-leaf flex items-center justify-center shrink-0">
-              <Users size={18} />
+        <div className="bg-gradient-to-br from-emerald-500/10 via-emerald-500/3 to-white p-5 sm:p-6 rounded-[2rem] border border-emerald-200/80 shadow-[0_4px_24px_rgba(16,185,129,0.06)] hover:shadow-xl hover:shadow-emerald-500/10 hover:border-emerald-400 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+          <Users className="absolute -right-4 -bottom-4 w-32 h-32 text-emerald-600/5 pointer-events-none group-hover:scale-110 transition-transform duration-500" />
+          
+          <div className="relative z-10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-emerald-800 uppercase tracking-wider bg-emerald-100/70 px-2.5 py-1 rounded-xl">
+                Total Karyawan Aktif
+              </span>
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-600 to-teal-400 text-white flex items-center justify-center shadow-md shadow-emerald-500/25 shrink-0 group-hover:scale-105 transition-transform">
+                <Users size={20} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-baseline gap-2">
+                <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.summary.totalActive}</p>
+                <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                  Aktif
+                </span>
+              </div>
+              
+              {/* Distribution Mini Pills */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 text-[11px] font-bold">
+                <span className="bg-white/80 border border-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.summary.totalGuru} Guru
+                </span>
+                <span className="bg-white/80 border border-teal-200/60 text-teal-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.summary.totalStaf} Staf
+                </span>
+                <span className="text-ink-400 text-[10px]">
+                  (L: {d.summary.totalMale} / P: {d.summary.totalFemale})
+                </span>
+              </div>
+
+              {/* Visual Distribution Ratio Bar */}
+              <div className="w-full bg-emerald-100/60 h-1.5 rounded-full overflow-hidden mt-3 flex">
+                <div
+                  className="bg-emerald-500 h-full transition-all duration-500"
+                  style={{
+                    width: `${d.summary.totalActive > 0 ? (d.summary.totalGuru / d.summary.totalActive) * 100 : 50}%`,
+                  }}
+                  title={`Guru: ${d.summary.totalGuru}`}
+                />
+                <div
+                  className="bg-teal-400 h-full transition-all duration-500"
+                  style={{
+                    width: `${d.summary.totalActive > 0 ? (d.summary.totalStaf / d.summary.totalActive) * 100 : 50}%`,
+                  }}
+                  title={`Staf: ${d.summary.totalStaf}`}
+                />
+              </div>
             </div>
           </div>
-          <div>
-            <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.summary.totalActive}</p>
-            <div className="flex items-center gap-1.5 sm:gap-2 mt-1.5 text-[11px] text-ink-400 font-semibold">
-              <span>Guru: {d.summary.totalGuru}</span> • <span>Staf: {d.summary.totalStaf}</span> • <span>L: {d.summary.totalMale}/P: {d.summary.totalFemale}</span>
-            </div>
-          </div>
-          <div className="pt-2 border-t border-ink/5 flex items-center justify-between text-xs">
-            <span className="text-ink-400">Data Master:</span>
-            <Link href="/management/guru" className="font-bold text-sky hover:underline">
-              Kelola Staf →
+
+          <div className="relative z-10 pt-3 mt-3 border-t border-emerald-100 flex items-center justify-between text-xs">
+            <span className="text-ink-400 text-[11px] font-medium">Data Pegawai</span>
+            <Link
+              href="/management/hr/guru"
+              className="font-extrabold text-emerald-700 hover:text-emerald-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
+            >
+              Kelola Staf <ChevronRight size={13} />
             </Link>
           </div>
         </div>
 
         {/* KPI 2: Status Kepegawaian */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-ink/5 shadow-sm space-y-3 relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-coral uppercase tracking-wider">Status Kepegawaian</span>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-coral-50 text-coral flex items-center justify-center shrink-0">
-              <Briefcase size={18} />
-            </div>
-          </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.summary.tetap}</p>
-              <span className="text-xs font-bold text-leaf-700 bg-leaf-50 px-2 py-0.5 rounded-full border border-leaf-200">
-                Karyawan Tetap
+        <div className="bg-gradient-to-br from-sky-500/10 via-blue-500/3 to-white p-5 sm:p-6 rounded-[2rem] border border-sky-200/80 shadow-[0_4px_24px_rgba(14,165,233,0.06)] hover:shadow-xl hover:shadow-sky-500/10 hover:border-sky-400 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+          <Briefcase className="absolute -right-4 -bottom-4 w-32 h-32 text-sky-600/5 pointer-events-none group-hover:scale-110 transition-transform duration-500" />
+
+          <div className="relative z-10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-sky-800 uppercase tracking-wider bg-sky-100/70 px-2.5 py-1 rounded-xl">
+                Status Kepegawaian
               </span>
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-sky-600 to-blue-400 text-white flex items-center justify-center shadow-md shadow-sky-500/25 shrink-0 group-hover:scale-105 transition-transform">
+                <Briefcase size={20} />
+              </div>
             </div>
-            <p className="text-[11px] font-semibold text-ink-400 mt-1.5">
-              {d.summary.kontrak} Kontrak (PKWT) • {d.summary.probation} Probation
-            </p>
+
+            <div>
+              <div className="flex items-baseline gap-2">
+                <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.summary.tetap}</p>
+                <span className="text-xs font-extrabold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200">
+                  Karyawan Tetap
+                </span>
+              </div>
+
+              {/* Distribution Mini Pills */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 text-[11px] font-bold">
+                <span className="bg-white/80 border border-sky-200/60 text-sky-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.summary.kontrak} Kontrak (PKWT)
+                </span>
+                <span className="bg-white/80 border border-blue-200/60 text-blue-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.summary.probation} Probation
+                </span>
+              </div>
+
+              {/* Visual Stability Ratio Bar */}
+              <div className="w-full bg-sky-100/60 h-1.5 rounded-full overflow-hidden mt-3 flex">
+                <div
+                  className="bg-sky-500 h-full transition-all duration-500"
+                  style={{
+                    width: `${d.summary.totalActive > 0 ? (d.summary.tetap / d.summary.totalActive) * 100 : 0}%`,
+                  }}
+                  title={`Tetap: ${d.summary.tetap}`}
+                />
+                <div
+                  className="bg-blue-400 h-full transition-all duration-500"
+                  style={{
+                    width: `${d.summary.totalActive > 0 ? (d.summary.kontrak / d.summary.totalActive) * 100 : 100}%`,
+                  }}
+                  title={`Kontrak: ${d.summary.kontrak}`}
+                />
+              </div>
+            </div>
           </div>
-          <div className="pt-2 border-t border-ink/5 flex items-center justify-between text-xs">
-            <span className="text-ink-400">Status kontrak:</span>
-            <Link href="/management/guru" className="font-bold text-sky hover:underline">
-              Detail Karyawan →
+
+          <div className="relative z-10 pt-3 mt-3 border-t border-sky-100 flex items-center justify-between text-xs">
+            <span className="text-ink-400 text-[11px] font-medium">Status Kontrak</span>
+            <Link
+              href="/management/hr/guru"
+              className="font-extrabold text-sky-700 hover:text-sky-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
+            >
+              Detail Karyawan <ChevronRight size={13} />
             </Link>
           </div>
         </div>
 
         {/* KPI 3: Pengajuan Cuti & Izin */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-ink/5 shadow-sm space-y-3 relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-purple-600 uppercase tracking-wider">Pengajuan Cuti & Izin</span>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center shrink-0">
-              <CalendarClock size={18} />
+        <div className={`bg-gradient-to-br from-amber-500/10 via-orange-500/3 to-white p-5 sm:p-6 rounded-[2rem] border shadow-[0_4px_24px_rgba(245,158,11,0.06)] hover:shadow-xl hover:shadow-amber-500/10 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group ${
+          d.leaves.pendingCount > 0 ? "border-amber-300 ring-1 ring-amber-200/50" : "border-amber-200/80 hover:border-amber-400"
+        }`}>
+          <CalendarClock className="absolute -right-4 -bottom-4 w-32 h-32 text-amber-600/5 pointer-events-none group-hover:scale-110 transition-transform duration-500" />
+
+          <div className="relative z-10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-amber-800 uppercase tracking-wider bg-amber-100/70 px-2.5 py-1 rounded-xl">
+                Pengajuan Cuti & Izin
+              </span>
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 to-orange-400 text-white flex items-center justify-center shadow-md shadow-amber-500/25 shrink-0 group-hover:scale-105 transition-transform">
+                <CalendarClock size={20} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-baseline gap-2">
+                <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.leaves.pendingCount}</p>
+                {d.leaves.pendingCount > 0 ? (
+                  <span className="text-xs font-extrabold text-amber-800 bg-amber-100 px-2.5 py-0.5 rounded-lg border border-amber-300 animate-pulse">
+                    Perlu Approval
+                  </span>
+                ) : (
+                  <span className="text-xs font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
+                    Semua Terproses
+                  </span>
+                )}
+              </div>
+
+              {/* Details breakdown */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 text-[11px] font-bold">
+                <span className="bg-white/80 border border-amber-200/60 text-amber-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.leaves.recentRequests.length} Permohonan
+                </span>
+                <span className="bg-white/80 border border-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.leaves.approvedCount} Disetujui
+                </span>
+              </div>
+
+              <p className="text-[10px] text-ink-400 mt-3 font-medium">
+                {d.leaves.pendingCount > 0
+                  ? "Ada permohonan yang menunggu persetujuan HR"
+                  : "Tidak ada antrean approval cuti saat ini"}
+              </p>
             </div>
           </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.leaves.pendingCount}</p>
-              {d.leaves.pendingCount > 0 ? (
-                <span className="text-xs font-bold text-gold-700 bg-gold-50 px-2 py-0.5 rounded-full border border-gold-200 animate-pulse">
-                  {d.leaves.pendingCount} Menunggu
-                </span>
-              ) : (
-                <span className="text-xs font-bold text-leaf-600 bg-leaf-50 px-2 py-0.5 rounded-full">
-                  Semua Terproses
-                </span>
-              )}
-            </div>
-            <p className="text-[11px] font-semibold text-ink-400 mt-1.5">
-              Total {d.leaves.recentRequests.length} permohonan tercatat
-            </p>
-          </div>
-          <div className="pt-2 border-t border-ink/5 flex items-center justify-between text-xs">
-            <span className="text-ink-400">Verifikasi izin:</span>
-            <Link href="/management/hr/perizinan" className="font-bold text-sky hover:underline">
-              Buka Perizinan →
+
+          <div className="relative z-10 pt-3 mt-3 border-t border-amber-100 flex items-center justify-between text-xs">
+            <span className="text-ink-400 text-[11px] font-medium">Verifikasi Izin</span>
+            <Link
+              href="/management/hr/perizinan"
+              className="font-extrabold text-amber-700 hover:text-amber-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
+            >
+              Buka Perizinan <ChevronRight size={13} />
             </Link>
           </div>
         </div>
 
         {/* KPI 4: Kehadiran Hari Ini */}
-        <div className="bg-white p-5 sm:p-6 rounded-3xl border border-ink/5 shadow-sm space-y-3 relative overflow-hidden flex flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gold uppercase tracking-wider">Kehadiran Hari Ini</span>
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-gold-50 text-gold flex items-center justify-center shrink-0">
-              <UserCheck size={18} />
+        <div className="bg-gradient-to-br from-violet-500/10 via-purple-500/3 to-white p-5 sm:p-6 rounded-[2rem] border border-violet-200/80 shadow-[0_4px_24px_rgba(139,92,246,0.06)] hover:shadow-xl hover:shadow-violet-500/10 hover:border-violet-400 hover:-translate-y-1 transition-all duration-300 relative overflow-hidden flex flex-col justify-between group">
+          <UserCheck className="absolute -right-4 -bottom-4 w-32 h-32 text-violet-600/5 pointer-events-none group-hover:scale-110 transition-transform duration-500" />
+
+          <div className="relative z-10 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-extrabold text-violet-800 uppercase tracking-wider bg-violet-100/70 px-2.5 py-1 rounded-xl">
+                Kehadiran Hari Ini
+              </span>
+              <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-violet-600 to-purple-400 text-white flex items-center justify-center shadow-md shadow-violet-500/25 shrink-0 group-hover:scale-105 transition-transform">
+                <UserCheck size={20} />
+              </div>
+            </div>
+
+            <div>
+              <div className="flex items-baseline gap-2">
+                <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.attendance.hadir}</p>
+                <span className="text-xs font-extrabold text-violet-700 bg-violet-50 px-2 py-0.5 rounded-lg border border-violet-200">
+                  / {d.summary.totalActive} Staf ({d.attendance.rate}%)
+                </span>
+              </div>
+
+              {/* Breakdown chips */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2.5 text-[11px] font-bold">
+                <span className="bg-white/80 border border-emerald-200/60 text-emerald-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.attendance.hadir} Hadir
+                </span>
+                <span className="bg-white/80 border border-amber-200/60 text-amber-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.attendance.sakit} Sakit
+                </span>
+                <span className="bg-white/80 border border-sky-200/60 text-sky-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                  {d.attendance.izin} Izin
+                </span>
+                {d.attendance.alpha > 0 && (
+                  <span className="bg-white/80 border border-rose-200/60 text-rose-800 px-2 py-0.5 rounded-lg shadow-2xs">
+                    {d.attendance.alpha} Alpha
+                  </span>
+                )}
+              </div>
+
+              {/* Visual Rate Progress Bar */}
+              <div className="w-full bg-violet-100/60 h-1.5 rounded-full overflow-hidden mt-3">
+                <div
+                  className="bg-gradient-to-r from-violet-600 to-purple-500 h-full rounded-full transition-all duration-500"
+                  style={{ width: `${Math.min(100, d.attendance.rate)}%` }}
+                />
+              </div>
             </div>
           </div>
-          <div>
-            <div className="flex items-baseline gap-2">
-              <p className="font-display text-3xl sm:text-4xl font-black text-ink">{d.attendance.hadir}</p>
-              <span className="text-xs font-bold text-ink-400">/ {d.summary.totalActive} Staf</span>
-            </div>
-            <p className="text-[11px] font-semibold text-leaf-600 mt-1.5">
-              {d.attendance.sakit} Sakit • {d.attendance.izin} Izin • {d.attendance.alpha} Alpha
-            </p>
-          </div>
-          <div className="pt-2 border-t border-ink/5 flex items-center justify-between text-xs">
-            <span className="text-ink-400">Rekap presensi:</span>
-            <Link href="/management/absensi" className="font-bold text-sky hover:underline">
-              Buka Absensi →
+
+          <div className="relative z-10 pt-3 mt-3 border-t border-violet-100 flex items-center justify-between text-xs">
+            <span className="text-ink-400 text-[11px] font-medium">Rekap Presensi</span>
+            <Link
+              href="/management/absensi"
+              className="font-extrabold text-violet-700 hover:text-violet-800 flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
+            >
+              Buka Absensi <ChevronRight size={13} />
             </Link>
           </div>
         </div>
@@ -481,10 +623,28 @@ export default function HrDashboardClient({
                     className="block p-3 rounded-2xl bg-cloud/40 hover:bg-sky-50/50 border border-ink/5 transition text-xs space-y-1 cursor-pointer"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-bold bg-coral-50 text-coral px-2 py-0.5 rounded-md uppercase">
-                        {ann.category}
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                        ann.category === "PENTING"
+                          ? "bg-rose-50 text-rose-700 border border-rose-200"
+                          : ann.category === "KEBIJAKAN_BARU"
+                          ? "bg-sky-50 text-sky-700 border border-sky-200"
+                          : ann.category === "INFO_CUTI"
+                          ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                          : ann.category === "EVENT"
+                          ? "bg-purple-50 text-purple-700 border border-purple-200"
+                          : "bg-amber-50 text-amber-700 border border-amber-200"
+                      }`}>
+                        {ann.category === "KEBIJAKAN_BARU"
+                          ? "Kebijakan Baru"
+                          : ann.category === "INFO_CUTI"
+                          ? "Info Cuti"
+                          : ann.category === "EVENT"
+                          ? "Event"
+                          : ann.category === "PENTING"
+                          ? "📌 Penting"
+                          : "Umum"}
                       </span>
-                      <span className="text-[10px] text-ink-300">{formatDate(ann.publishedAt)}</span>
+                      <span className="text-[10px] text-ink-400 font-medium">{formatDate(ann.publishedAt)}</span>
                     </div>
                     <p className="font-bold text-ink leading-snug line-clamp-2">{ann.title}</p>
                   </Link>
