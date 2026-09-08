@@ -68,7 +68,7 @@ export const ADMIN_MENU_GROUPS: MenuGroup[] = [
     items: [
       { href: "/management/keuangan", label: "Keuangan JACOS", icon: Receipt, color: "text-emerald-600", bgColor: "bg-emerald-50" },
       { href: "/management/keuangan/spp", label: "SPP Sekolah", icon: CreditCard, color: "text-sky-600", bgColor: "bg-sky-50" },
-      { href: "/management/keuangan/esaldo", label: "eSaldo JACOS", icon: Wallet, color: "text-gold-600", bgColor: "bg-gold-50" },
+      // { href: "/management/keuangan/esaldo", label: "eSaldo JACOS", icon: Wallet, color: "text-gold-600", bgColor: "bg-gold-50" },
     ],
   },
   {
