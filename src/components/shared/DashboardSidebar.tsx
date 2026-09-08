@@ -27,6 +27,7 @@ import {
   TrendingUp,
   Banknote,
   Lock,
+  PackageCheck,
   ChevronRight
 } from "lucide-react";
 import { logout } from "@/app/(public)/login/actions";
@@ -68,7 +69,7 @@ export const ADMIN_MENU_GROUPS: MenuGroup[] = [
     items: [
       { href: "/management/keuangan", label: "Keuangan JACOS", icon: Receipt, color: "text-emerald-600", bgColor: "bg-emerald-50" },
       { href: "/management/keuangan/spp", label: "SPP Sekolah", icon: CreditCard, color: "text-sky-600", bgColor: "bg-sky-50" },
-      { href: "/management/keuangan/esaldo", label: "eSaldo JACOS", icon: Wallet, color: "text-gold-600", bgColor: "bg-gold-50" },
+      // { href: "/management/keuangan/esaldo", label: "eSaldo JACOS", icon: Wallet, color: "text-gold-600", bgColor: "bg-gold-50" },
     ],
   },
   {
@@ -111,7 +112,7 @@ export const HR_MENU_GROUPS: MenuGroup[] = [
     items: [
       { href: "/management/hr/payslip", label: "Payslip Management", icon: Banknote, color: "text-leaf", bgColor: "bg-leaf-50" },
       { href: "/management/hr/reimburse", label: "Reimburse HR", icon: FileText, color: "text-teal-600", bgColor: "bg-teal-50" },
-      { href: "/management/hr/otorisasi", label: "Otorisasi Staff", icon: Lock, color: "text-sky-600", bgColor: "bg-sky-50" },
+      { href: "/management/hr/pengajuan", label: "Pengajuan", icon: PackageCheck, color: "text-sky-600", bgColor: "bg-sky-50" },
     ],
   },
   {
