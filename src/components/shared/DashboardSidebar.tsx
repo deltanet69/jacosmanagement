@@ -50,6 +50,7 @@ export const ADMIN_MENU_GROUPS: MenuGroup[] = [
     items: [
       { href: "/management", label: "Dashboard", icon: LayoutDashboard, color: "text-sky", bgColor: "bg-sky-50" },
       { href: "/management/admisi", label: "Online Admission", icon: Users, color: "text-coral", bgColor: "bg-coral-50" },
+      { href: "/management/guessbook", label: "Buku Tamu (Guestbook)", icon: UserCheck, color: "text-leaf", bgColor: "bg-leaf-50" },
       { href: "/management/openhouse", label: "Openhouse", icon: Sparkles, color: "text-gold-600", bgColor: "bg-gold-50" },
       { href: "/management/informasi", label: "Informasi & Kegiatan", icon: Megaphone, color: "text-purple-600", bgColor: "bg-purple-50" },
     ],
