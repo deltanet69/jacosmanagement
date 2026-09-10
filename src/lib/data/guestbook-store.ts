@@ -19,9 +19,9 @@ export interface GuestbookEntry {
   village_name?: string | null;
   postal_code?: string | null;
   address_detail?: string | null;
-  child_name: string;
+  child_name?: string | null;
   child_age?: number | null;
-  target_grade: string;
+  target_grade?: string | null;
   visit_date?: string | null;
   visit_time?: string | null;
   visit_purpose?: string | null;

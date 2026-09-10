@@ -58,8 +58,8 @@ export default async function RegPage({
     );
   }
 
-  // Form sudah pernah disubmit
-  if (applicant.form_submitted) {
+  // Form sudah pernah disubmit (kecuali jika status REJECTED dan perlu perbaikan)
+  if (applicant.form_submitted && applicant.status !== "REJECTED") {
     return (
       <div className="min-h-[100dvh] bg-gradient-to-b from-[#f8faff] via-[#eef4ff] to-[#f8faff] flex items-center justify-center p-6 relative overflow-hidden font-sans">
         {/* Background ambient orbs */}

@@ -13,29 +13,20 @@ function getResend() {
 }
 
 const guestbookSchema = z.object({
-  parent_name: z.string().min(2, 'Nama lengkap Ayah/Bunda/Wali wajib diisi (minimal 2 karakter)'),
-  whatsapp: z.string().min(8, 'Nomor WhatsApp aktif wajib diisi (minimal 8 digit)'),
+  parent_name: z.string().min(2, 'Nama lengkap wajib diisi (minimal 2 karakter)'),
+  whatsapp: z.string().min(8, 'Nomor Telepon / WhatsApp wajib diisi (minimal 8 digit)'),
   email: z.string().email('Format alamat email tidak valid'),
+  address_detail: z.string().min(3, 'Alamat wajib diisi (minimal 3 karakter)'),
+  visit_purpose: z.string().min(1, 'Pilih tujuan kunjungan'),
+  other_purpose: z.string().optional().nullable(),
   
-  province_id: z.string().optional().nullable(),
-  province_name: z.string().optional().nullable(),
-  regency_id: z.string().optional().nullable(),
-  regency_name: z.string().optional().nullable(),
-  district_id: z.string().optional().nullable(),
-  district_name: z.string().optional().nullable(),
-  village_id: z.string().optional().nullable(),
-  village_name: z.string().optional().nullable(),
-  postal_code: z.string().optional().nullable(),
-  address_detail: z.string().min(3, 'Detail alamat tempat tinggal wajib diisi (nama jalan, nomor rumah, RT/RW)'),
-  
-  child_name: z.string().min(2, 'Nama lengkap ananda/calon siswa wajib diisi'),
-  child_age: z.coerce.number().min(1, 'Usia ananda minimal 1 tahun').max(18, 'Usia ananda maksimal 18 tahun').optional().nullable(),
-  target_grade: z.string().min(1, 'Pilih tujuan jenjang pendidikan ananda'),
+  // Optional / Conditional fields for student
+  child_name: z.string().optional().nullable(),
+  child_age: z.coerce.number().optional().nullable(),
+  target_grade: z.string().optional().nullable(),
   
   visit_date: z.string().optional().nullable(),
   visit_time: z.string().optional().nullable(),
-  visit_purpose: z.string().optional().nullable(),
-  source_info: z.string().optional().nullable(),
   notes: z.string().optional().nullable(),
 });
 
@@ -49,14 +40,13 @@ export interface GuestbookSubmissionResult {
     parentName: string;
     whatsapp: string;
     email: string;
-    childName: string;
+    address: string;
+    visitPurpose: string;
+    childName?: string | null;
     childAge?: number | null;
-    targetGrade: string;
-    addressSimple: string;
-    addressFull: string;
+    targetGrade?: string | null;
     visitDate: string;
     visitTime: string;
-    visitPurpose?: string | null;
     createdAt: string;
   };
 }
@@ -75,6 +65,19 @@ export async function submitGuestbookEntry(
       cleanWa = '62' + cleanWa;
     }
 
+    // Determine final purpose text
+    const finalPurpose =
+      validated.visit_purpose === 'Others...' && validated.other_purpose
+        ? `Others: ${validated.other_purpose.trim()}`
+        : validated.visit_purpose;
+
+    const isParentStudentMatter =
+      validated.visit_purpose.toLowerCase().includes('parent') &&
+      validated.visit_purpose.toLowerCase().includes('matters');
+
+    const finalChildName = isParentStudentMatter && validated.child_name ? validated.child_name.trim() : (validated.child_name?.trim() || '-');
+    const finalTargetGrade = isParentStudentMatter && validated.target_grade ? validated.target_grade.trim() : (validated.target_grade?.trim() || '-');
+
     // Generate unique Visit Code: JCS-VISIT-2026-XXXX
     const currentYear = new Date().getFullYear();
     const randomSuffix = Math.floor(1000 + Math.random() * 9000);
@@ -82,45 +85,28 @@ export async function submitGuestbookEntry(
     const nowIso = new Date().toISOString();
     const todayStr = new Date().toISOString().split('T')[0];
 
-    const simpleAddressParts = [
-      validated.district_name,
-      validated.regency_name,
-      validated.province_name,
-    ].filter(Boolean);
-    const addressSimple = simpleAddressParts.length > 0 ? simpleAddressParts.join(', ') : validated.address_detail;
-
-    const fullAddressParts = [
-      validated.address_detail,
-      validated.village_name ? `Kel. ${validated.village_name}` : '',
-      validated.district_name ? `Kec. ${validated.district_name}` : '',
-      validated.regency_name,
-      validated.province_name,
-      validated.postal_code ? `Kode Pos ${validated.postal_code}` : '',
-    ].filter(Boolean);
-    const addressFull = fullAddressParts.join(', ');
-
     const record = {
       visit_code: visitCode,
       parent_name: validated.parent_name.trim(),
       whatsapp: cleanWa,
       email: validated.email.trim().toLowerCase(),
-      province_id: validated.province_id || null,
-      province_name: validated.province_name || null,
-      regency_id: validated.regency_id || null,
-      regency_name: validated.regency_name || null,
-      district_id: validated.district_id || null,
-      district_name: validated.district_name || null,
-      village_id: validated.village_id || null,
-      village_name: validated.village_name || null,
-      postal_code: validated.postal_code || null,
+      province_id: null,
+      province_name: null,
+      regency_id: null,
+      regency_name: null,
+      district_id: null,
+      district_name: null,
+      village_id: null,
+      village_name: null,
+      postal_code: null,
       address_detail: validated.address_detail.trim(),
-      child_name: validated.child_name.trim(),
+      child_name: finalChildName,
       child_age: validated.child_age || null,
-      target_grade: validated.target_grade,
+      target_grade: finalTargetGrade,
       visit_date: validated.visit_date || todayStr,
       visit_time: validated.visit_time || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
-      visit_purpose: validated.visit_purpose || 'School Visit & Konsultasi Admisi',
-      source_info: validated.source_info || 'Datang Langsung / Scan QR Resepsionis',
+      visit_purpose: finalPurpose,
+      source_info: 'Buku Tamu Digital (Web Resepsionis)',
       notes: validated.notes || null,
       follow_up_status: 'BELUM_FOLLOW_UP',
       follow_up_notes: null,
@@ -160,10 +146,21 @@ export async function submitGuestbookEntry(
     const resend = getResend();
     if (resend && record.email) {
       try {
+        const studentInfoBlock = isParentStudentMatter && finalChildName !== '-'
+          ? `<tr>
+               <td style="padding:4px 0;color:#59647D;width:40%;">Nama Siswa:</td>
+               <td style="padding:4px 0;font-weight:700;">${finalChildName}</td>
+             </tr>
+             <tr>
+               <td style="padding:4px 0;color:#59647D;">Jenjang Pendidikan:</td>
+               <td style="padding:4px 0;font-weight:700;color:#2F6FED;">${finalTargetGrade}</td>
+             </tr>`
+          : '';
+
         await resend.emails.send({
           from: 'JACOS Admission <admission@jacos.id>',
           to: record.email,
-          subject: `✨ Terima Kasih Telah Berkunjung ke JACOS — ${record.child_name} (${visitCode})`,
+          subject: `✨ Terima Kasih Telah Berkunjung ke JACOS — ${record.parent_name} (${visitCode})`,
           html: `
 <!DOCTYPE html>
 <html lang="id">
@@ -180,7 +177,7 @@ export async function submitGuestbookEntry(
             <td style="background:linear-gradient(135deg, #2F6FED 0%, #1E479E 100%);padding:32px 24px;text-align:center;color:#ffffff;">
               <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#FCE9BE;">JAKARTA COSMOPOLITE ISLAMIC SCHOOL</p>
               <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-0.5px;">CAMPUS VISIT PASS</h1>
-              <p style="margin:6px 0 0;font-size:13px;opacity:0.9;">Terima kasih atas kunjungan Ayah & Bunda di kampus JACOS</p>
+              <p style="margin:6px 0 0;font-size:13px;opacity:0.9;">Terima kasih atas kunjungan Bapak/Ibu di kampus JACOS</p>
             </td>
           </tr>
           <tr>
@@ -189,7 +186,7 @@ export async function submitGuestbookEntry(
                 Assalamu'alaikum Wr. Wb. <strong>${record.parent_name}</strong>,
               </p>
               <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#59647D;">
-                Senang sekali dapat menyambut kehadiran Ayah & Bunda serta ananda tercinta <strong>${record.child_name}</strong> di kampus Jakarta Cosmopolite Islamic School (JACOS). Data kunjungan Ayah/Bunda telah berhasil tercatat di buku tamu kami.
+                Senang sekali dapat menyambut kehadiran Bapak/Ibu di kampus Jakarta Cosmopolite Islamic School (JACOS). Data kunjungan Anda telah berhasil tercatat di buku tamu digital kami.
               </p>
 
               <!-- Ticket Box -->
@@ -201,45 +198,34 @@ export async function submitGuestbookEntry(
                     
                     <table width="100%" style="font-size:13px;color:#16233D;">
                       <tr>
-                        <td style="padding:4px 0;color:#59647D;width:40%;">Calon Siswa:</td>
-                        <td style="padding:4px 0;font-weight:700;">${record.child_name} ${record.child_age ? `(${record.child_age} Tahun)` : ''}</td>
+                        <td style="padding:4px 0;color:#59647D;width:40%;">Nama Tamu:</td>
+                        <td style="padding:4px 0;font-weight:700;">${record.parent_name}</td>
                       </tr>
                       <tr>
-                        <td style="padding:4px 0;color:#59647D;">Minat Jenjang:</td>
-                        <td style="padding:4px 0;font-weight:700;color:#2F6FED;">${record.target_grade}</td>
+                        <td style="padding:4px 0;color:#59647D;">Tujuan:</td>
+                        <td style="padding:4px 0;font-weight:700;color:#2F6FED;">${record.visit_purpose}</td>
                       </tr>
+                      ${studentInfoBlock}
                       <tr>
                         <td style="padding:4px 0;color:#59647D;">Waktu Visit:</td>
                         <td style="padding:4px 0;font-weight:700;color:#E8A62E;">${record.visit_date} • ${record.visit_time}</td>
                       </tr>
                       <tr>
-                        <td style="padding:4px 0;color:#59647D;">Tujuan:</td>
-                        <td style="padding:4px 0;font-weight:700;">${record.visit_purpose}</td>
-                      </tr>
-                      <tr>
                         <td style="padding:4px 0;color:#59647D;">Alamat:</td>
-                        <td style="padding:4px 0;color:#59647D;">${addressSimple}</td>
+                        <td style="padding:4px 0;color:#59647D;">${record.address_detail}</td>
                       </tr>
                     </table>
                   </td>
                 </tr>
               </table>
 
-              <!-- Next Steps -->
-              <div style="background:#FFF6E4;border-radius:14px;padding:16px;margin-bottom:24px;border:1px solid #FCE9BE;">
-                <p style="margin:0 0 6px;font-size:12px;font-weight:800;color:#C68A1B;">🌟 KELANJUTAN PENDAFTARAN & KONSULTASI</p>
-                <p style="margin:0;font-size:13px;color:#16233D;line-height:1.5;">
-                  Tim Admission JACOS akan segera menghubungi Ayah & Bunda untuk mengirimkan booklet informasi biaya, panduan pendaftaran online, serta jadwal trial class untuk ananda.
-                </p>
-              </div>
-
               <!-- Button Chat WA -->
               <table width="100%" style="margin-bottom:12px;">
                 <tr>
                   <td align="center">
-                    <a href="https://wa.me/6282140000477?text=Assalamu'alaikum%20Admin%20JACOS,%20saya%20${encodeURIComponent(record.parent_name)}%20orang%20tua%20dari%20${encodeURIComponent(record.child_name)}%20(Kode%20Kunjungan:%20${visitCode})%20telah%20mengisi%20Buku%20Tamu."
+                    <a href="https://wa.me/6282140000477?text=Assalamu'alaikum%20Admin%20JACOS,%20saya%20${encodeURIComponent(record.parent_name)}%20(Kode%20Kunjungan:%20${visitCode})%20telah%20mengisi%20Buku%20Tamu."
                        style="display:inline-block;background:#25D366;color:#ffffff;text-decoration:none;font-weight:700;font-size:14px;padding:14px 28px;border-radius:30px;box-shadow:0 4px 12px rgba(37,211,102,0.25);">
-                      💬 Chat WhatsApp Tim Admisi JACOS
+                      💬 Hubungi Tim Admisi JACOS
                     </a>
                   </td>
                 </tr>
@@ -271,14 +257,13 @@ export async function submitGuestbookEntry(
         parentName: record.parent_name,
         whatsapp: record.whatsapp,
         email: record.email,
-        childName: record.child_name,
-        childAge: record.child_age,
-        targetGrade: record.target_grade,
-        addressSimple,
-        addressFull,
+        address: record.address_detail,
+        visitPurpose: record.visit_purpose,
+        childName: isParentStudentMatter ? record.child_name : null,
+        childAge: isParentStudentMatter ? record.child_age : null,
+        targetGrade: isParentStudentMatter ? record.target_grade : null,
         visitDate: record.visit_date,
         visitTime: record.visit_time,
-        visitPurpose: record.visit_purpose,
         createdAt: nowIso,
       },
     };

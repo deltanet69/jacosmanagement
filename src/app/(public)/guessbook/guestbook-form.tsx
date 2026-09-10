@@ -13,7 +13,6 @@ import {
   Calendar,
   Clock,
   HelpCircle,
-  FileText,
   CheckCircle2,
   Sparkles,
   ArrowRight,
@@ -25,48 +24,98 @@ import {
   QrCode,
   ShieldCheck,
   Heart,
-  ChevronDown,
   Loader2,
-  Share2,
   Printer,
   RefreshCw,
+  Briefcase,
+  School,
+  FileCheck,
+  Users2,
+  Layers,
 } from "lucide-react";
-import {
-  type WilayahItem,
-  fetchProvinces,
-  fetchRegencies,
-  fetchDistricts,
-  fetchVillages,
-  DEFAULT_PROVINCES,
-} from "@/lib/utils/wilayah";
 import { submitGuestbookEntry, type GuestbookFormData, type GuestbookSubmissionResult } from "./actions";
 
-const TARGET_GRADES = [
-  { id: "toddler", label: "Toddler / Pre-School", sub: "Usia 1.5 - 3 Tahun", color: "from-amber-400 to-amber-500", badge: "Toddler" },
-  { id: "tk-a", label: "Kindergarten A (TK A)", sub: "Usia 4 - 5 Tahun", color: "from-sky-400 to-sky-500", badge: "TK A" },
-  { id: "tk-b", label: "Kindergarten B (TK B)", sub: "Usia 5 - 6 Tahun", color: "from-coral to-coral-600", badge: "TK B" },
-  { id: "sd-1", label: "Primary Grade 1 (SD Kelas 1)", sub: "Usia 6 - 7 Tahun", color: "from-leaf to-leaf-600", badge: "SD 1" },
-  { id: "sd-transfer", label: "Primary Grade 2-6 (Pindahan/Transfer)", sub: "Usia 7 - 12 Tahun", color: "from-indigo-500 to-indigo-600", badge: "Pindahan SD" },
-  { id: "middle-school", label: "Middle School / SMP", sub: "Program Lanjutan", color: "from-purple-500 to-purple-600", badge: "SMP" },
+// Tujuan Kunjungan Options
+const PURPOSE_OPTIONS = [
+  {
+    id: "school-visit",
+    value: "school visit / school tour",
+    label: "School Visit / School Tour",
+    description: "Kunjungan & observasi keliling lingkungan kampus JACOS",
+    icon: School,
+    color: "from-sky to-sky-600",
+    borderActive: "border-sky bg-sky-50/80 ring-2 ring-sky-200",
+    badgeColor: "bg-sky-100 text-sky-700",
+  },
+  {
+    id: "admission",
+    value: "admission / registration",
+    label: "Admission / Registration",
+    description: "Konsultasi pendaftaran siswa baru & program kurikulum",
+    icon: FileCheck,
+    color: "from-leaf to-leaf-600",
+    borderActive: "border-leaf bg-leaf-50/80 ring-2 ring-leaf-200",
+    badgeColor: "bg-leaf-100 text-leaf-700",
+  },
+  {
+    id: "parent-student",
+    value: "parent / student matters",
+    label: "Parent / Student Matters",
+    description: "Keperluan wali murid / konsultasi terkait ananda siswa JACOS",
+    icon: Users2,
+    color: "from-coral to-coral-600",
+    borderActive: "border-coral bg-coral-50/80 ring-2 ring-coral-200",
+    badgeColor: "bg-coral-100 text-coral-700",
+    hasExtraStep: true,
+  },
+  {
+    id: "meeting-business",
+    value: "meeting / business",
+    label: "Meeting / Business",
+    description: "Pertemuan dinas, yayasan, vendor, atau urusan kedinasan",
+    icon: Briefcase,
+    color: "from-indigo-500 to-indigo-600",
+    borderActive: "border-indigo-500 bg-indigo-50/80 ring-2 ring-indigo-200",
+    badgeColor: "bg-indigo-100 text-indigo-700",
+  },
+  {
+    id: "others",
+    value: "Others...",
+    label: "Others...",
+    description: "Keperluan kunjungan lainnya",
+    icon: Layers,
+    color: "from-amber-500 to-amber-600",
+    borderActive: "border-amber-500 bg-amber-50/80 ring-2 ring-amber-200",
+    badgeColor: "bg-amber-100 text-amber-700",
+  },
 ];
 
-const VISIT_PURPOSES = [
-  "School Tour & Observasi Fasilitas",
-  "Konsultasi Program Trilingual & Kurikulum",
-  "Informasi Biaya Pendaftaran & Beasiswa",
-  "Pendaftaran Siswa Baru (On Spot)",
-  "Trial Class / Observasi Kelas",
-  "Lainnya",
-];
-
-const SOURCE_INFOS = [
-  "Instagram JACOS (@jacos.school)",
-  "Rekomendasi Teman / Keluarga",
-  "Pencarian Google / Website",
-  "Spanduk / Banner di Sekitar Lokasi",
-  "Pameran Pendidikan / Mall Event",
-  "Alumni / Orang Tua Siswa JACOS",
-  "Lainnya",
+// Pilihan Jenjang untuk Parent / Student Matters
+const STUDENT_GRADES = [
+  {
+    id: "pre-school",
+    value: "Pre-school",
+    label: "Pre-school",
+    sub: "Toddler / Playgroup (Usia 1.5 - 3 Tahun)",
+    color: "text-amber-600",
+    badge: "Pre-school",
+  },
+  {
+    id: "kindergarten",
+    value: "Kindergarten",
+    label: "Kindergarten",
+    sub: "TK A & TK B (Usia 4 - 6 Tahun)",
+    color: "text-sky-600",
+    badge: "Kindergarten",
+  },
+  {
+    id: "primary-school",
+    value: "Primary school",
+    label: "Primary school",
+    sub: "SD Kelas 1 - 6 (Usia 6 - 12 Tahun)",
+    color: "text-leaf-600",
+    badge: "Primary School",
+  },
 ];
 
 export default function GuestbookForm() {
@@ -75,174 +124,113 @@ export default function GuestbookForm() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [ticketResult, setTicketResult] = useState<GuestbookSubmissionResult["ticket"] | null>(null);
 
+  // Realtime Clock State
+  const [currentDateTime, setCurrentDateTime] = useState<{
+    dateFormatted: string;
+    timeFormatted: string;
+    dayFormatted: string;
+    isoDate: string;
+  }>({
+    dateFormatted: "",
+    timeFormatted: "",
+    dayFormatted: "",
+    isoDate: "",
+  });
+
   // Form State
   const [formData, setFormData] = useState<GuestbookFormData>({
     parent_name: "",
     whatsapp: "",
     email: "",
-    province_id: "",
-    province_name: "",
-    regency_id: "",
-    regency_name: "",
-    district_id: "",
-    district_name: "",
-    village_id: "",
-    village_name: "",
-    postal_code: "",
     address_detail: "",
+    visit_purpose: "school visit / school tour",
+    other_purpose: "",
     child_name: "",
-    child_age: undefined,
-    target_grade: "Kindergarten A (TK A)",
-    visit_date: new Date().toISOString().split("T")[0],
-    visit_time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
-    visit_purpose: "School Tour & Observasi Fasilitas",
-    source_info: "Instagram JACOS (@jacos.school)",
+    target_grade: "Kindergarten",
+    visit_date: "",
+    visit_time: "",
     notes: "",
   });
 
-  // Region Lists
-  const [provinces, setProvinces] = useState<WilayahItem[]>(DEFAULT_PROVINCES);
-  const [regencies, setRegencies] = useState<WilayahItem[]>([]);
-  const [districts, setDistricts] = useState<WilayahItem[]>([]);
-  const [villages, setVillages] = useState<WilayahItem[]>([]);
-  const [loadingWilayah, setLoadingWilayah] = useState(false);
-
-  // Fetch provinces on mount
+  // Live Realtime Clock Effect
   useEffect(() => {
-    let isMounted = true;
-    async function loadProvinces() {
-      const data = await fetchProvinces();
-      if (isMounted && data.length > 0) {
-        setProvinces(data);
-      }
-    }
-    loadProvinces();
-    return () => { isMounted = false; };
+    const updateTime = () => {
+      const now = new Date();
+      const optionsDate: Intl.DateTimeFormatOptions = {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+        year: "numeric",
+      };
+      const formattedDate = now.toLocaleDateString("id-ID", optionsDate);
+      const formattedTime = now.toLocaleTimeString("id-ID", {
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+      }) + " WIB";
+
+      const dayName = now.toLocaleDateString("id-ID", { weekday: "long" });
+      const isoDate = now.toISOString().split("T")[0];
+
+      setCurrentDateTime({
+        dateFormatted: formattedDate,
+        timeFormatted: formattedTime,
+        dayFormatted: dayName,
+        isoDate: isoDate,
+      });
+
+      setFormData((prev) => ({
+        ...prev,
+        visit_date: prev.visit_date || isoDate,
+        visit_time: prev.visit_time || formattedTime,
+      }));
+    };
+
+    updateTime();
+    const timer = setInterval(updateTime, 1000);
+    return () => clearInterval(timer);
   }, []);
 
-  // Cascading: Province -> Regencies
-  const handleProvinceChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const provId = e.target.value;
-    const selectedProv = provinces.find((p) => p.id === provId);
-    
-    setFormData((prev) => ({
-      ...prev,
-      province_id: provId,
-      province_name: selectedProv ? selectedProv.name : "",
-      regency_id: "",
-      regency_name: "",
-      district_id: "",
-      district_name: "",
-      village_id: "",
-      village_name: "",
-    }));
+  const isParentStudentMatter = formData.visit_purpose === "parent / student matters";
 
-    setRegencies([]);
-    setDistricts([]);
-    setVillages([]);
-
-    if (provId) {
-      setLoadingWilayah(true);
-      const data = await fetchRegencies(provId);
-      setRegencies(data);
-      setLoadingWilayah(false);
-    }
-  };
-
-  // Cascading: Regency -> Districts
-  const handleRegencyChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const regId = e.target.value;
-    const selectedReg = regencies.find((r) => r.id === regId);
-
-    setFormData((prev) => ({
-      ...prev,
-      regency_id: regId,
-      regency_name: selectedReg ? selectedReg.name : "",
-      district_id: "",
-      district_name: "",
-      village_id: "",
-      village_name: "",
-    }));
-
-    setDistricts([]);
-    setVillages([]);
-
-    if (regId) {
-      setLoadingWilayah(true);
-      const data = await fetchDistricts(regId);
-      setDistricts(data);
-      setLoadingWilayah(false);
-    }
-  };
-
-  // Cascading: District -> Villages
-  const handleDistrictChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const distId = e.target.value;
-    const selectedDist = districts.find((d) => d.id === distId);
-
-    setFormData((prev) => ({
-      ...prev,
-      district_id: distId,
-      district_name: selectedDist ? selectedDist.name : "",
-      village_id: "",
-      village_name: "",
-    }));
-
-    setVillages([]);
-
-    if (distId) {
-      setLoadingWilayah(true);
-      const data = await fetchVillages(distId);
-      setVillages(data);
-      setLoadingWilayah(false);
-    }
-  };
-
-  // Cascading: Village
-  const handleVillageChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const vilId = e.target.value;
-    const selectedVil = villages.find((v) => v.id === vilId);
-    setFormData((prev) => ({
-      ...prev,
-      village_id: vilId,
-      village_name: selectedVil ? selectedVil.name : "",
-    }));
-  };
-
-  // Step Validation
+  // Form Validation
   const validateStep = (step: number): boolean => {
     setErrorMsg(null);
     if (step === 1) {
-      if (!formData.parent_name.trim()) {
-        setErrorMsg("Silakan isi nama lengkap Ayah/Bunda/Wali murid.");
+      if (!formData.parent_name.trim() || formData.parent_name.trim().length < 2) {
+        setErrorMsg("Silakan isi nama lengkap Anda (minimal 2 karakter).");
         return false;
       }
-      if (!formData.whatsapp.trim() || formData.whatsapp.length < 8) {
-        setErrorMsg("Silakan isi nomor WhatsApp aktif minimal 8 digit.");
+      if (!formData.whatsapp.trim() || formData.whatsapp.replace(/[^0-9]/g, "").length < 8) {
+        setErrorMsg("Silakan isi nomor Telepon / WhatsApp aktif minimal 8 digit.");
         return false;
       }
       if (!formData.email.trim() || !formData.email.includes("@")) {
         setErrorMsg("Silakan isi format alamat email yang valid.");
         return false;
       }
-      return true;
-    }
-
-    if (step === 2) {
-      if (!formData.address_detail.trim() || formData.address_detail.length < 3) {
-        setErrorMsg("Silakan isi detail alamat tempat tinggal (jalan / komplek / RT / RW).");
+      if (!formData.address_detail.trim() || formData.address_detail.trim().length < 3) {
+        setErrorMsg("Silakan isi alamat tempat tinggal / instansi Anda.");
+        return false;
+      }
+      if (!formData.visit_purpose) {
+        setErrorMsg("Silakan pilih salah satu tujuan kunjungan.");
+        return false;
+      }
+      if (formData.visit_purpose === "Others..." && !formData.other_purpose?.trim()) {
+        setErrorMsg("Silakan jelaskan tujuan kunjungan Anda pada kolom keterangan Others.");
         return false;
       }
       return true;
     }
 
-    if (step === 3) {
-      if (!formData.child_name.trim()) {
-        setErrorMsg("Silakan isi nama lengkap calon siswa (ananda).");
+    if (step === 2 && isParentStudentMatter) {
+      if (!formData.child_name?.trim() || formData.child_name.trim().length < 2) {
+        setErrorMsg("Silakan isi nama lengkap siswa (ananda).");
         return false;
       }
       if (!formData.target_grade) {
-        setErrorMsg("Silakan pilih jenjang pendidikan yang diminati.");
+        setErrorMsg("Silakan pilih jenjang pendidikan siswa (Pre-school / Kindergarten / Primary school).");
         return false;
       }
       return true;
@@ -251,49 +239,62 @@ export default function GuestbookForm() {
     return true;
   };
 
-  const handleNextStep = () => {
-    if (validateStep(currentStep)) {
-      setCurrentStep((prev) => Math.min(prev + 1, 4));
+  const handleNextOrSubmit = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+
+    if (!validateStep(currentStep)) return;
+
+    if (currentStep === 1 && isParentStudentMatter) {
+      setCurrentStep(2);
       window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
     }
+
+    // Submit Direct
+    executeSubmit();
   };
 
   const handlePrevStep = () => {
     setErrorMsg(null);
-    setCurrentStep((prev) => Math.max(prev - 1, 1));
+    setCurrentStep(1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateStep(currentStep)) return;
-
+  const executeSubmit = async () => {
     setSubmitting(true);
     setErrorMsg(null);
 
     try {
-      const res = await submitGuestbookEntry(formData);
+      const payload: GuestbookFormData = {
+        ...formData,
+        visit_date: currentDateTime.isoDate || new Date().toISOString().split("T")[0],
+        visit_time: currentDateTime.timeFormatted || new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
+      };
+
+      const res = await submitGuestbookEntry(payload);
       if (res.success && res.ticket) {
         setTicketResult(res.ticket);
       } else {
         setErrorMsg(res.message || "Gagal menyimpan data buku tamu. Silakan coba kembali.");
       }
     } catch {
-      setErrorMsg("Terjadi gangguan koneksi. Silakan periksa jaringan internet Anda.");
+      setErrorMsg("Terjadi gangguan jaringan internet. Silakan coba kembali.");
     } finally {
       setSubmitting(false);
     }
   };
 
-  // SUCCESS PASS TICKET SCREEN
+  // SUCCESS SCREEN / VISIT PASS TICKET
   if (ticketResult) {
     const waText = encodeURIComponent(
-      `Assalamu'alaikum Admin Admisi JACOS, saya *${ticketResult.parentName}* (Orang Tua dari *${ticketResult.childName}*, Kode Kunjungan: *${ticketResult.visitCode}*). Kami baru saja mengisi Buku Tamu kunjungan kampus JACOS untuk jenjang *${ticketResult.targetGrade}*. Mohon informasi booklet dan pendaftaran lebih lanjut. Terima kasih!`
+      `Assalamu'alaikum Tim Admisi JACOS, saya *${ticketResult.parentName}* (Kode Kunjungan: *${ticketResult.visitCode}*). Saya baru saja mengisi Buku Tamu digital JACOS untuk keperluan: *${ticketResult.visitPurpose}*${
+        ticketResult.childName ? ` (Siswa: *${ticketResult.childName}* - *${ticketResult.targetGrade}*)` : ""
+      }. Terima kasih!`
     );
 
     return (
-      <div className="w-full max-w-xl mx-auto px-4 py-8 sm:py-12">
-        <div className="bg-white rounded-3xl border border-sky-100 shadow-xl overflow-hidden animate-in fade-in zoom-in-95 duration-500">
+      <div className="w-full max-w-4xl mx-auto px-4 py-8 sm:py-12 animate-in fade-in zoom-in-95 duration-500">
+        <div className="bg-white rounded-3xl border border-sky-100 shadow-xl overflow-hidden">
           {/* Header Pass */}
           <div className="relative bg-gradient-to-br from-sky to-sky-700 text-white p-6 sm:p-8 text-center overflow-hidden">
             <div className="absolute -top-12 -right-12 w-40 h-40 bg-white/10 rounded-full blur-xl pointer-events-none" />
@@ -301,14 +302,14 @@ export default function GuestbookForm() {
 
             <div className="inline-flex items-center gap-2 bg-white/15 backdrop-blur-md px-3.5 py-1.5 rounded-full text-gold-100 text-xs font-bold tracking-wider uppercase mb-3">
               <Sparkles size={14} className="text-gold" />
-              Buku Tamu Kunjungan JACOS
+              Digital Guestbook Pass
             </div>
 
             <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
               Selamat Datang di JACOS!
             </h2>
             <p className="text-sky-100 text-xs sm:text-sm mt-1 max-w-md mx-auto">
-              Alhamdulillah, data kunjungan Ayah & Bunda telah berhasil tersimpan dalam buku tamu digital kami.
+              Data kunjungan Anda telah berhasil tersimpan dalam sistem buku tamu sekolah.
             </p>
 
             {/* Visit Code Badge */}
@@ -330,24 +331,36 @@ export default function GuestbookForm() {
                 <Heart size={18} />
               </div>
               <div className="text-xs sm:text-sm text-ink-400 leading-relaxed">
-                <strong className="text-ink font-bold">Terima kasih, Ayah/Bunda {ticketResult.parentName}!</strong>
+                <strong className="text-ink font-bold">Terima kasih, Bapak/Ibu {ticketResult.parentName}!</strong>
                 <br />
-                Senang sekali dapat menyambut kehadiran keluarga tercinta di lingkungan Islamic Trilingual School JACOS.
+                Senang sekali dapat menyambut kehadiran Anda di lingkungan Jakarta Cosmopolite Islamic School (JACOS).
               </div>
             </div>
 
             {/* Detail Grid */}
             <div className="bg-cloud rounded-2xl p-4 sm:p-5 border border-ink/5 space-y-3 text-xs sm:text-sm">
               <div className="flex justify-between items-center py-1.5 border-b border-ink/5">
-                <span className="text-ink-300 font-semibold">Calon Siswa</span>
-                <span className="font-bold text-ink">
-                  {ticketResult.childName} {ticketResult.childAge ? `(${ticketResult.childAge} Thn)` : ""}
-                </span>
+                <span className="text-ink-300 font-semibold">Nama Tamu</span>
+                <span className="font-bold text-ink">{ticketResult.parentName}</span>
               </div>
               <div className="flex justify-between items-center py-1.5 border-b border-ink/5">
-                <span className="text-ink-300 font-semibold">Minat Jenjang</span>
-                <span className="font-bold text-sky">{ticketResult.targetGrade}</span>
+                <span className="text-ink-300 font-semibold">Tujuan Kunjungan</span>
+                <span className="font-bold text-sky capitalize">{ticketResult.visitPurpose}</span>
               </div>
+
+              {ticketResult.childName && (
+                <>
+                  <div className="flex justify-between items-center py-1.5 border-b border-ink/5">
+                    <span className="text-ink-300 font-semibold">Nama Siswa</span>
+                    <span className="font-bold text-ink">{ticketResult.childName}</span>
+                  </div>
+                  <div className="flex justify-between items-center py-1.5 border-b border-ink/5">
+                    <span className="text-ink-300 font-semibold">Jenjang Siswa</span>
+                    <span className="font-bold text-coral-600">{ticketResult.targetGrade}</span>
+                  </div>
+                </>
+              )}
+
               <div className="flex justify-between items-center py-1.5 border-b border-ink/5">
                 <span className="text-ink-300 font-semibold">Waktu Kunjungan</span>
                 <span className="font-bold text-gold-600">
@@ -355,13 +368,13 @@ export default function GuestbookForm() {
                 </span>
               </div>
               <div className="flex justify-between items-center py-1.5 border-b border-ink/5">
-                <span className="text-ink-300 font-semibold">No. WhatsApp</span>
+                <span className="text-ink-300 font-semibold">No. Telepon / WA</span>
                 <span className="font-bold text-ink">{ticketResult.whatsapp}</span>
               </div>
               <div className="flex justify-between items-start py-1.5">
-                <span className="text-ink-300 font-semibold">Alamat Domisili</span>
+                <span className="text-ink-300 font-semibold">Alamat</span>
                 <span className="font-semibold text-ink text-right max-w-[65%]">
-                  {ticketResult.addressSimple}
+                  {ticketResult.address}
                 </span>
               </div>
             </div>
@@ -375,7 +388,7 @@ export default function GuestbookForm() {
                 className="w-full flex items-center justify-center gap-2.5 py-3.5 px-6 rounded-2xl bg-[#25D366] hover:bg-[#20bd5a] text-white font-bold text-sm shadow-md transition-all active:scale-[0.98]"
               >
                 <MessageSquare size={18} />
-                Hubungi Tim Admisi via WhatsApp
+                Hubungi Tim Admisi JACOS
               </a>
 
               <button
@@ -384,7 +397,7 @@ export default function GuestbookForm() {
                 className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-cloud hover:bg-slate-100 text-ink font-semibold text-xs transition-all border border-ink/10"
               >
                 <Printer size={15} />
-                Simpan / Cetak Bukti Kunjungan
+                Cetak / Simpan Bukti Kunjungan
               </button>
 
               <button
@@ -396,30 +409,20 @@ export default function GuestbookForm() {
                     parent_name: "",
                     whatsapp: "",
                     email: "",
-                    province_id: "",
-                    province_name: "",
-                    regency_id: "",
-                    regency_name: "",
-                    district_id: "",
-                    district_name: "",
-                    village_id: "",
-                    village_name: "",
-                    postal_code: "",
                     address_detail: "",
+                    visit_purpose: "school visit / school tour",
+                    other_purpose: "",
                     child_name: "",
-                    child_age: undefined,
-                    target_grade: "Kindergarten A (TK A)",
-                    visit_date: new Date().toISOString().split("T")[0],
-                    visit_time: new Date().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" }) + " WIB",
-                    visit_purpose: "School Tour & Observasi Fasilitas",
-                    source_info: "Instagram JACOS (@jacos.school)",
+                    target_grade: "Kindergarten",
+                    visit_date: currentDateTime.isoDate,
+                    visit_time: currentDateTime.timeFormatted,
                     notes: "",
                   });
                 }}
                 className="w-full text-center text-xs text-ink-300 hover:text-sky font-semibold py-2 transition-colors inline-flex items-center justify-center gap-1.5"
               >
                 <RefreshCw size={13} />
-                Isi Buku Tamu untuk Calon Siswa Lain
+                Isi Buku Tamu Baru
               </button>
             </div>
           </div>
@@ -429,73 +432,91 @@ export default function GuestbookForm() {
   }
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4 py-6 sm:py-10">
+    <div className="w-full max-w-5xl mx-auto px-4 py-6 sm:py-10">
       {/* Brand & Welcome Header */}
       <div className="text-center space-y-3 mb-6 sm:mb-8">
         <div className="inline-flex items-center gap-2 bg-sky-50 text-sky px-4 py-1.5 rounded-full text-xs font-bold border border-sky-100 shadow-xs">
           <Sparkles size={14} className="text-gold" />
-          Buku Tamu Kunjungan Sekolah
+          Buku Tamu Digital JACOS
         </div>
         <h1 className="text-2xl sm:text-4xl font-black text-ink tracking-tight">
-          Buku Tamu Calon Siswa JACOS
+          Buku Tamu Kunjungan Sekolah
         </h1>
         <p className="text-xs sm:text-sm text-ink-400 max-w-md mx-auto leading-relaxed">
-          Ahlan wa Sahlan di Jakarta Cosmopolite Islamic School. Silakan lengkapi data kunjungan Ayah & Bunda untuk kemudahan informasi dan tindak lanjut.
+          Ahlan wa Sahlan di Jakarta Cosmopolite Islamic School. Silakan lengkapi data kunjungan Anda di bawah ini.
         </p>
-      </div>
 
-      {/* Modern Stepper Header */}
-      <div className="bg-white rounded-2xl p-3 sm:p-4 border border-ink/5 shadow-xs mb-6">
-        <div className="grid grid-cols-4 gap-2">
-          {[
-            { step: 1, label: "Orang Tua", icon: User },
-            { step: 2, label: "Alamat", icon: MapPin },
-            { step: 3, label: "Ananda", icon: Baby },
-            { step: 4, label: "Kunjungan", icon: Compass },
-          ].map((item) => {
-            const isActive = currentStep === item.step;
-            const isDone = currentStep > item.step;
-            const Icon = item.icon;
-
-            return (
-              <button
-                key={item.step}
-                type="button"
-                onClick={() => {
-                  if (item.step < currentStep || validateStep(currentStep)) {
-                    setCurrentStep(item.step);
-                  }
-                }}
-                className={`flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-1.5 sm:gap-2.5 p-2 sm:px-3 sm:py-2.5 rounded-xl transition-all ${
-                  isActive
-                    ? "bg-sky text-white font-bold shadow-sm"
-                    : isDone
-                    ? "bg-leaf-50 text-leaf font-bold"
-                    : "bg-cloud text-ink-300 font-semibold"
-                }`}
-              >
-                <div
-                  className={`w-6 h-6 sm:w-7 sm:h-7 rounded-lg flex items-center justify-center text-xs shrink-0 ${
-                    isActive
-                      ? "bg-white/20 text-white"
-                      : isDone
-                      ? "bg-leaf text-white"
-                      : "bg-white text-ink-300 border border-ink/10"
-                  }`}
-                >
-                  {isDone ? <CheckCircle2 size={14} /> : <Icon size={14} />}
-                </div>
-                <span className="text-[11px] sm:text-xs tracking-tight truncate">
-                  {item.label}
-                </span>
-              </button>
-            );
-          })}
+        {/* 0. Realtime Date & Time Indicator Bar */}
+        <div className="mt-4 inline-flex flex-wrap items-center justify-center gap-3 bg-white/90 backdrop-blur-md px-4 py-2 rounded-2xl border border-sky-100 shadow-xs text-xs">
+          <div className="flex items-center gap-1.5 font-bold text-sky-700">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span>Realtime System</span>
+          </div>
+          <span className="text-ink/20">|</span>
+          <div className="flex items-center gap-1 text-ink-400 font-medium">
+            <Calendar size={13} className="text-sky" />
+            <span className="font-semibold text-ink">{currentDateTime.dateFormatted || "Memuat tanggal..."}</span>
+          </div>
+          <span className="text-ink/20">|</span>
+          <div className="flex items-center gap-1 text-ink-400 font-medium">
+            <Clock size={13} className="text-gold-600" />
+            <span className="font-mono font-bold text-ink">{currentDateTime.timeFormatted || "..."}</span>
+          </div>
         </div>
       </div>
 
+      {/* Stepper Header (Active if parent/student matters selected) */}
+      {isParentStudentMatter && (
+        <div className="bg-white rounded-2xl p-3 sm:p-4 border border-ink/5 shadow-xs mb-6 animate-in fade-in duration-300">
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              type="button"
+              onClick={() => setCurrentStep(1)}
+              className={`flex items-center justify-center gap-2 p-2.5 rounded-xl transition-all ${
+                currentStep === 1
+                  ? "bg-sky text-white font-bold shadow-sm"
+                  : "bg-leaf-50 text-leaf font-bold"
+              }`}
+            >
+              <div
+                className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0 ${
+                  currentStep === 1 ? "bg-white/20 text-white" : "bg-leaf text-white"
+                }`}
+              >
+                {currentStep > 1 ? <CheckCircle2 size={14} /> : "1"}
+              </div>
+              <span className="text-xs tracking-tight truncate">Data Tamu & Keperluan</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (validateStep(1)) setCurrentStep(2);
+              }}
+              className={`flex items-center justify-center gap-2 p-2.5 rounded-xl transition-all ${
+                currentStep === 2
+                  ? "bg-sky text-white font-bold shadow-sm"
+                  : "bg-cloud text-ink-300 font-semibold"
+              }`}
+            >
+              <div
+                className={`w-6 h-6 rounded-lg flex items-center justify-center text-xs shrink-0 ${
+                  currentStep === 2 ? "bg-white/20 text-white" : "bg-white text-ink-300 border border-ink/10"
+                }`}
+              >
+                2
+              </div>
+              <span className="text-xs tracking-tight truncate">Data Siswa (Ananda)</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Main Form Card */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-3xl border border-ink/10 shadow-sm overflow-hidden">
+      <form onSubmit={handleNextOrSubmit} className="bg-white rounded-3xl border border-ink/10 shadow-sm overflow-hidden">
         {/* Error Notification Alert */}
         {errorMsg && (
           <div className="m-5 p-3.5 bg-coral-50 border border-coral-200 rounded-2xl text-xs sm:text-sm text-coral-600 font-semibold flex items-start gap-2.5 animate-in fade-in">
@@ -505,30 +526,30 @@ export default function GuestbookForm() {
         )}
 
         <div className="p-5 sm:p-8 space-y-6">
-          {/* STEP 1: DATA ORANG TUA */}
+          {/* STEP 1: DATA TAMU & TUJUAN KUNJUNGAN */}
           {currentStep === 1 && (
             <div className="space-y-5 animate-in fade-in duration-300">
               <div className="border-b border-ink/5 pb-3">
                 <h3 className="text-base sm:text-lg font-bold text-ink flex items-center gap-2">
                   <User className="text-sky" size={20} />
-                  1. Data Orang Tua / Wali Murid
+                  1. Informasi Tamu Pengunjung
                 </h3>
                 <p className="text-xs text-ink-300 mt-0.5">
-                  Informasi kontak untuk komunikasi jadwal visit, booklet biaya, dan pendaftaran.
+                  Lengkapi identitas tamu untuk keperluan pencatatan resepsionis dan tindak lanjut.
                 </p>
               </div>
 
-              {/* Nama Lengkap */}
+              {/* 1. Fullname */}
               <div className="space-y-1.5">
                 <label className="block text-xs sm:text-sm font-bold text-ink">
-                  Nama Lengkap Ayah / Bunda / Wali <span className="text-coral">*</span>
+                  1. Fullname (Nama Lengkap) <span className="text-coral">*</span>
                 </label>
                 <div className="relative">
                   <User className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-300" size={17} />
                   <input
                     type="text"
                     required
-                    placeholder="Contoh: Bunda Rina Sasmita, S.Pd"
+                    placeholder="Contoh: Rina Sasmita, S.Pd / Hendra Pratama"
                     value={formData.parent_name}
                     onChange={(e) => setFormData({ ...formData, parent_name: e.target.value })}
                     className="w-full pl-10 pr-4 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all"
@@ -536,31 +557,28 @@ export default function GuestbookForm() {
                 </div>
               </div>
 
-              {/* No WhatsApp */}
+              {/* 2. Phone Number / WA */}
               <div className="space-y-1.5">
                 <label className="block text-xs sm:text-sm font-bold text-ink">
-                  Nomor WhatsApp Aktif <span className="text-coral">*</span>
+                  2. Phone Number / WhatsApp <span className="text-coral">*</span>
                 </label>
                 <div className="relative">
                   <Phone className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-300" size={17} />
                   <input
                     type="tel"
                     required
-                    placeholder="Contoh: 0812-3456-7890"
+                    placeholder="Contoh: 081234567890"
                     value={formData.whatsapp}
                     onChange={(e) => setFormData({ ...formData, whatsapp: e.target.value })}
                     className="w-full pl-10 pr-4 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all"
                   />
                 </div>
-                <p className="text-[11px] text-ink-300">
-                  Digunakan staf admisi untuk mengirim informasi tindak lanjut via WhatsApp.
-                </p>
               </div>
 
-              {/* Alamat Email */}
+              {/* 3. Email Address */}
               <div className="space-y-1.5">
                 <label className="block text-xs sm:text-sm font-bold text-ink">
-                  Alamat Email Aktif <span className="text-coral">*</span>
+                  3. Email Address <span className="text-coral">*</span>
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-300" size={17} />
@@ -574,218 +592,69 @@ export default function GuestbookForm() {
                   />
                 </div>
                 <p className="text-[11px] text-ink-300">
-                  Ringkasan kunjungan dan e-brochure JACOS akan otomatis dikirim ke email ini.
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 2: ALAMAT LENGKAP */}
-          {currentStep === 2 && (
-            <div className="space-y-5 animate-in fade-in duration-300">
-              <div className="border-b border-ink/5 pb-3">
-                <h3 className="text-base sm:text-lg font-bold text-ink flex items-center gap-2">
-                  <MapPin className="text-coral" size={20} />
-                  2. Alamat Lengkap Domisili
-                </h3>
-                <p className="text-xs text-ink-300 mt-0.5">
-                  Pilih wilayah tempat tinggal untuk pemetaan zonasi dan jemputan siswa.
+                  Bukti tiket kunjungan digital akan otomatis dikirimkan ke alamat email ini.
                 </p>
               </div>
 
-              {/* Provinsi & Kabupaten / Kota */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Provinsi */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs sm:text-sm font-bold text-ink">Provinsi</label>
-                  <div className="relative">
-                    <select
-                      value={formData.province_id || ""}
-                      onChange={handleProvinceChange}
-                      className="w-full appearance-none px-3.5 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all pr-8"
-                    >
-                      <option value="">-- Pilih Provinsi --</option>
-                      {provinces.map((prov) => (
-                        <option key={prov.id} value={prov.id}>
-                          {prov.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" size={16} />
-                  </div>
-                </div>
-
-                {/* Kabupaten / Kota */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs sm:text-sm font-bold text-ink">Kabupaten / Kota</label>
-                  <div className="relative">
-                    <select
-                      disabled={!formData.province_id || loadingWilayah}
-                      value={formData.regency_id || ""}
-                      onChange={handleRegencyChange}
-                      className="w-full appearance-none px-3.5 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all disabled:opacity-50 pr-8"
-                    >
-                      <option value="">-- Pilih Kab / Kota --</option>
-                      {regencies.map((reg) => (
-                        <option key={reg.id} value={reg.id}>
-                          {reg.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" size={16} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Kecamatan & Kelurahan */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {/* Kecamatan */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs sm:text-sm font-bold text-ink">Kecamatan</label>
-                  <div className="relative">
-                    <select
-                      disabled={!formData.regency_id || loadingWilayah}
-                      value={formData.district_id || ""}
-                      onChange={handleDistrictChange}
-                      className="w-full appearance-none px-3.5 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all disabled:opacity-50 pr-8"
-                    >
-                      <option value="">-- Pilih Kecamatan --</option>
-                      {districts.map((dist) => (
-                        <option key={dist.id} value={dist.id}>
-                          {dist.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" size={16} />
-                  </div>
-                </div>
-
-                {/* Kelurahan / Desa */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs sm:text-sm font-bold text-ink">Kelurahan / Desa</label>
-                  <div className="relative">
-                    <select
-                      disabled={!formData.district_id || loadingWilayah}
-                      value={formData.village_id || ""}
-                      onChange={handleVillageChange}
-                      className="w-full appearance-none px-3.5 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all disabled:opacity-50 pr-8"
-                    >
-                      <option value="">-- Pilih Kelurahan --</option>
-                      {villages.map((vil) => (
-                        <option key={vil.id} value={vil.id}>
-                          {vil.name}
-                        </option>
-                      ))}
-                    </select>
-                    <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" size={16} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Kode Pos */}
-              <div className="space-y-1.5">
-                <label className="block text-xs sm:text-sm font-bold text-ink">Kode Pos</label>
-                <input
-                  type="text"
-                  placeholder="Contoh: 13450"
-                  value={formData.postal_code || ""}
-                  onChange={(e) => setFormData({ ...formData, postal_code: e.target.value })}
-                  className="w-full px-4 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all"
-                />
-              </div>
-
-              {/* Detail Alamat Jalan */}
+              {/* 5. Address */}
               <div className="space-y-1.5">
                 <label className="block text-xs sm:text-sm font-bold text-ink">
-                  Detail Alamat Lengkap (Jalan / No. Rumah / Komplek / RT & RW) <span className="text-coral">*</span>
-                </label>
-                <textarea
-                  rows={3}
-                  required
-                  placeholder="Contoh: Jl. Pahlawan Revolusi No. 45, Komplek Perumahan Indah Blok B2 No. 8, RT 04 / RW 08"
-                  value={formData.address_detail}
-                  onChange={(e) => setFormData({ ...formData, address_detail: e.target.value })}
-                  className="w-full px-4 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all"
-                />
-              </div>
-            </div>
-          )}
-
-          {/* STEP 3: DATA CALON SISWA */}
-          {currentStep === 3 && (
-            <div className="space-y-5 animate-in fade-in duration-300">
-              <div className="border-b border-ink/5 pb-3">
-                <h3 className="text-base sm:text-lg font-bold text-ink flex items-center gap-2">
-                  <Baby className="text-leaf" size={20} />
-                  3. Data Calon Siswa (Ananda)
-                </h3>
-                <p className="text-xs text-ink-300 mt-0.5">
-                  Informasi ananda dan jenjang pendidikan yang diminati di JACOS.
-                </p>
-              </div>
-
-              {/* Nama Lengkap Anak */}
-              <div className="space-y-1.5">
-                <label className="block text-xs sm:text-sm font-bold text-ink">
-                  Nama Lengkap Ananda <span className="text-coral">*</span>
+                  4. Address (Alamat Tempat Tinggal / Instansi) <span className="text-coral">*</span>
                 </label>
                 <div className="relative">
-                  <Baby className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-300" size={17} />
-                  <input
-                    type="text"
+                  <MapPin className="absolute left-3.5 top-3 text-ink-300" size={17} />
+                  <textarea
+                    rows={2}
                     required
-                    placeholder="Contoh: Muhammad Arkan Malik"
-                    value={formData.child_name}
-                    onChange={(e) => setFormData({ ...formData, child_name: e.target.value })}
-                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all"
+                    placeholder="Contoh: Jl. Kelapa Sawit Raya No. 12, Duren Sawit, Jakarta Timur"
+                    value={formData.address_detail}
+                    onChange={(e) => setFormData({ ...formData, address_detail: e.target.value })}
+                    className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all"
                   />
                 </div>
               </div>
 
-              {/* Usia Anak */}
-              <div className="space-y-1.5">
+              {/* 6. Purpose of Visit */}
+              <div className="space-y-2 pt-2">
                 <label className="block text-xs sm:text-sm font-bold text-ink">
-                  Usia Ananda Saat Ini (Tahun)
+                  5. Purpose of Visit (Tujuan Kunjungan) <span className="text-coral">*</span>
                 </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    min="1"
-                    max="18"
-                    placeholder="Contoh: 5"
-                    value={formData.child_age !== undefined && formData.child_age !== null ? formData.child_age : ""}
-                    onChange={(e) => setFormData({ ...formData, child_age: e.target.value ? Number(e.target.value) : undefined })}
-                    className="w-full px-4 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all"
-                  />
-                </div>
-              </div>
 
-              {/* Pilihan Jenjang */}
-              <div className="space-y-2">
-                <label className="block text-xs sm:text-sm font-bold text-ink">
-                  Tujuan Jenjang Pendidikan <span className="text-coral">*</span>
-                </label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {TARGET_GRADES.map((item) => {
-                    const isSelected = formData.target_grade === item.label;
+                  {PURPOSE_OPTIONS.map((opt) => {
+                    const isSelected = formData.visit_purpose === opt.value;
+                    const Icon = opt.icon;
+
                     return (
                       <div
-                        key={item.id}
-                        onClick={() => setFormData({ ...formData, target_grade: item.label })}
-                        className={`cursor-pointer p-3.5 rounded-2xl border transition-all text-left flex items-start justify-between ${
+                        key={opt.id}
+                        onClick={() => setFormData({ ...formData, visit_purpose: opt.value })}
+                        className={`cursor-pointer p-3.5 rounded-2xl border transition-all text-left flex items-start justify-between gap-3 ${
                           isSelected
-                            ? "border-sky bg-sky-50 shadow-xs ring-2 ring-sky-200"
+                            ? opt.borderActive
                             : "border-ink/10 bg-cloud hover:bg-white hover:border-ink/20"
                         }`}
                       >
-                        <div>
-                          <p className={`text-xs sm:text-sm font-bold ${isSelected ? "text-sky-700" : "text-ink"}`}>
-                            {item.label}
-                          </p>
-                          <p className="text-[11px] text-ink-300 mt-0.5">{item.sub}</p>
+                        <div className="flex items-start gap-3">
+                          <div
+                            className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                              isSelected ? "bg-white text-sky shadow-xs" : "bg-white text-ink-300 border border-ink/10"
+                            }`}
+                          >
+                            <Icon size={16} />
+                          </div>
+                          <div>
+                            <p className={`text-xs sm:text-sm font-bold ${isSelected ? "text-ink font-black" : "text-ink"}`}>
+                              {opt.label}
+                            </p>
+                            <p className="text-[11px] text-ink-300 mt-0.5 leading-tight">
+                              {opt.description}
+                            </p>
+                          </div>
                         </div>
+
                         <div
-                          className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-0.5 ${
+                          className={`w-5 h-5 rounded-full border flex items-center justify-center shrink-0 mt-1 ${
                             isSelected ? "border-sky bg-sky text-white" : "border-ink/20 bg-white"
                           }`}
                         >
@@ -795,116 +664,120 @@ export default function GuestbookForm() {
                     );
                   })}
                 </div>
+
+                {/* Input Khusus jika memilih Others... */}
+                {formData.visit_purpose === "Others..." && (
+                  <div className="mt-3 p-3.5 bg-amber-50/70 border border-amber-200 rounded-2xl space-y-1.5 animate-in fade-in">
+                    <label className="block text-xs font-bold text-amber-900">
+                      Sebutkan Keperluan Kunjungan Anda <span className="text-coral">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Contoh: Pengiriman dokumen akreditasi / audiensi yayasan..."
+                      value={formData.other_purpose || ""}
+                      onChange={(e) => setFormData({ ...formData, other_purpose: e.target.value })}
+                      className="w-full px-4 py-2.5 rounded-xl bg-white border border-amber-300 focus:border-amber-500 focus:ring-2 focus:ring-amber-100 text-xs sm:text-sm text-ink outline-hidden"
+                    />
+                  </div>
+                )}
               </div>
             </div>
           )}
 
-          {/* STEP 4: DETAIL KUNJUNGAN & CATATAN */}
-          {currentStep === 4 && (
+          {/* STEP 2: DATA SISWA (Conditional for parent/student matters) */}
+          {currentStep === 2 && isParentStudentMatter && (
             <div className="space-y-5 animate-in fade-in duration-300">
               <div className="border-b border-ink/5 pb-3">
-                <h3 className="text-base sm:text-lg font-bold text-ink flex items-center gap-2">
-                  <Compass className="text-gold-600" size={20} />
-                  4. Detail Kunjungan & Info Tambahan
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-coral-50 border border-coral-100 text-coral-600 text-xs font-bold mb-2">
+                  <Baby size={14} />
+                  Parent / Student Matters Details
+                </div>
+                <h3 className="text-base sm:text-lg font-bold text-ink">
+                  2. Informasi Siswa (Ananda)
                 </h3>
                 <p className="text-xs text-ink-300 mt-0.5">
-                  Lengkapi preferensi dan tujuan kunjungan Ayah & Bunda hari ini.
+                  Silakan masukkan nama siswa dan jenjang pendidikan ananda yang bersangkutan.
                 </p>
               </div>
 
-              {/* Hari & Waktu Kunjungan */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="block text-xs sm:text-sm font-bold text-ink">Tanggal Kunjungan</label>
-                  <div className="relative">
-                    <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-300" size={17} />
-                    <input
-                      type="date"
-                      value={formData.visit_date || ""}
-                      onChange={(e) => setFormData({ ...formData, visit_date: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all"
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="block text-xs sm:text-sm font-bold text-ink">Waktu Kunjungan</label>
-                  <div className="relative">
-                    <Clock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-300" size={17} />
-                    <input
-                      type="text"
-                      placeholder="Contoh: 10:00 WIB"
-                      value={formData.visit_time || ""}
-                      onChange={(e) => setFormData({ ...formData, visit_time: e.target.value })}
-                      className="w-full pl-10 pr-4 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Tujuan Kunjungan */}
-              <div className="space-y-1.5">
-                <label className="block text-xs sm:text-sm font-bold text-ink">Tujuan Utama Kunjungan</label>
-                <div className="relative">
-                  <select
-                    value={formData.visit_purpose || ""}
-                    onChange={(e) => setFormData({ ...formData, visit_purpose: e.target.value })}
-                    className="w-full appearance-none px-3.5 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all pr-8"
-                  >
-                    {VISIT_PURPOSES.map((purpose, idx) => (
-                      <option key={idx} value={purpose}>
-                        {purpose}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" size={16} />
-                </div>
-              </div>
-
-              {/* Sumber Info */}
-              <div className="space-y-1.5">
-                <label className="block text-xs sm:text-sm font-bold text-ink">Mengetahui JACOS Dari</label>
-                <div className="relative">
-                  <select
-                    value={formData.source_info || ""}
-                    onChange={(e) => setFormData({ ...formData, source_info: e.target.value })}
-                    className="w-full appearance-none px-3.5 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all pr-8"
-                  >
-                    {SOURCE_INFOS.map((src, idx) => (
-                      <option key={idx} value={src}>
-                        {src}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" size={16} />
-                </div>
-              </div>
-
-              {/* Catatan / Pertanyaan Tambahan */}
+              {/* 1. Student Full Name */}
               <div className="space-y-1.5">
                 <label className="block text-xs sm:text-sm font-bold text-ink">
-                  Catatan Khusus / Pertanyaan Tambahan (Opsional)
+                  1. Student Full Name (Nama Lengkap Siswa) <span className="text-coral">*</span>
                 </label>
-                <textarea
-                  rows={2}
-                  placeholder="Misal: Ingin berkonsultasi mengenai program hafalan Al-Qur'an dan program ekstrakurikuler robotics..."
-                  value={formData.notes || ""}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-4 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all"
-                />
+                <div className="relative">
+                  <Baby className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-300" size={17} />
+                  <input
+                    type="text"
+                    required
+                    placeholder="Contoh: Muhammad Arkan Malik"
+                    value={formData.child_name || ""}
+                    onChange={(e) => setFormData({ ...formData, child_name: e.target.value })}
+                    className="w-full pl-10 pr-4 py-3 rounded-2xl bg-cloud border border-ink/10 focus:bg-white focus:border-sky focus:ring-2 focus:ring-sky-100 text-xs sm:text-sm text-ink outline-hidden transition-all"
+                  />
+                </div>
               </div>
 
-              {/* Review Ringkas Box */}
+              {/* 2. Student Grade Selection */}
+              <div className="space-y-2">
+                <label className="block text-xs sm:text-sm font-bold text-ink">
+                  2. Student Grade (Jenjang Pendidikan Siswa) <span className="text-coral">*</span>
+                </label>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {STUDENT_GRADES.map((grade) => {
+                    const isSelected = formData.target_grade === grade.value;
+
+                    return (
+                      <div
+                        key={grade.id}
+                        onClick={() => setFormData({ ...formData, target_grade: grade.value })}
+                        className={`cursor-pointer p-4 rounded-2xl border transition-all text-left flex flex-col justify-between ${
+                          isSelected
+                            ? "border-sky bg-sky-50/80 shadow-xs ring-2 ring-sky-200"
+                            : "border-ink/10 bg-cloud hover:bg-white hover:border-ink/20"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <span
+                            className={`text-xs font-black uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                              isSelected ? "bg-sky text-white" : "bg-white border border-ink/10 text-ink-300"
+                            }`}
+                          >
+                            {grade.badge}
+                          </span>
+                          <div
+                            className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                              isSelected ? "border-sky bg-sky text-white" : "border-ink/20 bg-white"
+                            }`}
+                          >
+                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </div>
+                        </div>
+
+                        <div>
+                          <p className={`text-sm font-bold ${isSelected ? "text-sky-700 font-black" : "text-ink"}`}>
+                            {grade.label}
+                          </p>
+                          <p className="text-[11px] text-ink-300 mt-1">{grade.sub}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Summary Pill Preview */}
               <div className="bg-sky-50/70 border border-sky-100 rounded-2xl p-4 text-xs space-y-1.5 text-ink-400">
                 <div className="font-bold text-sky flex items-center gap-1.5">
                   <ShieldCheck size={16} />
-                  Konfirmasi Data Kunjungan
+                  Ringkasan Kunjungan
                 </div>
                 <p>
-                  Tamu: <strong className="text-ink">{formData.parent_name}</strong> • Calon Siswa: <strong className="text-ink">{formData.child_name}</strong> ({formData.target_grade})
+                  Tamu: <strong className="text-ink">{formData.parent_name}</strong> ({formData.whatsapp})
                 </p>
                 <p>
-                  Kontak: {formData.whatsapp} • {formData.email}
+                  Keperluan: <strong className="text-ink">{formData.visit_purpose}</strong> • Siswa: <strong className="text-ink">{formData.child_name || "-"}</strong> ({formData.target_grade})
                 </p>
               </div>
             </div>
@@ -913,7 +786,7 @@ export default function GuestbookForm() {
 
         {/* Footer Navigation Buttons */}
         <div className="bg-cloud/60 border-t border-ink/5 p-4 sm:p-6 flex items-center justify-between gap-3">
-          {currentStep > 1 ? (
+          {currentStep === 2 && isParentStudentMatter ? (
             <button
               type="button"
               onClick={handlePrevStep}
@@ -926,13 +799,13 @@ export default function GuestbookForm() {
             <div />
           )}
 
-          {currentStep < 4 ? (
+          {currentStep === 1 && isParentStudentMatter ? (
             <button
               type="button"
-              onClick={handleNextStep}
+              onClick={() => handleNextOrSubmit()}
               className="px-6 py-3 rounded-2xl bg-sky text-white font-bold text-xs sm:text-sm hover:bg-sky-600 shadow-md hover:shadow-lg transition-all flex items-center gap-1.5"
             >
-              Lanjutkan
+              Lanjut ke Data Siswa
               <ArrowRight size={16} />
             </button>
           ) : (

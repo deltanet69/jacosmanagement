@@ -46,7 +46,7 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
       return { success: false, message: "Link pendaftaran tidak valid atau sudah kadaluarsa." };
     }
 
-    if (applicant.form_submitted) {
+    if (applicant.form_submitted && applicant.status !== "REJECTED") {
       return { success: false, message: "Formulir ini sudah pernah dikirimkan." };
     }
 

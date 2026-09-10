@@ -27,7 +27,7 @@ export default function GuestbookPage() {
             <Image
               src="/publicjacos/logo.png"
               alt="JACOS Logo"
-              width={130}
+              width={100}
               height={36}
               style={{ width: "auto", height: "auto" }}
               priority

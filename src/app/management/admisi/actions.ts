@@ -648,6 +648,14 @@ export async function rejectApplicant(applicantId: string, reason?: string) {
       .eq("id", applicantId);
 
     if (applicant) {
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://admission.jacos.id";
+      let token = applicant.registration_token;
+      if (!token) {
+        token = generateToken();
+        await supabase.from("applicants").update({ registration_token: token }).eq("id", applicantId);
+      }
+      const uniqueLink = `${baseUrl}/reg/${token}`;
+
       const guardiansList = applicant.guardians || [];
       const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
       const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
@@ -659,6 +667,7 @@ export async function rejectApplicant(applicantId: string, reason?: string) {
           studentName: applicant.student_name,
           registrationNo: applicant.registration_no,
           reason: reason || "Belum ada keterangan khusus dari tim admisi.",
+          uniqueLink: uniqueLink,
         });
       }
     }
@@ -1053,6 +1062,14 @@ export async function rejectPublicPayment(applicantId: string, reason: string) {
     const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
     const targetEmail = guardian?.email;
 
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://admission.jacos.id";
+    let token = applicant.registration_token;
+    if (!token) {
+      token = generateToken();
+      await supabase.from("applicants").update({ registration_token: token }).eq("id", applicantId);
+    }
+    const uniqueLink = `${baseUrl}/reg/${token}`;
+
     if (targetEmail && isValidEmail(targetEmail)) {
       try {
         await sendRejectionEmail({
@@ -1061,6 +1078,7 @@ export async function rejectPublicPayment(applicantId: string, reason: string) {
           studentName: applicant.student_name,
           registrationNo: applicant.registration_no,
           reason,
+          uniqueLink: uniqueLink,
         });
       } catch (e) {
         console.error("Error sending rejection email:", e);
