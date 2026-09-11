@@ -54,8 +54,14 @@ export const getGuestbookEntries = cache(async function getGuestbookEntries(): P
       today: list.filter((r) => r.visit_date === todayStr || (r.created_at && r.created_at.startsWith(todayStr))).length,
       unfollowed: list.filter((r) => r.follow_up_status === 'BELUM_FOLLOW_UP' || !r.follow_up_status).length,
       followed: list.filter((r) => r.follow_up_status === 'SUDAH_FOLLOW_UP').length,
-      kindergarten: list.filter((r) => r.target_grade?.toLowerCase().includes('kindergarten') || r.target_grade?.toLowerCase().includes('tk') || r.target_grade?.toLowerCase().includes('toddler')).length,
-      primary: list.filter((r) => r.target_grade?.toLowerCase().includes('primary') || r.target_grade?.toLowerCase().includes('sd')).length,
+      kindergarten: list.filter((r) => {
+        const g = r.target_grade?.toLowerCase() || '';
+        return g.includes('kindergarten') || g.includes('tk') || g.includes('pre-school') || g.includes('toddler');
+      }).length,
+      primary: list.filter((r) => {
+        const g = r.target_grade?.toLowerCase() || '';
+        return g.includes('primary') || g.includes('sd');
+      }).length,
     };
 
     return { entries: list, stats };
@@ -68,8 +74,14 @@ export const getGuestbookEntries = cache(async function getGuestbookEntries(): P
         today: 0,
         unfollowed: memoryGuestbook.filter((r) => r.follow_up_status === 'BELUM_FOLLOW_UP').length,
         followed: memoryGuestbook.filter((r) => r.follow_up_status === 'SUDAH_FOLLOW_UP').length,
-        kindergarten: 0,
-        primary: 0,
+        kindergarten: memoryGuestbook.filter((r) => {
+          const g = r.target_grade?.toLowerCase() || '';
+          return g.includes('kindergarten') || g.includes('tk') || g.includes('pre-school') || g.includes('toddler');
+        }).length,
+        primary: memoryGuestbook.filter((r) => {
+          const g = r.target_grade?.toLowerCase() || '';
+          return g.includes('primary') || g.includes('sd');
+        }).length,
       },
     };
   }

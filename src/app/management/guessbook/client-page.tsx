@@ -23,8 +23,6 @@ import {
   AlertCircle,
   MessageSquare,
   Send,
-  MoreVertical,
-  ExternalLink,
   ChevronRight,
   Eye,
   Trash2,
@@ -38,8 +36,13 @@ import {
   RefreshCw,
   Loader2,
   X,
-  Compass,
   FileSpreadsheet,
+  School,
+  FileCheck,
+  Users2,
+  FileText,
+  Briefcase,
+  Layers,
 } from "lucide-react";
 import {
   updateGuestbookFollowUp,
@@ -63,6 +66,7 @@ export default function GuestbookClient({
   const [stats, setStats] = useState<GuestbookStats>(initialStats);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [purposeFilter, setPurposeFilter] = useState<string>("ALL");
   const [gradeFilter, setGradeFilter] = useState<string>("ALL");
   const [dateFilter, setDateFilter] = useState<string>("ALL");
 
@@ -85,14 +89,17 @@ export default function GuestbookClient({
     whatsapp: "",
     email: "",
     address_detail: "",
+    visit_purpose: "School visit",
+    other_purpose: "",
     child_name: "",
     child_age: undefined as number | undefined,
     target_grade: "Kindergarten",
-    visit_purpose: "school visit / school tour",
-    other_purpose: "",
     notes: "",
   });
   const [isSavingManual, setIsSavingManual] = useState(false);
+
+  // Check if manual purpose requires child fields
+  const isManualChildRequired = ["School visit", "Admission", "Parent"].includes(manualForm.visit_purpose);
 
   // Filtered Entries
   const filteredEntries = useMemo(() => {
@@ -116,11 +123,15 @@ export default function GuestbookClient({
         (statusFilter === "BELUM" && (item.follow_up_status === "BELUM_FOLLOW_UP" || !item.follow_up_status)) ||
         (statusFilter === "SUDAH" && item.follow_up_status === "SUDAH_FOLLOW_UP");
 
-      // Purpose / Grade
+      // Purpose
+      const purposeMatch =
+        purposeFilter === "ALL" ||
+        (item.visit_purpose && item.visit_purpose.toLowerCase().includes(purposeFilter.toLowerCase()));
+
+      // Grade
       const gradeMatch =
         gradeFilter === "ALL" ||
-        (item.target_grade && item.target_grade.toLowerCase().includes(gradeFilter.toLowerCase())) ||
-        (item.visit_purpose && item.visit_purpose.toLowerCase().includes(gradeFilter.toLowerCase()));
+        (item.target_grade && item.target_grade.toLowerCase().includes(gradeFilter.toLowerCase()));
 
       // Date
       let dateMatch = true;
@@ -132,9 +143,9 @@ export default function GuestbookClient({
         dateMatch = itemDate >= sevenDaysAgo;
       }
 
-      return searchMatch && statusMatch && gradeMatch && dateMatch;
+      return searchMatch && statusMatch && purposeMatch && gradeMatch && dateMatch;
     });
-  }, [entries, searchTerm, statusFilter, gradeFilter, dateFilter]);
+  }, [entries, searchTerm, statusFilter, purposeFilter, gradeFilter, dateFilter]);
 
   // Recalculate stats helper
   const refreshStats = (currentList: GuestbookEntry[]) => {
@@ -144,8 +155,14 @@ export default function GuestbookClient({
       today: currentList.filter((r) => r.visit_date === todayStr || (r.created_at && r.created_at.startsWith(todayStr))).length,
       unfollowed: currentList.filter((r) => r.follow_up_status === "BELUM_FOLLOW_UP" || !r.follow_up_status).length,
       followed: currentList.filter((r) => r.follow_up_status === "SUDAH_FOLLOW_UP").length,
-      kindergarten: currentList.filter((r) => r.target_grade?.toLowerCase().includes("kindergarten") || r.target_grade?.toLowerCase().includes("tk") || r.target_grade?.toLowerCase().includes("pre-school")).length,
-      primary: currentList.filter((r) => r.target_grade?.toLowerCase().includes("primary") || r.target_grade?.toLowerCase().includes("sd")).length,
+      kindergarten: currentList.filter((r) => {
+        const g = r.target_grade?.toLowerCase() || "";
+        return g.includes("kindergarten") || g.includes("tk") || g.includes("pre-school") || g.includes("toddler");
+      }).length,
+      primary: currentList.filter((r) => {
+        const g = r.target_grade?.toLowerCase() || "";
+        return g.includes("primary") || g.includes("sd");
+      }).length,
     });
   };
 
@@ -216,8 +233,9 @@ export default function GuestbookClient({
       "No Telepon / WhatsApp": item.whatsapp,
       "Email": item.email,
       "Tujuan Kunjungan": item.visit_purpose || "-",
-      "Nama Siswa": item.child_name && item.child_name !== "-" ? item.child_name : "-",
-      "Jenjang Siswa": item.target_grade && item.target_grade !== "-" ? item.target_grade : "-",
+      "Nama Anak": item.child_name && item.child_name !== "-" ? item.child_name : "-",
+      "Jenjang Anak": item.target_grade && item.target_grade !== "-" ? item.target_grade : "-",
+      "Usia Anak": item.child_age ? `${item.child_age} Tahun` : "-",
       "Alamat": item.address_detail,
       "Catatan Tamu": item.notes || "-",
       "Status Follow-Up": item.follow_up_status === "SUDAH_FOLLOW_UP" ? "Sudah Di-Follow Up" : "Belum Di-Follow Up",
@@ -235,20 +253,23 @@ export default function GuestbookClient({
   const handleManualSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualForm.parent_name || !manualForm.whatsapp) return;
+    if (isManualChildRequired && !manualForm.child_name) return;
 
     setIsSavingManual(true);
     try {
-      const isParentStudent = manualForm.visit_purpose === "parent / student matters";
-      const finalPurpose = manualForm.visit_purpose === "Others..." && manualForm.other_purpose ? `Others: ${manualForm.other_purpose}` : manualForm.visit_purpose;
+      const finalPurpose =
+        manualForm.visit_purpose === "Others..." && manualForm.other_purpose
+          ? `Others: ${manualForm.other_purpose.trim()}`
+          : manualForm.visit_purpose;
 
       const res = await createManualGuestbookEntry({
         parent_name: manualForm.parent_name,
         whatsapp: manualForm.whatsapp,
         email: manualForm.email,
         address_detail: manualForm.address_detail || "Kampus JACOS (Walk-in)",
-        child_name: isParentStudent && manualForm.child_name ? manualForm.child_name : "-",
-        child_age: isParentStudent && manualForm.child_age ? Number(manualForm.child_age) : null,
-        target_grade: isParentStudent && manualForm.target_grade ? manualForm.target_grade : "-",
+        child_name: isManualChildRequired && manualForm.child_name ? manualForm.child_name.trim() : "-",
+        child_age: isManualChildRequired && manualForm.child_age ? Number(manualForm.child_age) : null,
+        target_grade: isManualChildRequired && manualForm.target_grade ? manualForm.target_grade : "-",
         visit_purpose: finalPurpose,
         source_info: "Walk-in On Spot",
         notes: manualForm.notes || null,
@@ -278,11 +299,11 @@ export default function GuestbookClient({
           whatsapp: "",
           email: "",
           address_detail: "",
+          visit_purpose: "School visit",
+          other_purpose: "",
           child_name: "",
           child_age: undefined,
           target_grade: "Kindergarten",
-          visit_purpose: "school visit / school tour",
-          other_purpose: "",
           notes: "",
         });
       }
@@ -340,9 +361,9 @@ export default function GuestbookClient({
     const hasStudent = entry.child_name && entry.child_name !== "-";
     const studentLine = hasStudent
       ? ` terkait ananda tercinta *${entry.child_name}* (Jenjang: *${entry.target_grade}*)`
-      : ` untuk keperluan *${entry.visit_purpose}*`;
+      : "";
 
-    const msg = `Assalamu'alaikum Wr. Wb. Bapak/Ibu *${entry.parent_name}*,\n\nTerima kasih atas kunjungan Anda di kampus *Jakarta Cosmopolite Islamic School (JACOS)*${studentLine} (Kode Kunjungan: *${entry.visit_code}*).\n\nPerkenalkan saya dari Tim Admission & Resepsionis JACOS. Apakah ada informasi yang dapat kami bantu tindak lanjuti kembali?\n\nTerima kasih, salam hangat dari JACOS! 🌸`;
+    const msg = `Assalamu'alaikum Wr. Wb. Bapak/Ibu *${entry.parent_name}*,\n\nTerima kasih atas kunjungan Anda di kampus *Jakarta Cosmopolite Islamic School (JACOS)* untuk keperluan *${entry.visit_purpose}*${studentLine} (Kode Kunjungan: *${entry.visit_code}*).\n\nPerkenalkan saya dari Tim Admission & Resepsionis JACOS. Apakah ada informasi yang dapat kami bantu tindak lanjuti kembali?\n\nTerima kasih, salam hangat dari JACOS! 🌸`;
 
     return `https://wa.me/${cleanWa}?text=${encodeURIComponent(msg)}`;
   };
@@ -353,6 +374,49 @@ export default function GuestbookClient({
     navigator.clipboard.writeText(`${origin}/guessbook`);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  // Helper for Purpose Badge Styling
+  const getPurposeBadge = (purpose?: string | null) => {
+    const p = purpose?.toLowerCase() || "";
+    if (p.includes("school visit")) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-200 px-2 py-0.5 rounded-md">
+          <School size={12} />
+          School visit
+        </span>
+      );
+    }
+    if (p.includes("admission")) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-leaf-700 bg-leaf-50 border border-leaf-200 px-2 py-0.5 rounded-md">
+          <FileCheck size={12} />
+          Admission
+        </span>
+      );
+    }
+    if (p.includes("parent")) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-coral-700 bg-coral-50 border border-coral-200 px-2 py-0.5 rounded-md">
+          <Users2 size={12} />
+          Parent
+        </span>
+      );
+    }
+    if (p.includes("business") || p.includes("meeting")) {
+      return (
+        <span className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-md">
+          <Briefcase size={12} />
+          Business / Meetings
+        </span>
+      );
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-md">
+        <Layers size={12} />
+        {purpose || "Others"}
+      </span>
+    );
   };
 
   return (
@@ -372,7 +436,7 @@ export default function GuestbookClient({
             Rekap Buku Tamu Kunjungan JACOS
           </h1>
           <p className="text-xs sm:text-sm text-ink-400 mt-0.5">
-            Data calon wali murid & ananda yang berkunjung ke sekolah untuk konsultasi dan school tour.
+            Data calon wali murid & tamu yang berkunjung ke sekolah untuk School visit, Admission, Parent, Business, dan keperluan lainnya.
           </p>
         </div>
 
@@ -471,6 +535,20 @@ export default function GuestbookClient({
 
           {/* Quick Filter Selects */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* Purpose Filter */}
+            <select
+              value={purposeFilter}
+              onChange={(e) => setPurposeFilter(e.target.value)}
+              className="px-3.5 py-2.5 rounded-2xl bg-cloud border border-ink/10 text-xs font-bold text-ink outline-hidden focus:border-sky cursor-pointer"
+            >
+              <option value="ALL">Semua Tujuan</option>
+              <option value="School visit">School visit</option>
+              <option value="Admission">Admission</option>
+              <option value="Parent">Parent</option>
+              <option value="Business">Business / Meetings</option>
+              <option value="Others">Others</option>
+            </select>
+
             {/* Status Filter */}
             <select
               value={statusFilter}
@@ -489,10 +567,9 @@ export default function GuestbookClient({
               className="px-3.5 py-2.5 rounded-2xl bg-cloud border border-ink/10 text-xs font-bold text-ink outline-hidden focus:border-sky cursor-pointer"
             >
               <option value="ALL">Semua Jenjang</option>
-              <option value="Kindergarten">Kindergarten / TK</option>
-              <option value="Primary">Primary / SD</option>
-              <option value="Toddler">Toddler</option>
-              <option value="Middle">Middle School / SMP</option>
+              <option value="Pre-school">Pre-school</option>
+              <option value="Kindergarten">Kindergarten</option>
+              <option value="Primary school">Primary school</option>
             </select>
 
             {/* Date Filter */}
@@ -514,11 +591,12 @@ export default function GuestbookClient({
             Menampilkan <strong className="text-ink">{filteredEntries.length}</strong> dari{" "}
             <strong className="text-ink">{entries.length}</strong> data tamu
           </span>
-          {(searchTerm || statusFilter !== "ALL" || gradeFilter !== "ALL" || dateFilter !== "ALL") && (
+          {(searchTerm || statusFilter !== "ALL" || purposeFilter !== "ALL" || gradeFilter !== "ALL" || dateFilter !== "ALL") && (
             <button
               onClick={() => {
                 setSearchTerm("");
                 setStatusFilter("ALL");
+                setPurposeFilter("ALL");
                 setGradeFilter("ALL");
                 setDateFilter("ALL");
               }}
@@ -547,7 +625,8 @@ export default function GuestbookClient({
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-ink/5 bg-cloud/50 text-[11px] uppercase tracking-wider font-bold text-ink-300">
-                  <th className="py-3.5 px-4 sm:px-6">Tamu & Tujuan Kunjungan</th>
+                  <th className="py-3.5 px-4 sm:px-6">Tamu & Tujuan</th>
+                  <th className="py-3.5 px-4">Detail Anak (Ananda)</th>
                   <th className="py-3.5 px-4">Kontak (WhatsApp/Email)</th>
                   <th className="py-3.5 px-4">Alamat</th>
                   <th className="py-3.5 px-4">Waktu Kunjungan</th>
@@ -573,22 +652,32 @@ export default function GuestbookClient({
                           </div>
                           
                           {/* Purpose Badge */}
-                          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                            <span className="text-[11px] font-bold text-sky-700 bg-sky-50 border border-sky-100 px-2 py-0.5 rounded-md capitalize">
-                              {item.visit_purpose || "Kunjungan"}
-                            </span>
-
-                            {hasStudent && (
-                              <div className="inline-flex items-center gap-1 text-[11px] text-coral-700 bg-coral-50 border border-coral-100 px-2 py-0.5 rounded-md font-medium">
-                                <Baby size={12} className="text-coral shrink-0" />
-                                <span>{item.child_name}</span>
-                                {item.target_grade && item.target_grade !== "-" && (
-                                  <span className="font-bold">({item.target_grade})</span>
-                                )}
-                              </div>
-                            )}
+                          <div className="pt-0.5">
+                            {getPurposeBadge(item.visit_purpose)}
                           </div>
                         </div>
+                      </td>
+
+                      {/* Detail Anak */}
+                      <td className="py-4 px-4">
+                        {hasStudent ? (
+                          <div className="space-y-1">
+                            <div className="inline-flex items-center gap-1.5 font-bold text-ink">
+                              <Baby size={14} className="text-coral shrink-0" />
+                              <span>{item.child_name}</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
+                              <span className="px-2 py-0.5 rounded-md bg-cloud border border-ink/10 font-semibold text-coral-700">
+                                {item.target_grade || "Pre-school"}
+                              </span>
+                              {item.child_age && (
+                                <span className="text-ink-300 font-medium">({item.child_age} thn)</span>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-ink-300 text-xs italic">-</span>
+                        )}
                       </td>
 
                       {/* Kontak */}
@@ -611,7 +700,7 @@ export default function GuestbookClient({
 
                       {/* Alamat */}
                       <td className="py-4 px-4">
-                        <div className="flex items-start gap-1.5 text-xs text-ink-400 max-w-[220px]">
+                        <div className="flex items-start gap-1.5 text-xs text-ink-400 max-w-[200px]">
                           <MapPin size={14} className="text-coral shrink-0 mt-0.5" />
                           <span className="line-clamp-2">{item.address_detail}</span>
                         </div>
@@ -713,7 +802,7 @@ export default function GuestbookClient({
                   {selectedEntry.parent_name}
                 </h3>
                 <p className="text-xs text-sky-100">
-                  Kode: {selectedEntry.visit_code} • Keperluan: {selectedEntry.visit_purpose}
+                  Kode: {selectedEntry.visit_code} • Tujuan: {selectedEntry.visit_purpose}
                 </p>
               </div>
               <button
@@ -746,25 +835,31 @@ export default function GuestbookClient({
 
                 <div className="p-4 rounded-2xl bg-cloud border border-ink/5 space-y-1">
                   <span className="text-[11px] font-bold text-ink-300 uppercase">Tujuan Kunjungan</span>
-                  <p className="text-sm font-bold text-ink capitalize">{selectedEntry.visit_purpose || "-"}</p>
+                  <div className="pt-1">
+                    {getPurposeBadge(selectedEntry.visit_purpose)}
+                  </div>
                 </div>
               </div>
 
-              {/* 2. Data Siswa jika ada */}
+              {/* 2. Detail Anak (Ananda) jika ada */}
               {selectedEntry.child_name && selectedEntry.child_name !== "-" && (
                 <div className="p-4 rounded-2xl bg-coral-50/70 border border-coral-200 space-y-2">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-coral-700">
                     <Baby size={15} />
-                    <span>Informasi Siswa Terkait (Parent / Student Matters)</span>
+                    <span>Informasi Detail Anak (Ananda)</span>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs pt-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs pt-1">
                     <div>
-                      <span className="text-ink-300 text-[10px] block">Nama Lengkap Siswa:</span>
+                      <span className="text-ink-300 text-[10px] block">Nama Lengkap Anak:</span>
                       <strong className="text-ink text-sm">{selectedEntry.child_name}</strong>
                     </div>
                     <div>
                       <span className="text-ink-300 text-[10px] block">Jenjang Pendidikan:</span>
                       <strong className="text-coral-700 text-sm">{selectedEntry.target_grade}</strong>
+                    </div>
+                    <div>
+                      <span className="text-ink-300 text-[10px] block">Usia Anak:</span>
+                      <strong className="text-ink text-sm">{selectedEntry.child_age ? `${selectedEntry.child_age} Tahun` : "-"}</strong>
                     </div>
                   </div>
                 </div>
@@ -781,11 +876,11 @@ export default function GuestbookClient({
                 </p>
               </div>
 
-              {/* 4. Detail Kunjungan */}
+              {/* 4. Detail Kunjungan & Catatan */}
               <div className="p-4 rounded-2xl bg-cloud border border-ink/5 space-y-2 text-xs">
                 <div className="flex items-center gap-1.5 font-bold text-gold-600">
                   <Calendar size={15} />
-                  <span>Waktu Kunjungan</span>
+                  <span>Waktu Kunjungan & Catatan</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                   <div>
@@ -795,13 +890,13 @@ export default function GuestbookClient({
                     </strong>
                   </div>
                   <div>
-                    <span className="text-ink-300 text-[11px] block">Catatan Tambahan:</span>
+                    <span className="text-ink-300 text-[11px] block">Catatan Tamu:</span>
                     <p className="text-ink italic">{selectedEntry.notes || "Tidak ada catatan khusus."}</p>
                   </div>
                 </div>
               </div>
 
-              {/* 4. Update Follow Up Status & Notes Form */}
+              {/* 5. Update Follow Up Status & Notes Form */}
               <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-100 space-y-3">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-bold text-sky flex items-center gap-1.5">
@@ -825,7 +920,7 @@ export default function GuestbookClient({
                   <label className="block text-xs font-bold text-ink">Catatan Tindak Lanjut Admin:</label>
                   <textarea
                     rows={2}
-                    placeholder="Contoh: Sudah dihubungi via WA, orang tua tertarik mendaftar trial class Sabtu depan..."
+                    placeholder="Contoh: Sudah dihubungi via WA, orang tua tertarik mendaftar trial class..."
                     value={adminNotes}
                     onChange={(e) => setAdminNotes(e.target.value)}
                     className="w-full px-3.5 py-2.5 rounded-xl bg-white border border-sky-200 text-xs text-ink outline-hidden focus:ring-2 focus:ring-sky-100"
@@ -860,7 +955,7 @@ export default function GuestbookClient({
                 </div>
               </div>
 
-              {/* 5. Follow Up Quick Actions */}
+              {/* 6. Follow Up Quick Actions */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
                 <a
                   href={getWhatsAppFollowUpUrl(selectedEntry)}
@@ -1005,17 +1100,17 @@ export default function GuestbookClient({
               </div>
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-ink">Tujuan Kunjungan (Purpose of Visit) *</label>
+                <label className="block text-xs font-bold text-ink">Purpose of Visit (Tujuan Kunjungan) *</label>
                 <select
                   value={manualForm.visit_purpose}
                   onChange={(e) => setManualForm({ ...manualForm, visit_purpose: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-cloud border border-ink/10 text-xs text-ink focus:bg-white focus:border-sky outline-hidden cursor-pointer"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-cloud border border-ink/10 text-xs font-bold text-ink focus:bg-white focus:border-sky outline-hidden cursor-pointer"
                 >
-                  <option value="school visit / school tour">School Visit / School Tour</option>
-                  <option value="admission / registration">Admission / Registration</option>
-                  <option value="parent / student matters">Parent / Student Matters</option>
-                  <option value="meeting / business">Meeting / Business</option>
-                  <option value="Others...">Others...</option>
+                  <option value="School visit">1. School visit</option>
+                  <option value="Admission">2. Admission</option>
+                  <option value="Parent">3. Parent</option>
+                  <option value="Business / Meetings">4. Business / Meetings</option>
+                  <option value="Others...">5. Others...</option>
                 </select>
               </div>
 
@@ -1033,40 +1128,63 @@ export default function GuestbookClient({
                 </div>
               )}
 
-              {/* Conditional Student fields for parent/student matters */}
-              {manualForm.visit_purpose === "parent / student matters" && (
-                <div className="p-3.5 bg-coral-50/70 border border-coral-200 rounded-xl space-y-3">
-                  <span className="text-xs font-bold text-coral-700 block">Informasi Siswa (Parent / Student Matters)</span>
+              {/* Detail Anak (Only if School visit, Admission, Parent) */}
+              {isManualChildRequired && (
+                <div className="p-3.5 bg-coral-50/70 border border-coral-200 rounded-2xl space-y-3">
+                  <span className="text-xs font-bold text-coral-700 flex items-center gap-1.5">
+                    <Baby size={15} />
+                    Informasi Detail Anak (Ananda)
+                  </span>
                   
                   <div className="space-y-1">
-                    <label className="block text-xs font-bold text-ink">Nama Lengkap Siswa *</label>
+                    <label className="block text-xs font-bold text-ink">Nama Lengkap Anak *</label>
                     <input
                       type="text"
                       required
-                      placeholder="Contoh: Fatih Ibrahim"
+                      placeholder="Contoh: Muhammad Fatih Ibrahim"
                       value={manualForm.child_name}
                       onChange={(e) => setManualForm({ ...manualForm, child_name: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-coral-200 text-xs text-ink outline-hidden"
+                      className="w-full px-3 py-2 rounded-xl bg-white border border-coral-200 text-xs text-ink outline-hidden focus:border-sky"
                     />
                   </div>
 
-                  <div className="space-y-1">
-                    <label className="block text-xs font-bold text-ink">Jenjang Siswa (Student Grade) *</label>
-                    <select
-                      value={manualForm.target_grade}
-                      onChange={(e) => setManualForm({ ...manualForm, target_grade: e.target.value })}
-                      className="w-full px-3 py-2 rounded-lg bg-white border border-coral-200 text-xs text-ink outline-hidden cursor-pointer"
-                    >
-                      <option value="Pre-school">Pre-school</option>
-                      <option value="Kindergarten">Kindergarten</option>
-                      <option value="Primary school">Primary school</option>
-                    </select>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-ink">Jenjang Pendidikan *</label>
+                      <select
+                        value={manualForm.target_grade}
+                        onChange={(e) => setManualForm({ ...manualForm, target_grade: e.target.value })}
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-coral-200 text-xs text-ink outline-hidden cursor-pointer focus:border-sky"
+                      >
+                        <option value="Pre-school">Pre-school</option>
+                        <option value="Kindergarten">Kindergarten</option>
+                        <option value="Primary school">Primary school</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-xs font-bold text-ink">Usia Anak (Tahun)</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={18}
+                        placeholder="Contoh: 5"
+                        value={manualForm.child_age !== undefined && manualForm.child_age !== null ? manualForm.child_age : ""}
+                        onChange={(e) =>
+                          setManualForm({
+                            ...manualForm,
+                            child_age: e.target.value ? parseInt(e.target.value) : undefined,
+                          })
+                        }
+                        className="w-full px-3 py-2 rounded-xl bg-white border border-coral-200 text-xs text-ink outline-hidden focus:border-sky"
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
               <div className="space-y-1">
-                <label className="block text-xs font-bold text-ink">Alamat *</label>
+                <label className="block text-xs font-bold text-ink">Alamat Domisili / Instansi *</label>
                 <input
                   type="text"
                   required
@@ -1081,7 +1199,7 @@ export default function GuestbookClient({
                 <label className="block text-xs font-bold text-ink">Catatan Kunjungan (Opsional)</label>
                 <textarea
                   rows={2}
-                  placeholder="Kebutuhan khusus atau topik konsultasi..."
+                  placeholder="Kebutuhan khusus atau topik konsultasi / urusan kunjungan..."
                   value={manualForm.notes}
                   onChange={(e) => setManualForm({ ...manualForm, notes: e.target.value })}
                   className="w-full px-3.5 py-2.5 rounded-xl bg-cloud border border-ink/10 text-xs text-ink focus:bg-white focus:border-sky outline-hidden"
@@ -1136,7 +1254,7 @@ export default function GuestbookClient({
               <label className="block text-xs font-bold text-ink">Pesan Tambahan Personal (Opsional):</label>
               <textarea
                 rows={4}
-                placeholder="Tuliskan pesan khusus untuk orang tua, misal: Berikut kami lampirkan booklet biaya pendaftaran dan voucher potongan khusus kunjungan..."
+                placeholder="Tuliskan pesan khusus untuk orang tua / tamu..."
                 value={emailCustomMessage}
                 onChange={(e) => setEmailCustomMessage(e.target.value)}
                 className="w-full px-3.5 py-2.5 rounded-xl bg-cloud border border-ink/10 text-xs text-ink focus:bg-white focus:border-sky outline-hidden"

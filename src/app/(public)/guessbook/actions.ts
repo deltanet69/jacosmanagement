@@ -13,14 +13,14 @@ function getResend() {
 }
 
 const guestbookSchema = z.object({
-  parent_name: z.string().min(2, 'Nama lengkap wajib diisi (minimal 2 karakter)'),
+  parent_name: z.string().min(2, 'Nama lengkap tamu wajib diisi (minimal 2 karakter)'),
   whatsapp: z.string().min(8, 'Nomor Telepon / WhatsApp wajib diisi (minimal 8 digit)'),
   email: z.string().email('Format alamat email tidak valid'),
   address_detail: z.string().min(3, 'Alamat wajib diisi (minimal 3 karakter)'),
   visit_purpose: z.string().min(1, 'Pilih tujuan kunjungan'),
   other_purpose: z.string().optional().nullable(),
   
-  // Optional / Conditional fields for student
+  // Child details (Detail Anak - Required for School visit, Admission, Parent)
   child_name: z.string().optional().nullable(),
   child_age: z.coerce.number().optional().nullable(),
   target_grade: z.string().optional().nullable(),
@@ -65,18 +65,28 @@ export async function submitGuestbookEntry(
       cleanWa = '62' + cleanWa;
     }
 
+    const purposeLower = validated.visit_purpose.toLowerCase();
+    const isChildRequired =
+      purposeLower.includes('school visit') ||
+      purposeLower.includes('admission') ||
+      purposeLower.includes('parent');
+
+    if (isChildRequired && (!validated.child_name || validated.child_name.trim().length < 2)) {
+      return {
+        success: false,
+        message: 'Nama lengkap anak wajib diisi untuk keperluan kunjungan ini',
+      };
+    }
+
     // Determine final purpose text
     const finalPurpose =
       validated.visit_purpose === 'Others...' && validated.other_purpose
         ? `Others: ${validated.other_purpose.trim()}`
-        : validated.visit_purpose;
+        : validated.visit_purpose.trim();
 
-    const isParentStudentMatter =
-      validated.visit_purpose.toLowerCase().includes('parent') &&
-      validated.visit_purpose.toLowerCase().includes('matters');
-
-    const finalChildName = isParentStudentMatter && validated.child_name ? validated.child_name.trim() : (validated.child_name?.trim() || '-');
-    const finalTargetGrade = isParentStudentMatter && validated.target_grade ? validated.target_grade.trim() : (validated.target_grade?.trim() || '-');
+    const finalChildName = isChildRequired && validated.child_name ? validated.child_name.trim() : '-';
+    const finalTargetGrade = isChildRequired && validated.target_grade ? validated.target_grade.trim() : '-';
+    const finalChildAge = isChildRequired && validated.child_age ? validated.child_age : null;
 
     // Generate unique Visit Code: JCS-VISIT-2026-XXXX
     const currentYear = new Date().getFullYear();
@@ -101,7 +111,7 @@ export async function submitGuestbookEntry(
       postal_code: null,
       address_detail: validated.address_detail.trim(),
       child_name: finalChildName,
-      child_age: validated.child_age || null,
+      child_age: finalChildAge,
       target_grade: finalTargetGrade,
       visit_date: validated.visit_date || todayStr,
       visit_time: validated.visit_time || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
@@ -146,14 +156,14 @@ export async function submitGuestbookEntry(
     const resend = getResend();
     if (resend && record.email) {
       try {
-        const studentInfoBlock = isParentStudentMatter && finalChildName !== '-'
+        const studentInfoBlock = isChildRequired && finalChildName !== '-'
           ? `<tr>
-               <td style="padding:4px 0;color:#59647D;width:40%;">Nama Siswa:</td>
+               <td style="padding:4px 0;color:#59647D;width:40%;">Nama Anak:</td>
                <td style="padding:4px 0;font-weight:700;">${finalChildName}</td>
              </tr>
              <tr>
                <td style="padding:4px 0;color:#59647D;">Jenjang Pendidikan:</td>
-               <td style="padding:4px 0;font-weight:700;color:#2F6FED;">${finalTargetGrade}</td>
+               <td style="padding:4px 0;font-weight:700;color:#2F6FED;">${finalTargetGrade}${finalChildAge ? ` (${finalChildAge} Tahun)` : ''}</td>
              </tr>`
           : '';
 
@@ -202,7 +212,7 @@ export async function submitGuestbookEntry(
                         <td style="padding:4px 0;font-weight:700;">${record.parent_name}</td>
                       </tr>
                       <tr>
-                        <td style="padding:4px 0;color:#59647D;">Tujuan:</td>
+                        <td style="padding:4px 0;color:#59647D;">Tujuan Kunjungan:</td>
                         <td style="padding:4px 0;font-weight:700;color:#2F6FED;">${record.visit_purpose}</td>
                       </tr>
                       ${studentInfoBlock}
@@ -259,9 +269,9 @@ export async function submitGuestbookEntry(
         email: record.email,
         address: record.address_detail,
         visitPurpose: record.visit_purpose,
-        childName: isParentStudentMatter ? record.child_name : null,
-        childAge: isParentStudentMatter ? record.child_age : null,
-        targetGrade: isParentStudentMatter ? record.target_grade : null,
+        childName: isChildRequired ? finalChildName : null,
+        childAge: isChildRequired ? finalChildAge : null,
+        targetGrade: isChildRequired ? finalTargetGrade : null,
         visitDate: record.visit_date,
         visitTime: record.visit_time,
         createdAt: nowIso,
