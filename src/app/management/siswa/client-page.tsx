@@ -360,8 +360,48 @@ export default function SiswaClientPage({ students }: { students: any[] }) {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-[2rem] p-2 sm:p-4 shadow-sm border border-ink/5 overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded-2xl sm:rounded-[2rem] p-2 sm:p-4 shadow-sm border border-ink/5 overflow-hidden">
+          {/* MOBILE LIST CARD VIEW (md:hidden) */}
+          <div className="p-2 sm:p-3 space-y-2.5 md:hidden">
+            {paginatedStudents.map((student) => (
+              <div
+                key={student.id}
+                className="p-3 rounded-2xl bg-cloud/30 border border-ink/5 hover:border-gold/20 transition flex items-center justify-between gap-3"
+              >
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  {student.profile_picture ? (
+                    <img src={student.profile_picture} alt={student.full_name} className="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0" />
+                  ) : (
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-gold-50 to-cloud flex items-center justify-center font-display font-extrabold text-sm text-gold shadow-sm shrink-0">
+                      {student.full_name.substring(0, 2).toUpperCase()}
+                    </div>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-bold text-xs sm:text-sm text-ink truncate">{student.full_name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 text-[10px] text-ink-400">
+                      <span className="font-mono">NIS: {student.nis || "-"}</span>
+                      <span>•</span>
+                      <span className="font-bold text-sky-700 bg-sky-50 px-1.5 py-0.2 rounded">{student.school_classes?.name || "No Class"}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${student.is_active ? 'bg-leaf-50 text-leaf-600' : 'bg-coral-50 text-coral-600'}`}>
+                    {student.is_active ? 'Aktif' : 'Off'}
+                  </span>
+                  <Link href={`/management/siswa/${student.id}`}>
+                    <Button variant="ghost" size="sm" className="h-8 px-2.5 text-gold hover:bg-gold-50 font-bold rounded-xl text-xs cursor-pointer">
+                      Detail
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* DESKTOP TABLE VIEW (hidden md:block) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full text-left border-collapse min-w-[800px]">
               <thead>
                 <tr className="border-b border-ink/5 text-ink-400 font-bold text-xs uppercase tracking-wider">

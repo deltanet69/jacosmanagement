@@ -50,12 +50,12 @@ export function TopNav() {
             <SheetTrigger className="w-10 h-10 flex items-center justify-center rounded-xl border border-ink/10 text-ink-400 hover:bg-cloud transition cursor-pointer">
               <Menu size={20} />
             </SheetTrigger>
-            <SheetContent side="left" className="w-140 p-0 flex flex-col bg-white">
+            <SheetContent side="left" className="w-[85vw] max-w-xs sm:max-w-sm p-0 flex flex-col bg-white">
               {/* Sheet Header */}
-              <div className="px-6 py-5 border-b border-ink/5">
+              <div className="px-5 py-4 sm:px-6 sm:py-5 border-b border-ink/5">
                 <Link href="/management" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-                  <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={140} height={38} style={{ width: "auto", height: "auto" }} className="dark:hidden object-contain" />
-                  <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={130} height={38} style={{ width: "auto", height: "auto" }} className="hidden dark:block object-contain" />
+                  <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={130} height={35} style={{ width: "auto", height: "auto" }} className="dark:hidden object-contain" />
+                  <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={120} height={35} style={{ width: "auto", height: "auto" }} className="hidden dark:block object-contain" />
                 </Link>
               </div>
 
@@ -161,9 +161,10 @@ export function TopNav() {
       {/* Top Right Profile & Notification */}
       <div className="flex items-center gap-2.5 sm:gap-3.5">
         {/* Academic Year & Batch Badge */}
-        <div className="inline-flex items-center gap-1.5 px-2.5 sm:px-3.5 py-1.5 rounded-full bg-sky-50 text-sky-700 text-[11px] sm:text-xs font-bold border border-sky-200 shadow-2xs shrink-0">
-          <Sparkles size={13} className="text-sky-600 shrink-0" />
-          <span>TA 2026/2027 • Batch 1</span>
+        <div className="hidden min-[380px]:inline-flex items-center gap-1 sm:gap-1.5 px-2 sm:px-3.5 py-1 sm:py-1.5 rounded-full bg-sky-50 text-sky-700 text-[10px] sm:text-xs font-bold border border-sky-200 shadow-2xs shrink-0">
+          <Sparkles size={12} className="text-sky-600 shrink-0 hidden sm:inline" />
+          <span>TA 2026/2027</span>
+          <span className="hidden sm:inline">• Batch 1</span>
         </div>
 
         <button className="relative w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-xl hover:bg-cloud transition-colors text-ink-400 cursor-pointer shrink-0">

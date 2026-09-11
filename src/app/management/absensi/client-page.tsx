@@ -247,37 +247,37 @@ export function StudentAttendanceClient({
       </div>
 
       {/* Overview Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-6">
         {/* Total Active Students */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-2">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 lg:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-ink-400 uppercase tracking-wider">Total Siswa</span>
-            <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky flex items-center justify-center">
-              <Users size={18} />
+            <span className="text-[10px] sm:text-xs font-bold text-ink-400 uppercase tracking-wider">Total Siswa</span>
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-sky-50 text-sky flex items-center justify-center">
+              <Users size={16} className="sm:w-4.5 sm:h-4.5" />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black text-ink">{summary.totalStudents}</p>
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-sky">
+          <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold text-sky">
             <School size={12} />
             <span>Terdaftar di Sistem</span>
           </div>
         </div>
 
         {/* Hadir */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-2">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 lg:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-leaf-600 uppercase tracking-wider">Hadir</span>
-            <div className="w-9 h-9 rounded-xl bg-leaf-50 text-leaf flex items-center justify-center">
-              <CheckCircle2 size={18} />
+            <span className="text-[10px] sm:text-xs font-bold text-leaf-600 uppercase tracking-wider">Hadir</span>
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-leaf-50 text-leaf flex items-center justify-center">
+              <CheckCircle2 size={16} className="sm:w-4.5 sm:h-4.5" />
             </div>
           </div>
-          <div className="flex items-baseline gap-2">
+          <div className="flex items-baseline gap-1.5 sm:gap-2">
             <p className="text-2xl sm:text-3xl font-black text-leaf">{summary.totalHadir}</p>
-            <span className="text-xs font-bold text-leaf bg-leaf-50 px-2 py-0.5 rounded-full border border-leaf-100">
-              {summary.percentage}% Rate
+            <span className="text-[10px] sm:text-xs font-bold text-leaf bg-leaf-50 px-1.5 sm:px-2 py-0.5 rounded-full border border-leaf-100">
+              {summary.percentage}%
             </span>
           </div>
-          <div className="w-full bg-cloud h-1.5 rounded-full overflow-hidden">
+          <div className="w-full bg-cloud h-1.5 rounded-full overflow-hidden mt-1 sm:mt-2">
             <div
               className="bg-leaf h-full rounded-full transition-all duration-500"
               style={{ width: `${summary.percentage}%` }}
@@ -286,34 +286,34 @@ export function StudentAttendanceClient({
         </div>
 
         {/* Izin / Sakit */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-2">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 lg:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Izin & Sakit</span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Clock size={18} />
+            <span className="text-[10px] sm:text-xs font-bold text-amber-600 uppercase tracking-wider">Izin & Sakit</span>
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+              <Clock size={16} className="sm:w-4.5 sm:h-4.5" />
             </div>
           </div>
-          <div className="flex items-baseline gap-3">
+          <div className="flex items-baseline gap-1.5 sm:gap-3">
             <p className="text-2xl sm:text-3xl font-black text-amber-600">
               {summary.totalIzin + summary.totalSakit}
             </p>
-            <span className="text-[11px] text-ink-400 font-semibold">
+            <span className="text-[10px] sm:text-[11px] text-ink-400 font-semibold truncate">
               ({summary.totalIzin} Izin, {summary.totalSakit} Sakit)
             </span>
           </div>
-          <p className="text-[11px] text-ink-400 font-medium">Tercatat dengan Keterangan</p>
+          <p className="text-[10px] sm:text-[11px] text-ink-400 font-medium truncate">Tercatat dengan Keterangan</p>
         </div>
 
         {/* Alpha */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-2">
+        <div className="bg-white rounded-2xl sm:rounded-3xl p-3.5 sm:p-5 lg:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-1.5 sm:space-y-2">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-coral-600 uppercase tracking-wider">Alpha</span>
-            <div className="w-9 h-9 rounded-xl bg-coral-50 text-coral flex items-center justify-center">
-              <XCircle size={18} />
+            <span className="text-[10px] sm:text-xs font-bold text-coral-600 uppercase tracking-wider">Alpha</span>
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-coral-50 text-coral flex items-center justify-center">
+              <XCircle size={16} className="sm:w-4.5 sm:h-4.5" />
             </div>
           </div>
           <p className="text-2xl sm:text-3xl font-black text-coral">{summary.totalAlpha}</p>
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-coral">
+          <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] font-semibold text-coral">
             <AlertTriangle size={12} />
             <span>Tanpa Keterangan</span>
           </div>
@@ -322,15 +322,15 @@ export function StudentAttendanceClient({
 
       {/* Per-Class Progress Breakdown Grid */}
       {classBreakdown.length > 0 && (
-        <div className="bg-white rounded-3xl border border-ink/10 p-6 space-y-4 shadow-xs">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-ink/10 p-4 sm:p-6 space-y-3.5 sm:space-y-4 shadow-xs">
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky flex items-center justify-center">
-                <School size={18} />
+            <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-sky-50 text-sky flex items-center justify-center shrink-0">
+                <School size={16} className="sm:w-4.5 sm:h-4.5" />
               </div>
-              <div>
-                <h2 className="text-base font-bold text-ink">Ringkasan Kehadiran Per Kelas</h2>
-                <p className="text-xs text-ink-400">Klik kelas untuk memfilter daftar siswa secara instan</p>
+              <div className="min-w-0">
+                <h2 className="text-sm sm:text-base font-bold text-ink truncate">Ringkasan Kehadiran Per Kelas</h2>
+                <p className="text-[11px] sm:text-xs text-ink-400 truncate">Klik kelas untuk memfilter daftar siswa secara instan</p>
               </div>
             </div>
             {selectedClass !== "ALL" && (
@@ -343,7 +343,7 @@ export function StudentAttendanceClient({
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 sm:gap-3">
             {classBreakdown.map((cls) => {
               const pct = cls.total > 0 ? Math.round((cls.hadir / cls.total) * 100) : 0;
               const isSelected = selectedClass === cls.classId;
@@ -352,26 +352,21 @@ export function StudentAttendanceClient({
                 <button
                   key={cls.classId}
                   onClick={() => handleClassChange(cls.classId)}
-                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                  className={`p-3 rounded-2xl border text-left transition-all cursor-pointer ${
                     isSelected
                       ? "bg-sky-50 border-sky ring-2 ring-sky/20"
-                      : "bg-cloud/60 border-ink/5 hover:bg-white hover:border-ink/20"
+                      : "bg-cloud/40 border-ink/5 hover:border-ink/15 hover:bg-cloud/80"
                   }`}
                 >
-                  <p className="text-xs font-bold text-ink truncate">{cls.className}</p>
-                  <div className="flex items-baseline justify-between mt-1">
-                    <span className="text-sm font-extrabold text-ink">
+                  <p className="font-extrabold text-xs sm:text-sm text-ink truncate">{cls.className}</p>
+                  <div className="flex items-baseline justify-between mt-1.5">
+                    <span className="text-xs font-black text-ink">
                       {cls.hadir}/{cls.total}
                     </span>
-                    <span className={`text-[10px] font-bold ${pct >= 90 ? "text-leaf" : pct >= 75 ? "text-amber-600" : "text-coral"}`}>
-                      {pct}%
-                    </span>
+                    <span className="text-[10px] font-bold text-leaf-600">{pct}%</span>
                   </div>
-                  <div className="w-full bg-ink/5 h-1.5 rounded-full overflow-hidden mt-1.5">
-                    <div
-                      className={`h-full rounded-full ${pct >= 90 ? "bg-leaf" : pct >= 75 ? "bg-amber-500" : "bg-coral"}`}
-                      style={{ width: `${pct}%` }}
-                    />
+                  <div className="w-full bg-ink/5 h-1 rounded-full overflow-hidden mt-1.5">
+                    <div className="bg-leaf h-full rounded-full" style={{ width: `${pct}%` }} />
                   </div>
                 </button>
               );
@@ -380,20 +375,20 @@ export function StudentAttendanceClient({
         </div>
       )}
 
-      {/* Interactive Controls & Filters */}
-      <div className="bg-white rounded-3xl border border-ink/10 p-4 sm:p-6 space-y-4 shadow-xs">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          {/* Search Box */}
+      {/* Filter & Search Bar */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-ink/10 p-4 sm:p-5 space-y-3.5 sm:space-y-4 shadow-xs">
+        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+          {/* Search Input */}
           <div className="relative flex-1 max-w-md">
             <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-300" />
             <Input
-              placeholder="Cari nama siswa, NIS, atau kelas..."
               value={searchQuery}
               onChange={(e) => {
                 setSearchQuery(e.target.value);
                 setCurrentPage(1);
               }}
-              className="pl-10 h-11 rounded-2xl bg-cloud border-transparent focus-visible:border-sky text-xs sm:text-sm"
+              placeholder="Cari nama siswa, NIS, atau kelas..."
+              className="pl-10 h-10 sm:h-11 rounded-xl sm:rounded-2xl bg-cloud border-transparent focus-visible:border-sky text-xs sm:text-sm"
             />
           </div>
 
@@ -418,10 +413,10 @@ export function StudentAttendanceClient({
         </div>
 
         {/* Status Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-ink/5">
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pt-2 border-t border-ink/5 hide-scrollbar">
           <span className="text-xs font-bold text-ink-300 shrink-0 uppercase tracking-wider">Status:</span>
           {[
-            { key: "ALL", label: "Semua Status", count: items.length },
+            { key: "ALL", label: "Semua", count: items.length },
             { key: "HADIR", label: "Hadir", count: items.filter((i) => i.status === "HADIR").length },
             { key: "IZIN", label: "Izin", count: items.filter((i) => i.status === "IZIN").length },
             { key: "SAKIT", label: "Sakit", count: items.filter((i) => i.status === "SAKIT").length },
@@ -433,7 +428,7 @@ export function StudentAttendanceClient({
                 setSelectedStatus(tab.key);
                 setCurrentPage(1);
               }}
-              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
+              className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 selectedStatus === tab.key
                   ? "bg-sky text-white shadow-xs"
                   : "bg-cloud text-ink-400 hover:text-ink hover:bg-ink/5"
@@ -445,12 +440,12 @@ export function StudentAttendanceClient({
         </div>
       </div>
 
-      {/* Student Attendance Log Table */}
-      <div className="bg-white rounded-3xl border border-ink/10 overflow-hidden shadow-xs">
-        <div className="px-6 py-5 border-b border-ink/5 flex items-center justify-between flex-wrap gap-2">
+      {/* Student Attendance Log Container */}
+      <div className="bg-white rounded-2xl sm:rounded-3xl border border-ink/10 overflow-hidden shadow-xs">
+        <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-ink/5 flex items-center justify-between flex-wrap gap-2">
           <div>
-            <h2 className="font-extrabold text-base text-ink">Daftar Rekapitulasi Absensi Siswa</h2>
-            <p className="text-xs text-ink-400">
+            <h2 className="font-extrabold text-sm sm:text-base text-ink">Daftar Rekapitulasi Absensi Siswa</h2>
+            <p className="text-[11px] sm:text-xs text-ink-400">
               Menampilkan {filteredItems.length === 0 ? 0 : startIndex + 1} - {endIndex} dari total {filteredItems.length} siswa (Tanggal: {filterDate})
             </p>
           </div>
@@ -463,119 +458,183 @@ export function StudentAttendanceClient({
         </div>
 
         {paginatedItems.length === 0 ? (
-          <div className="py-16 text-center space-y-3">
-            <div className="w-14 h-14 bg-cloud rounded-2xl flex items-center justify-center text-ink-300 mx-auto">
-              <Users size={28} />
+          <div className="py-12 sm:py-16 text-center space-y-2.5 sm:space-y-3 px-4">
+            <div className="w-12 h-12 sm:w-14 sm:h-14 bg-cloud rounded-2xl flex items-center justify-center text-ink-300 mx-auto">
+              <Users size={24} className="sm:w-7 sm:h-7" />
             </div>
-            <p className="font-extrabold text-ink text-base">Tidak Ada Data Absensi Found</p>
+            <p className="font-extrabold text-ink text-sm sm:text-base">Tidak Ada Data Absensi</p>
             <p className="text-xs text-ink-400 max-w-sm mx-auto">
               Tidak ditemukan data siswa yang cocok dengan filter tanggal ({filterDate}), kelas, atau kata kunci pencarian Anda.
             </p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead>
-                <tr className="bg-cloud/60 border-b border-ink/5 text-ink-400 font-bold uppercase text-[11px] tracking-wider">
-                  <th className="py-3.5 px-6">Siswa & NIS</th>
-                  <th className="py-3.5 px-4">Kelas</th>
-                  <th className="py-3.5 px-4">Status Absensi</th>
-                  <th className="py-3.5 px-4">Check-In / Out</th>
-                  <th className="py-3.5 px-4">Metode</th>
-                  <th className="py-3.5 px-6 text-right">Aksi Management</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-ink/5 font-semibold text-ink">
-                {paginatedItems.map((item) => {
-                  return (
-                    <tr key={item.studentId} className="hover:bg-cloud/40 transition-colors">
-                      {/* Siswa & NIS */}
-                      <td className="py-3.5 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky border border-sky/20 font-bold flex items-center justify-center shrink-0">
-                            {item.studentName.substring(0, 2).toUpperCase()}
+          <>
+            {/* MOBILE CARD VIEW: COMPACT, RICH & OVERFLOW-FREE (md:hidden) */}
+            <div className="p-3 sm:p-4 space-y-2.5 md:hidden">
+              {paginatedItems.map((item) => (
+                <div
+                  key={item.studentId}
+                  className="p-3 rounded-2xl bg-cloud/30 border border-ink/5 hover:border-sky/20 transition space-y-2"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                      <div className="w-8 h-8 rounded-xl bg-sky-50 text-sky border border-sky/20 font-bold text-xs flex items-center justify-center shrink-0">
+                        {item.studentName.substring(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-extrabold text-xs sm:text-sm text-ink truncate">{item.studentName}</p>
+                        <p className="text-[10px] font-mono text-ink-300">NIS: {item.nis} • <span className="font-bold text-ink-500">{item.className}</span></p>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      {item.status === "HADIR" && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-leaf-50 text-leaf border border-leaf-200">
+                          <CheckCircle2 size={11} /> HADIR
+                        </span>
+                      )}
+                      {item.status === "IZIN" && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky border border-sky-200">
+                          <Clock size={11} /> IZIN
+                        </span>
+                      )}
+                      {item.status === "SAKIT" && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                          <Clock size={11} /> SAKIT
+                        </span>
+                      )}
+                      {item.status === "ALPHA" && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-coral-50 text-coral border border-coral-200">
+                          <XCircle size={11} /> ALPHA
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1.5 border-t border-ink/5 text-[11px]">
+                    <div className="flex items-center gap-2 text-ink-400">
+                      <span>IN: <strong className="text-ink">{item.checkIn ? item.checkIn.substring(0, 5) : "-"}</strong></span>
+                      <span>•</span>
+                      <span>OUT: <strong className="text-ink">{item.checkOut ? item.checkOut.substring(0, 5) : "-"}</strong></span>
+                    </div>
+
+                    <button
+                      onClick={() => handleOpenEdit(item)}
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-sky-50 text-ink-400 hover:text-sky font-bold text-[11px] border border-ink/10 transition cursor-pointer shadow-2xs"
+                    >
+                      <Edit3 size={11} />
+                      <span>Edit</span>
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* DESKTOP TABLE VIEW (hidden md:block) */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs sm:text-sm">
+                <thead>
+                  <tr className="bg-cloud/60 border-b border-ink/5 text-ink-400 font-bold uppercase text-[11px] tracking-wider">
+                    <th className="py-3.5 px-6">Siswa & NIS</th>
+                    <th className="py-3.5 px-4">Kelas</th>
+                    <th className="py-3.5 px-4">Status Absensi</th>
+                    <th className="py-3.5 px-4">Check-In / Out</th>
+                    <th className="py-3.5 px-4">Metode</th>
+                    <th className="py-3.5 px-6 text-right">Aksi Management</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-ink/5 font-semibold text-ink">
+                  {paginatedItems.map((item) => {
+                    return (
+                      <tr key={item.studentId} className="hover:bg-cloud/40 transition-colors">
+                        {/* Siswa & NIS */}
+                        <td className="py-3.5 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-sky-50 text-sky border border-sky/20 font-bold flex items-center justify-center shrink-0">
+                              {item.studentName.substring(0, 2).toUpperCase()}
+                            </div>
+                            <div>
+                              <p className="font-extrabold text-ink text-sm leading-snug">
+                                {item.studentName}
+                              </p>
+                              <p className="text-[11px] font-mono text-ink-300">NIS: {item.nis}</p>
+                            </div>
+                          </div>
+                        </td>
+
+                        {/* Kelas */}
+                        <td className="py-3.5 px-4">
+                          <span className="px-2.5 py-1 rounded-xl bg-cloud border border-ink/5 text-ink-500 text-xs font-bold">
+                            {item.className}
+                          </span>
+                        </td>
+
+                        {/* Status Absensi */}
+                        <td className="py-3.5 px-4">
+                          {item.status === "HADIR" && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-leaf-50 text-leaf border border-leaf-200">
+                              <CheckCircle2 size={13} /> HADIR
+                            </span>
+                          )}
+                          {item.status === "IZIN" && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky border border-sky-200">
+                              <Clock size={13} /> IZIN
+                            </span>
+                          )}
+                          {item.status === "SAKIT" && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              <Clock size={13} /> SAKIT
+                            </span>
+                          )}
+                          {item.status === "ALPHA" && (
+                            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-coral-50 text-coral border border-coral-200">
+                              <XCircle size={13} /> ALPHA
+                            </span>
+                          )}
+
+                          {item.notes && (
+                            <p className="text-[11px] text-ink-400 font-normal italic mt-1 max-w-xs truncate">
+                              &quot;{item.notes}&quot;
+                            </p>
+                          )}
+                        </td>
+
+                        {/* Check-In / Out */}
+                        <td className="py-3.5 px-4 text-xs font-medium">
+                          <div>
+                            <span className="text-ink-300 font-mono text-[10px]">IN: </span>
+                            <span className="font-bold text-ink">{item.checkIn ? item.checkIn.substring(0, 5) : "-"}</span>
                           </div>
                           <div>
-                            <p className="font-extrabold text-ink text-sm leading-snug">
-                              {item.studentName}
-                            </p>
-                            <p className="text-[11px] font-mono text-ink-300">NIS: {item.nis}</p>
+                            <span className="text-ink-300 font-mono text-[10px]">OUT: </span>
+                            <span className="font-bold text-ink">{item.checkOut ? item.checkOut.substring(0, 5) : "-"}</span>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      {/* Kelas */}
-                      <td className="py-3.5 px-4">
-                        <span className="px-2.5 py-1 rounded-xl bg-cloud border border-ink/5 text-ink-500 text-xs font-bold">
-                          {item.className}
-                        </span>
-                      </td>
-
-                      {/* Status Absensi */}
-                      <td className="py-3.5 px-4">
-                        {item.status === "HADIR" && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-leaf-50 text-leaf border border-leaf-200">
-                            <CheckCircle2 size={13} /> HADIR
+                        {/* Metode */}
+                        <td className="py-3.5 px-4 text-xs text-ink-400">
+                          <span className="inline-flex items-center gap-1 font-semibold">
+                            <Sparkles size={12} className="text-sky" /> {item.method}
                           </span>
-                        )}
-                        {item.status === "IZIN" && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-sky-50 text-sky border border-sky-200">
-                            <Clock size={13} /> IZIN
-                          </span>
-                        )}
-                        {item.status === "SAKIT" && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-50 text-amber-700 border border-amber-200">
-                            <Clock size={13} /> SAKIT
-                          </span>
-                        )}
-                        {item.status === "ALPHA" && (
-                          <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-coral-50 text-coral border border-coral-200">
-                            <XCircle size={13} /> ALPHA
-                          </span>
-                        )}
+                        </td>
 
-                        {item.notes && (
-                          <p className="text-[11px] text-ink-400 font-normal italic mt-1 max-w-xs truncate">
-                            &quot;{item.notes}&quot;
-                          </p>
-                        )}
-                      </td>
-
-                      {/* Check-In / Out */}
-                      <td className="py-3.5 px-4 text-xs font-medium">
-                        <div>
-                          <span className="text-ink-300 font-mono text-[10px]">IN: </span>
-                          <span className="font-bold text-ink">{item.checkIn ? item.checkIn.substring(0, 5) : "-"}</span>
-                        </div>
-                        <div>
-                          <span className="text-ink-300 font-mono text-[10px]">OUT: </span>
-                          <span className="font-bold text-ink">{item.checkOut ? item.checkOut.substring(0, 5) : "-"}</span>
-                        </div>
-                      </td>
-
-                      {/* Metode */}
-                      <td className="py-3.5 px-4 text-xs text-ink-400">
-                        <span className="inline-flex items-center gap-1 font-semibold">
-                          <Sparkles size={12} className="text-sky" /> {item.method}
-                        </span>
-                      </td>
-
-                      {/* Action */}
-                      <td className="py-3.5 px-6 text-right">
-                        <button
-                          onClick={() => handleOpenEdit(item)}
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cloud hover:bg-sky-50 text-ink-400 hover:text-sky font-bold text-xs border border-ink/5 transition cursor-pointer"
-                        >
-                          <Edit3 size={14} />
-                          <span>Edit Status</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+                        {/* Action */}
+                        <td className="py-3.5 px-6 text-right">
+                          <button
+                            onClick={() => handleOpenEdit(item)}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-cloud hover:bg-sky-50 text-ink-400 hover:text-sky font-bold text-xs border border-ink/5 transition cursor-pointer"
+                          >
+                            <Edit3 size={14} />
+                            <span>Edit Status</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
 
         {/* Pagination Bar */}
