@@ -1,53 +1,27 @@
 "use client";
 
-import { Bell, Menu, LayoutDashboard, User, BookOpen, Megaphone, Car, Receipt, PiggyBank, Settings, LogOut } from "lucide-react";
 import { useEffect, useState } from "react";
-import { createParentClient } from "@/lib/supabase/client";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-
-interface NavItem {
-  href: string;
-  label: string;
-  icon: any;
-  color: string;
-  bgColor: string;
-}
-
-interface MenuGroup {
-  title: string;
-  items: NavItem[];
-}
-
-const MENU_GROUPS: MenuGroup[] = [
-  {
-    title: "Menu Utama",
-    items: [
-      { href: "/parent-portal", label: "Dashboard", icon: LayoutDashboard, color: "text-sky", bgColor: "bg-sky-50" },
-    ],
-  },
-  {
-    title: "Kesiswaan",
-    items: [
-      { href: "/parent-portal/profil-siswa", label: "Profil Siswa", icon: User, color: "text-leaf", bgColor: "bg-leaf-50" },
-      { href: "/parent-portal/classroom", label: "Classroom", icon: BookOpen, color: "text-gold", bgColor: "bg-gold-50" },
-      { href: "/parent-portal/informasi", label: "Informasi & Kegiatan", icon: Megaphone, color: "text-coral", bgColor: "bg-coral-50" },
-      { href: "/parent-portal/penjemputan", label: "Penjemputan", icon: Car, color: "text-purple-600", bgColor: "bg-purple-50" },
-    ],
-  },
-  {
-    title: "Finance",
-    items: [
-      { href: "/parent-portal/finance", label: "Keuangan & SPP", icon: Receipt, color: "text-sky-600", bgColor: "bg-sky-50" },
-      { href: "/parent-portal/tabungan", label: "Tabungan Siswa", icon: PiggyBank, color: "text-emerald-600", bgColor: "bg-emerald-50" },
-    ],
-  },
-];
+import { 
+  Bell, 
+  User, 
+  PiggyBank, 
+  KeyRound, 
+  HelpCircle, 
+  LogOut, 
+  ExternalLink,
+  Sparkles,
+  ChevronRight
+} from "lucide-react";
+import { createParentClient } from "@/lib/supabase/client";
+import { getCompleteStudentProfile } from "@/app/parent-portal/server-actions";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
 export function ParentTopNav() {
   const [userName, setUserName] = useState("Orang Tua");
+  const [student, setStudent] = useState<any>(null);
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
@@ -55,113 +29,244 @@ export function ParentTopNav() {
   const supabase = createParentClient();
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user?.user_metadata?.full_name) {
-        setUserName(session.user.user_metadata.full_name);
+    const fetchUserData = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        const user = session.user;
+        if (user?.user_metadata?.full_name) {
+          setUserName(user.user_metadata.full_name);
+        }
+
+        const studentIdMeta = user.user_metadata?.student_id;
+        const email = user.email;
+
+        const res = await getCompleteStudentProfile(email, studentIdMeta);
+        if (res.success) {
+          if (res.student) {
+            setStudent(res.student);
+          } else if (res.applicant) {
+            setStudent({
+              full_name: res.applicant.student_name,
+              nis: res.applicant.nisn || "-",
+              school_classes: null,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching ParentTopNav profile:", err);
       }
     };
-    fetchUser();
+
+    fetchUserData();
   }, [supabase]);
-
-  const getInitials = (name: string) => {
-    return name.substring(0, 2).toUpperCase();
-  };
-
-  const isActive = (path: string) => {
-    if (path === "/parent-portal") return pathname === path;
-    return pathname.startsWith(path);
-  };
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
-    const isSubdomain = window.location.hostname.startsWith('parent.');
-    router.push(isSubdomain ? '/login' : '/parent-portal/login');
+    const isSubdomain = window.location.hostname.startsWith("parent.");
+    router.push(isSubdomain ? "/login" : "/parent-portal/login");
   };
 
+  const getInitials = (name: string) => {
+    if (!name) return "OT";
+    return name
+      .split(" ")
+      .filter(Boolean)
+      .map((w) => w[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+  };
+
+  const studentName = student?.full_name || "Siswa JACOS";
+  const studentInitials = getInitials(studentName);
+  const className = Array.isArray(student?.school_classes)
+    ? student?.school_classes[0]?.name
+    : student?.school_classes?.name || "Kelas Aktif";
+
   return (
-    <header className="h-20 bg-white border-b border-ink/5 px-6 lg:px-10 flex items-center justify-between sticky top-0 z-20">
-      <div className="flex items-center gap-4 flex-1">
-        {/* Mobile Sidebar via Sheet */}
-        <div className="lg:hidden">
-          <Sheet open={open} onOpenChange={setOpen}>
-            <SheetTrigger className="w-10 h-10 flex items-center justify-center rounded-xl border border-ink/10 text-ink-400">
-              <Menu size={20} />
-            </SheetTrigger>
-            <SheetContent side="left" className="w-80 p-0 flex flex-col bg-white">
-              <div className="px-8 py-8 border-b border-ink/5">
-                <Link href="/parent-portal" className="flex items-center gap-2.5" onClick={() => setOpen(false)}>
-                  <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={150} height={40} style={{ width: "auto", height: "auto" }} className="dark:hidden object-contain" />
-                  <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={140} height={40} style={{ width: "auto", height: "auto" }} className="hidden dark:block object-contain" />
-                </Link>
-              </div>
+    <header className="h-20 lg:h-20 bg-white/90 backdrop-blur-md border-b border-ink/5 px-4 sm:px-6 lg:px-10 flex items-center justify-between sticky top-0 z-30">
+      {/* LEFT AREA */}
+      <div className="flex items-center gap-3">
+        {/* Mobile Brand Logo */}
+        <Link href="/parent-portal" className="flex items-center gap-2 lg:hidden">
+          <Image 
+            src="/publicjacos/logo.png" 
+            alt="JACOS Logo" 
+            width={120} 
+            height={38} 
+            style={{ width: "auto", height: "38px" }} 
+            className="dark:hidden object-contain" 
+            priority
+          />
+          <Image 
+            src="/publicjacos/logoputih.png" 
+            alt="JACOS Logo" 
+            width={120} 
+            height={38} 
+            style={{ width: "auto", height: "38px" }} 
+            className="hidden dark:block object-contain" 
+            priority
+          />
+        </Link>
 
-              <div className="flex-1 px-4 py-6 overflow-y-auto space-y-6">
-                {MENU_GROUPS.map((group, gIdx) => (
-                  <div key={gIdx} className="space-y-1.5">
-                    <p className="px-4 text-xs font-bold text-ink-300 uppercase tracking-wider mb-2">{group.title}</p>
-                    {group.items.map((item) => {
-                      const active = isActive(item.href);
-                      return (
-                        <Link 
-                          key={item.href} 
-                          href={item.href}
-                          onClick={() => setOpen(false)}
-                          className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${
-                            active 
-                              ? "bg-sky-50 text-sky font-bold" 
-                              : "text-ink-400 hover:bg-cloud hover:text-ink font-semibold"
-                          }`}
-                        >
-                          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${active ? item.bgColor + " " + item.color : "bg-white border border-ink/10 text-ink-400"}`}>
-                            <item.icon size={18} />
-                          </div>
-                          <span className="text-sm font-semibold">{item.label}</span>
-                        </Link>
-                      );
-                    })}
-                  </div>
-                ))}
-              </div>
-
-              <div className="p-4 border-t border-ink/5">
-                <Link href="/parent-portal/settings" onClick={() => setOpen(false)} className="flex items-center gap-3 px-4 py-3 rounded-2xl text-ink-400 hover:bg-cloud hover:text-ink font-semibold transition-all">
-                  <Settings size={18} />
-                  <span className="text-md">Pengaturan</span>
-                </Link>
-                <button 
-                  onClick={() => {
-                    setOpen(false);
-                    handleLogout();
-                  }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-coral hover:bg-coral-50 hover:text-coral-600 font-semibold transition-all mt-1"
-                >
-                  <LogOut size={18} />
-                  <span className="text-md">Keluar</span>
-                </button>
-              </div>
-            </SheetContent>
-          </Sheet>
+        {/* Desktop Greeting */}
+        <div className="hidden lg:block">
+          <p className="text-xs font-bold text-ink-300 uppercase tracking-wider">Selamat Datang,</p>
+          <h2 className="text-base font-bold text-ink truncate max-w-sm">{userName}</h2>
         </div>
       </div>
-      
-      <div className="flex items-center gap-5">
-        <button className="relative w-10 h-10 flex items-center justify-center rounded-xl hover:bg-cloud transition-colors text-ink-400">
-          <Bell size={20} />
+
+      {/* RIGHT AREA */}
+      <div className="flex items-center gap-2.5 sm:gap-4">
+        {/* Notification / Info Link */}
+        <Link 
+          href="/parent-portal/informasi"
+          className="relative w-10 h-10 flex items-center justify-center rounded-xl hover:bg-cloud active:scale-95 transition-all text-ink-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky"
+          aria-label="Pengumuman & Notifikasi"
+        >
+          <Bell size={19} />
           <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-coral border-2 border-white"></span>
-        </button>
-        
-        <div className="h-8 w-px bg-ink/10 hidden sm:block"></div>
-        
-        <div className="flex items-center gap-3 cursor-pointer">
-          <div className="text-right hidden sm:block">
-            <p className="text-sm font-bold text-ink">{userName}</p>
-            <p className="text-[11px] font-semibold text-ink-300 uppercase tracking-wider">Parent Portal</p>
-          </div>
-          <div className="w-10 h-10 rounded-xl bg-sky flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
-            {getInitials(userName)}
-          </div>
-        </div>
+        </Link>
+
+        <div className="h-6 w-px bg-ink/10 hidden sm:block"></div>
+
+        {/* Profile Sheet Trigger (Accessible on Mobile & Desktop) */}
+        <Sheet open={open} onOpenChange={setOpen}>
+          <SheetTrigger
+            className="flex items-center gap-2.5 p-1 sm:p-1.5 rounded-2xl hover:bg-cloud/80 border border-ink/5 sm:border-ink/10 transition-all text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-sky cursor-pointer"
+            aria-label="Buka Menu Akun & Layanan Siswa"
+          >
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-sky to-sky-600 flex items-center justify-center text-white font-bold text-xs shadow-xs shrink-0">
+              {studentInitials}
+            </div>
+            <div className="hidden sm:block text-right pr-1">
+              <p className="text-xs font-bold text-ink leading-tight truncate max-w-[130px]">{studentName}</p>
+              <p className="text-[10px] font-semibold text-ink-300 uppercase tracking-wider">{className}</p>
+            </div>
+          </SheetTrigger>
+
+          <SheetContent side="right" className="w-full max-w-xs sm:max-w-sm p-0 flex flex-col bg-white">
+            <SheetHeader className="p-6 border-b border-ink/5 text-left">
+              <SheetTitle className="text-base font-bold text-ink">Akun & Layanan Siswa</SheetTitle>
+              <p className="text-xs text-ink-400">Kelola profil siswa, tabungan, dan pengaturan akun.</p>
+            </SheetHeader>
+
+            <div className="flex-1 overflow-y-auto p-5 space-y-6">
+              {/* Student Summary Card */}
+              <div className="p-4 rounded-2xl bg-gradient-to-br from-sky-50 to-blue-50/50 border border-sky/15 space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-sky flex items-center justify-center text-white font-bold text-lg shadow-sm">
+                    {studentInitials}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-sky-700 bg-sky-100 px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                        <Sparkles size={10} /> Siswa Aktif
+                      </span>
+                    </div>
+                    <h3 className="font-bold text-ink text-sm truncate mt-1">{studentName}</h3>
+                    <p className="text-xs text-ink-400">{className}</p>
+                  </div>
+                </div>
+
+                <Link
+                  href="/parent-portal/profil-siswa"
+                  onClick={() => setOpen(false)}
+                  className="w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl bg-white border border-sky/20 text-sky text-xs font-bold shadow-2xs hover:bg-sky-50 transition"
+                >
+                  <span className="flex items-center gap-2">
+                    <User size={15} />
+                    Lihat Profil & Kartu Pelajar
+                  </span>
+                  <ChevronRight size={14} />
+                </Link>
+              </div>
+
+              {/* Quick Navigation Items */}
+              <div className="space-y-1.5">
+                <p className="text-[11px] font-bold text-ink-300 uppercase tracking-wider px-2 mb-2">
+                  Layanan Terintegrasi
+                </p>
+
+                <Link
+                  href="/parent-portal/tabungan"
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center justify-between px-3.5 py-3 rounded-xl transition-all ${
+                    pathname.startsWith("/parent-portal/tabungan")
+                      ? "bg-emerald-50 text-emerald-700 font-bold"
+                      : "text-ink hover:bg-cloud hover:text-ink font-semibold text-sm"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center">
+                      <PiggyBank size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-ink">Buku Tabungan Siswa</p>
+                      <p className="text-[10.5px] text-ink-400 font-normal">Pantau saldo & setor tabungan</p>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-ink-300" />
+                </Link>
+
+                <Link
+                  href="/parent-portal/change-password"
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center justify-between px-3.5 py-3 rounded-xl transition-all ${
+                    pathname.startsWith("/parent-portal/change-password")
+                      ? "bg-sky-50 text-sky font-bold"
+                      : "text-ink hover:bg-cloud hover:text-ink font-semibold text-sm"
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-sky-50 text-sky flex items-center justify-center">
+                      <KeyRound size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-ink">Ganti Password</p>
+                      <p className="text-[10.5px] text-ink-400 font-normal">Keamanan & kata sandi akun</p>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-ink-300" />
+                </Link>
+
+                <a
+                  href="https://wa.me/628123456789"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between px-3.5 py-3 rounded-xl text-ink hover:bg-cloud font-semibold text-sm transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-600 flex items-center justify-center">
+                      <HelpCircle size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-ink">Bantuan Sekolah</p>
+                      <p className="text-[10.5px] text-ink-400 font-normal">Hubungi tata usaha / admin</p>
+                    </div>
+                  </div>
+                  <ExternalLink size={13} className="text-ink-300" />
+                </a>
+              </div>
+            </div>
+
+            {/* Logout Footer */}
+            <div className="p-5 border-t border-ink/5 bg-cloud/30">
+              <button
+                onClick={() => {
+                  setOpen(false);
+                  handleLogout();
+                }}
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-coral-50 hover:bg-coral-100 text-coral-600 font-bold text-xs transition active:scale-98"
+              >
+                <LogOut size={15} />
+                Keluar dari Portal
+              </button>
+            </div>
+          </SheetContent>
+        </Sheet>
       </div>
     </header>
   );

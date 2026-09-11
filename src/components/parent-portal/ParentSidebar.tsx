@@ -3,7 +3,17 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, User, BookOpen, Megaphone, Car, Receipt, PiggyBank, Settings, LogOut } from "lucide-react";
+import { 
+  LayoutDashboard, 
+  User, 
+  BookOpen, 
+  Megaphone, 
+  Car, 
+  Receipt, 
+  PiggyBank, 
+  KeyRound, 
+  LogOut 
+} from "lucide-react";
 
 interface NavItem {
   href: string;
@@ -55,8 +65,8 @@ export function ParentSidebar({ onLogout }: { onLogout?: () => void }) {
     <aside className="hidden lg:flex w-82 bg-white border-r border-ink/10 flex-col h-screen sticky top-0 shrink-0">
       <div className="px-8 py-8 border-b border-ink/5">
         <Link href="/parent-portal" className="flex items-center gap-2.5">
-          <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={150} height={40} style={{ width: "auto", height: "auto" }} className="dark:hidden object-contain" />
-          <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={140} height={40} style={{ width: "auto", height: "auto" }} className="hidden dark:block object-contain" />
+          <Image src="/publicjacos/logo.png" alt="JACOS Logo" width={150} height={40} style={{ width: "auto", height: "auto" }} className="dark:hidden object-contain" priority />
+          <Image src="/publicjacos/logoputih.png" alt="JACOS Logo" width={140} height={40} style={{ width: "auto", height: "auto" }} className="hidden dark:block object-contain" priority />
         </Link>
       </div>
 
@@ -88,16 +98,23 @@ export function ParentSidebar({ onLogout }: { onLogout?: () => void }) {
       </div>
 
       <div className="p-4 border-t border-ink/5">
-        <Link href="/parent-portal/settings" className="flex items-center gap-3 px-4 py-3 rounded-2xl text-ink-400 hover:bg-cloud hover:text-ink font-semibold transition-all">
-          <Settings size={18} />
-          <span className="text-md">Pengaturan</span>
+        <Link 
+          href="/parent-portal/change-password" 
+          className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all ${
+            pathname.startsWith("/parent-portal/change-password")
+              ? "bg-sky-50 text-sky font-bold"
+              : "text-ink-400 hover:bg-cloud hover:text-ink font-semibold"
+          }`}
+        >
+          <KeyRound size={18} />
+          <span className="text-sm">Ganti Password</span>
         </Link>
         <button 
           onClick={onLogout}
           className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-coral hover:bg-coral-50 hover:text-coral-600 font-semibold transition-all mt-1"
         >
           <LogOut size={18} />
-          <span className="text-md">Keluar</span>
+          <span className="text-sm">Keluar</span>
         </button>
       </div>
     </aside>

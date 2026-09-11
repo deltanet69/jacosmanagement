@@ -20,20 +20,20 @@ import Image from "next/image";
 
 function SkeletonCard() {
   return (
-    <div className="animate-pulse space-y-6">
-      <div className="bg-white rounded-3xl p-6 border border-gray-100 shadow-sm space-y-4">
-        <div className="flex items-center gap-4">
-          <div className="w-20 h-20 rounded-2xl bg-gray-200" />
+    <div className="animate-pulse space-y-4">
+      <div className="bg-white rounded-3xl p-5 border border-gray-100 shadow-2xs space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-16 h-16 rounded-2xl bg-gray-200" />
           <div className="space-y-2 flex-1">
-            <div className="h-5 bg-gray-200 rounded w-40" />
-            <div className="h-4 bg-gray-100 rounded w-24" />
+            <div className="h-4 bg-gray-200 rounded w-36" />
+            <div className="h-3 bg-gray-100 rounded w-20" />
           </div>
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="space-y-1">
-              <div className="h-3 bg-gray-100 rounded w-20" />
-              <div className="h-4 bg-gray-200 rounded w-28" />
+              <div className="h-2.5 bg-gray-100 rounded w-16" />
+              <div className="h-3.5 bg-gray-200 rounded w-24" />
             </div>
           ))}
         </div>
@@ -60,14 +60,12 @@ export default function ProfilSiswaPage() {
         const studentIdMeta = user.user_metadata?.student_id;
         const email = user.email;
 
-        // Fetch securely using server action to bypass RLS issues for parent
         const res = await getCompleteStudentProfile(email, studentIdMeta);
 
         if (res.success) {
           let loadedStudent = res.student;
           let loadedApplicant = res.applicant;
 
-          // --- Enrich student with applicant data if student fields are missing ---
           if (loadedStudent && loadedApplicant) {
             loadedStudent = {
               ...loadedStudent,
@@ -78,7 +76,6 @@ export default function ProfilSiswaPage() {
             };
           }
 
-          // --- If still no student, build a virtual record from applicant data ---
           if (!loadedStudent && loadedApplicant) {
             loadedStudent = {
               id: null,
@@ -112,12 +109,12 @@ export default function ProfilSiswaPage() {
 
   if (!student) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-center gap-3">
-        <div className="w-16 h-16 rounded-full bg-amber-50 flex items-center justify-center">
-          <User size={28} className="text-amber-400" />
+      <div className="flex flex-col items-center justify-center py-16 text-center gap-2.5">
+        <div className="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center">
+          <User size={24} className="text-amber-500" />
         </div>
-        <p className="font-bold text-gray-700">Data siswa belum tersedia</p>
-        <p className="text-sm text-gray-400 max-w-xs">
+        <p className="font-bold text-gray-800 text-sm">Data siswa belum tersedia</p>
+        <p className="text-xs text-gray-400 max-w-xs">
           Data siswa akan muncul setelah proses penerimaan selesai dan diverifikasi admin.
         </p>
       </div>
@@ -125,7 +122,7 @@ export default function ProfilSiswaPage() {
   }
 
   const studentName = student.full_name || "—";
-  const initials = studentName.split(" ").map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
+  const initials = studentName.split(" ").filter(Boolean).map((w: string) => w[0]).slice(0, 2).join("").toUpperCase();
 
   const className =
     Array.isArray(student.school_classes)
@@ -150,7 +147,7 @@ export default function ProfilSiswaPage() {
   const birthDate = student.birth_date
     ? new Date(student.birth_date).toLocaleDateString("id-ID", {
         day: "numeric",
-        month: "long",
+        month: "short",
         year: "numeric",
       })
     : "—";
@@ -159,7 +156,6 @@ export default function ProfilSiswaPage() {
     ? student.birth_place
     : null;
 
-  // Gradient avatar colors based on program
   const avatarGradient =
     student.program === "PRESCHOOL"
       ? "from-orange-400 to-amber-500"
@@ -177,10 +173,10 @@ export default function ProfilSiswaPage() {
   const fields = [
     { label: "NIS / NISN", value: `${student.nis || "—"} / ${student.nisn || applicant?.nisn || "—"}`, icon: Hash },
     { label: "Kelas & Program", value: `${className ? className + " · " : ""}${programLabel[student.program] || student.program || "—"}`, icon: GraduationCap },
-    { label: "Tempat, Tanggal Lahir", value: birthPlace ? `${birthPlace}, ${birthDate}` : birthDate, icon: Calendar },
+    { label: "TTL", value: birthPlace ? `${birthPlace}, ${birthDate}` : birthDate, icon: Calendar },
     { label: "Jenis Kelamin", value: genderLabel, icon: VenetianMask },
     ...(applicant?.height || applicant?.weight
-      ? [{ label: "Tinggi / Berat Badan", value: `${applicant.height ? applicant.height + " cm" : "—"} / ${applicant.weight ? applicant.weight + " kg" : "—"}`, icon: HeartPulse }]
+      ? [{ label: "TB / BB", value: `${applicant.height ? applicant.height + " cm" : "—"} / ${applicant.weight ? applicant.weight + " kg" : "—"}`, icon: HeartPulse }]
       : []),
     ...(applicant?.blood_type
       ? [{ label: "Gol. Darah", value: applicant.blood_type, icon: HeartPulse }]
@@ -194,60 +190,60 @@ export default function ProfilSiswaPage() {
   ];
 
   return (
-    <div className="space-y-6 max-w-2xl mx-auto lg:max-w-none">
+    <div className="space-y-5 sm:space-y-6 max-w-full mx-auto">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Profil Siswa</h1>
-        <p className="text-sm text-gray-500 mt-0.5">Data akademik dan kartu identitas digital siswa.</p>
+        <h1 className="font-display text-xl sm:text-2xl font-bold text-gray-900">Profil Siswa</h1>
+        <p className="text-xs text-gray-500 mt-0.5">Data akademik dan kartu identitas digital siswa.</p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 sm:gap-6">
         {/* LEFT: Profile Card */}
-        <div className="lg:col-span-3 space-y-5">
+        <div className="lg:col-span-3 space-y-4">
           {/* Identity Card */}
-          <div className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-3xl shadow-2xs border border-gray-100 overflow-hidden">
             {/* Avatar banner */}
-            <div className={`bg-gradient-to-r ${avatarGradient} h-24 relative`}>
-              <div className="absolute -bottom-10 left-6">
-                <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white font-bold text-2xl shadow-lg border-4 border-white`}>
+            <div className={`bg-gradient-to-r ${avatarGradient} h-20 sm:h-24 relative`}>
+              <div className="absolute -bottom-8 left-5">
+                <div className={`w-16 h-16 sm:w-20 sm:h-20 rounded-2xl bg-gradient-to-br ${avatarGradient} flex items-center justify-center text-white font-bold text-xl sm:text-2xl shadow-md border-3 border-white`}>
                   {initials}
                 </div>
               </div>
             </div>
 
-            <div className="pt-14 pb-6 px-6">
+            <div className="pt-10 pb-5 px-5 sm:px-6">
               <div className="flex items-start justify-between gap-2 flex-wrap">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">{studentName}</h2>
-                  <p className="text-sm text-gray-500 mt-0.5">
+                <div className="min-w-0 flex-1">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">{studentName}</h2>
+                  <p className="text-xs text-gray-500 mt-0.5 truncate">
                     {className || (programLabel[student.program] || student.program || "Program Umum")}
                   </p>
                 </div>
-                <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${accentColor}`}>
-                  <Sparkles size={11} />
+                <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border shrink-0 ${accentColor}`}>
+                  <Sparkles size={10} />
                   Siswa Aktif
                 </span>
               </div>
 
               {student._fromApplicant && (
-                <div className="mt-4 px-4 py-3 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-2">
-                  <span className="text-amber-500 text-lg">⚠️</span>
-                  <p className="text-xs text-amber-700 font-medium">
-                    Siswa belum mendapat NIS. Data diambil dari formulir pendaftaran. NIS akan ditetapkan setelah orientasi.
+                <div className="mt-3 px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-2xl flex items-start gap-2">
+                  <span className="text-amber-500 text-sm mt-0.5">⚠️</span>
+                  <p className="text-[11px] text-amber-800 font-medium leading-relaxed">
+                    Siswa belum mendapat NIS. Data diambil dari formulir pendaftaran. NIS akan ditetapkan setelah masa orientasi.
                   </p>
                 </div>
               )}
 
-              {/* Fields Grid */}
-              <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* 2-Column Fields Grid */}
+              <div className="mt-4 grid grid-cols-2 gap-2 sm:gap-3">
                 {fields.map((f) => (
-                  <div key={f.label} className="flex items-start gap-3 p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                    <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center shadow-sm border border-gray-100 shrink-0">
-                      <f.icon size={15} className="text-gray-400" />
+                  <div key={f.label} className="p-2.5 sm:p-3 rounded-2xl bg-gray-50 border border-gray-100 flex items-start gap-2 min-w-0">
+                    <div className="w-7 h-7 rounded-lg bg-white flex items-center justify-center shadow-2xs border border-gray-100 shrink-0 text-gray-400">
+                      <f.icon size={13} />
                     </div>
-                    <div className="min-w-0">
-                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{f.label}</p>
-                      <p className="text-sm font-semibold text-gray-800 mt-0.5 break-words">{f.value}</p>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[9.5px] font-bold text-gray-400 uppercase tracking-wider truncate">{f.label}</p>
+                      <p className="text-xs font-semibold text-gray-800 mt-0.5 line-clamp-2 break-words leading-tight">{f.value}</p>
                     </div>
                   </div>
                 ))}
@@ -255,30 +251,30 @@ export default function ProfilSiswaPage() {
             </div>
           </div>
 
-          {/* Medical Info (if available) */}
+          {/* Medical Info */}
           {(applicant?.allergies_special_needs || applicant?.medical_history || applicant?.emergency_contact_name) && (
-            <div className="bg-white rounded-3xl shadow-sm border border-gray-100 p-6 space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <HeartPulse size={16} className="text-rose-500" />
-                <h3 className="font-bold text-gray-800 text-sm uppercase tracking-wider">Informasi Medis & Darurat</h3>
+            <div className="bg-white rounded-3xl shadow-2xs border border-gray-100 p-4 sm:p-5 space-y-3">
+              <div className="flex items-center gap-2">
+                <HeartPulse size={15} className="text-rose-500" />
+                <h3 className="font-bold text-gray-800 text-xs uppercase tracking-wider">Informasi Medis & Darurat</h3>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                 {applicant?.allergies_special_needs && applicant.allergies_special_needs !== "Tidak ada" && (
-                  <div className="p-3 bg-rose-50 border border-rose-100 rounded-2xl">
-                    <p className="text-[10px] font-bold text-rose-400 uppercase tracking-wider">Alergi / Kebutuhan Khusus</p>
-                    <p className="text-sm font-semibold text-rose-800 mt-0.5">{applicant.allergies_special_needs}</p>
+                  <div className="p-2.5 bg-rose-50 border border-rose-100 rounded-xl">
+                    <p className="text-[9.5px] font-bold text-rose-400 uppercase tracking-wider">Alergi / Kebutuhan</p>
+                    <p className="text-xs font-semibold text-rose-800 mt-0.5">{applicant.allergies_special_needs}</p>
                   </div>
                 )}
                 {applicant?.medical_history && applicant.medical_history !== "Tidak ada" && (
-                  <div className="p-3 bg-orange-50 border border-orange-100 rounded-2xl">
-                    <p className="text-[10px] font-bold text-orange-400 uppercase tracking-wider">Riwayat Medis</p>
-                    <p className="text-sm font-semibold text-orange-800 mt-0.5">{applicant.medical_history}</p>
+                  <div className="p-2.5 bg-orange-50 border border-orange-100 rounded-xl">
+                    <p className="text-[9.5px] font-bold text-orange-400 uppercase tracking-wider">Riwayat Medis</p>
+                    <p className="text-xs font-semibold text-orange-800 mt-0.5">{applicant.medical_history}</p>
                   </div>
                 )}
                 {applicant?.emergency_contact_name && (
-                  <div className="p-3 bg-blue-50 border border-blue-100 rounded-2xl sm:col-span-2">
-                    <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Kontak Darurat</p>
-                    <p className="text-sm font-semibold text-blue-800 mt-0.5">
+                  <div className="p-2.5 bg-blue-50 border border-blue-100 rounded-xl sm:col-span-2">
+                    <p className="text-[9.5px] font-bold text-blue-400 uppercase tracking-wider">Kontak Darurat</p>
+                    <p className="text-xs font-semibold text-blue-800 mt-0.5">
                       {applicant.emergency_contact_name}
                       {applicant.emergency_contact_relation ? ` (${applicant.emergency_contact_relation})` : ""}
                       {applicant.emergency_contact_phone ? ` · ${applicant.emergency_contact_phone}` : ""}
@@ -291,70 +287,70 @@ export default function ProfilSiswaPage() {
         </div>
 
         {/* RIGHT: Digital Cards */}
-        <div className="lg:col-span-2 space-y-5">
-          <h2 className="font-bold text-gray-700 flex items-center gap-2 text-sm uppercase tracking-wider">
-            <CreditCard size={16} className="text-blue-500" />
-            Kartu Digital
+        <div className="lg:col-span-2 space-y-4">
+          <h2 className="font-bold text-gray-700 flex items-center gap-1.5 text-xs uppercase tracking-wider">
+            <CreditCard size={15} className="text-blue-500" />
+            Kartu Digital Siswa
           </h2>
 
           {/* Kartu Pelajar */}
-          <div className={`relative bg-gradient-to-br ${avatarGradient} rounded-3xl p-6 text-white shadow-lg overflow-hidden`}>
-            <div className="absolute -top-8 -right-8 w-32 h-32 bg-white/10 rounded-full" />
-            <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-white/10 rounded-full" />
+          <div className={`relative bg-gradient-to-br ${avatarGradient} rounded-3xl p-5 text-white shadow-md overflow-hidden`}>
+            <div className="absolute -top-6 -right-6 w-28 h-28 bg-white/10 rounded-full" />
             <div className="relative z-10">
-              <div className="flex justify-between items-start mb-8">
+              <div className="flex justify-between items-start mb-6">
                 <div>
-                  <p className="text-[10px] font-bold tracking-widest uppercase opacity-80">JACOS Islamic School</p>
-                  <p className="font-bold text-lg mt-0.5">Kartu Pelajar</p>
+                  <p className="text-[9.5px] font-bold tracking-widest uppercase opacity-80">JACOS Islamic School</p>
+                  <p className="font-bold text-base mt-0.5">Kartu Pelajar</p>
                 </div>
                 <Image
                   src="/publicjacos/logoputih.png"
                   alt="JACOS"
-                  width={56}
-                  height={56}
+                  width={50}
+                  height={30}
                   className="opacity-90 object-contain"
-                  style={{ width: "auto", height: "40px" }}
+                  style={{ width: "auto", height: "30px" }}
                 />
               </div>
-              <div className="flex items-end justify-between">
-                <div>
-                  <p className="font-bold text-base">{studentName}</p>
-                  <p className="text-white/75 text-xs font-medium mt-0.5">
+              <div className="flex items-end justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-sm truncate">{studentName}</p>
+                  <p className="text-white/80 text-[11px] font-medium mt-0.5 truncate">
                     {student.nis ? `NIS: ${student.nis}` : "NIS belum ditetapkan"}
                   </p>
-                  <p className="text-white/60 text-xs mt-0.5">
+                  <p className="text-white/60 text-[10px] truncate">
                     {className || (programLabel[student.program] || student.program)}
                   </p>
                 </div>
-                <button className="w-9 h-9 rounded-full bg-white/20 hover:bg-white hover:text-blue-700 text-white flex items-center justify-center transition-all border border-white/20 backdrop-blur-sm">
-                  <Download size={16} />
+                <button 
+                  className="w-8 h-8 rounded-full bg-white/20 hover:bg-white hover:text-blue-700 text-white flex items-center justify-center transition-all border border-white/20 shrink-0"
+                  aria-label="Download Kartu Pelajar"
+                >
+                  <Download size={14} />
                 </button>
               </div>
             </div>
           </div>
 
-          {/* Kartu Ujian - Locked */}
-          <div className="relative bg-gray-50 rounded-3xl border border-gray-200 p-6 overflow-hidden">
-            {/* Blur overlay */}
-            <div className="absolute inset-0 bg-white/70 backdrop-blur-[3px] z-20 flex flex-col items-center justify-center text-center p-4">
-              <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mb-2">
-                <Lock size={18} className="text-gray-400" />
+          {/* Kartu Ujian (Locked) */}
+          <div className="relative bg-gray-50 rounded-3xl border border-gray-200 p-5 overflow-hidden">
+            <div className="absolute inset-0 bg-white/70 backdrop-blur-[2px] z-20 flex flex-col items-center justify-center text-center p-3">
+              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mb-1 text-gray-400">
+                <Lock size={15} />
               </div>
-              <p className="font-bold text-gray-600 text-sm">Kartu Ujian Belum Tersedia</p>
-              <p className="text-xs text-gray-400 mt-1 max-w-[200px]">
-                Akan aktif saat periode ujian dimulai.
+              <p className="font-bold text-gray-700 text-xs">Kartu Ujian Belum Aktif</p>
+              <p className="text-[10px] text-gray-400 mt-0.5">
+                Aktif saat periode ujian semester dimulai.
               </p>
             </div>
             <div className="opacity-30">
-              <div className="flex justify-between items-start mb-8">
+              <div className="flex justify-between items-start mb-4">
                 <div>
-                  <p className="text-[10px] font-bold tracking-widest uppercase text-gray-400">Semester Ganjil 2026</p>
-                  <p className="font-bold text-lg text-gray-700">Kartu Ujian</p>
+                  <p className="text-[9px] font-bold tracking-wider uppercase text-gray-400">Semester 2026/2027</p>
+                  <p className="font-bold text-sm text-gray-700">Kartu Ujian</p>
                 </div>
-                <CreditCard size={22} className="text-gray-300" />
+                <CreditCard size={18} className="text-gray-300" />
               </div>
-              <p className="font-bold text-gray-700">{studentName}</p>
-              <div className="h-2 w-24 bg-gray-200 rounded-full mt-2" />
+              <p className="font-bold text-xs text-gray-700 truncate">{studentName}</p>
             </div>
           </div>
         </div>
