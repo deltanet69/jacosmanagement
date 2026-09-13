@@ -4,7 +4,21 @@ import { cache } from 'react';
 import { createAdminClient } from '@/lib/supabase/server';
 import { Resend } from 'resend';
 import { revalidatePath } from 'next/cache';
-import { memoryRegistrations, memorySetting, globalForOpenHouse, type OpenHouseLead, type OpenHouseSetting } from './memory-store';
+import {
+  memoryRegistrations,
+  memorySetting,
+  globalForOpenHouse,
+  type OpenHouseLead,
+  type OpenHouseSetting,
+} from './memory-store';
+import {
+  DEFAULT_JACOS_EVENT_ID,
+  DEFAULT_JACOS_EVENT_SLUG,
+  resolveLeadEvent,
+  embedEventTag,
+  memoryEvents,
+} from './event-store';
+
 export type { OpenHouseLead, OpenHouseSetting };
 
 function getResend() {
@@ -24,29 +38,70 @@ export interface OpenHouseStats {
   followUpProgress: number;
 }
 
-
 /**
- * 1. Ambil Semua Data Pendaftaran Open House & Statistik
+ * 1. Ambil Data Pendaftaran Open House & Statistik (Opsional: difilter per-event)
  */
-export const getOpenHouseRegistrations = cache(async function getOpenHouseRegistrations(): Promise<{
+export const getOpenHouseRegistrations = cache(async function getOpenHouseRegistrations(eventId?: string): Promise<{
   registrations: OpenHouseLead[];
   stats: OpenHouseStats;
   setting: OpenHouseSetting;
 }> {
   try {
     const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from('open_house_registrations')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const query = supabase.from('open_house_registrations').select('*').order('created_at', { ascending: false });
+
+    const { data, error } = await query;
+
+    // Kumpulkan semua event yang ada (DB + Memory) untuk resolusi event lead
+    let currentEvents = [...memoryEvents];
+    try {
+      const { data: dbEvents } = await supabase.from('open_house_events').select('*');
+      if (dbEvents && dbEvents.length > 0) {
+        for (const evt of dbEvents) {
+          if (!currentEvents.find((e) => e.id === evt.id || e.slug === evt.slug)) {
+            currentEvents.push(evt as any);
+          }
+        }
+      }
+    } catch {}
+
+    // Resolusi leads dari Supabase (termasuk deteksi event tag & jadwal tanggal)
+    const resolvedDbLeads: OpenHouseLead[] = (data || []).map((row: any) => {
+      const { event_id, event_slug, cleanNotes } = resolveLeadEvent(row, currentEvents);
+      return {
+        ...row,
+        event_id,
+        event_slug,
+        follow_up_notes: cleanNotes,
+      };
+    });
+
+    // Gabungkan dengan memoryRegistrations jika ada (untuk data lokal / fallback)
+    const combinedList = [...resolvedDbLeads];
+    for (const mem of memoryRegistrations) {
+      if (!combinedList.find((c) => c.id === mem.id || (c.ticket_code && c.ticket_code === mem.ticket_code))) {
+        const { event_id, event_slug, cleanNotes } = resolveLeadEvent(mem, currentEvents);
+        combinedList.push({
+          ...mem,
+          event_id,
+          event_slug,
+          follow_up_notes: cleanNotes,
+        });
+      }
+    }
 
     let list: OpenHouseLead[] = [];
 
-    if (error || !data) {
-      console.warn('[OpenHouse Admin] Supabase query note (using memory/fallback):', error?.message);
-      list = memoryRegistrations;
+    // Filter by eventId
+    if (eventId) {
+      list = combinedList.filter((lead) => {
+        if (eventId === DEFAULT_JACOS_EVENT_ID || eventId === DEFAULT_JACOS_EVENT_SLUG) {
+          return !lead.event_id || lead.event_id === DEFAULT_JACOS_EVENT_ID || lead.event_slug === DEFAULT_JACOS_EVENT_SLUG;
+        }
+        return lead.event_id === eventId || lead.event_slug === eventId;
+      });
     } else {
-      list = data as OpenHouseLead[];
+      list = combinedList;
     }
 
     // Hitung Statistik
@@ -89,16 +144,19 @@ export async function updateLeadStatusAndNotes(params: {
   id: string;
   leadStatus: string;
   followUpNotes: string;
+  eventId?: string | null;
 }): Promise<{ success: boolean; message?: string }> {
   try {
     const nowIso = new Date().toISOString();
     const supabase = createAdminClient();
 
+    const notesToSave = embedEventTag(params.eventId, null, params.followUpNotes);
+
     const { error } = await supabase
       .from('open_house_registrations')
       .update({
         lead_status: params.leadStatus,
-        follow_up_notes: params.followUpNotes,
+        follow_up_notes: notesToSave,
         last_contacted_at: nowIso,
         updated_at: nowIso,
       })
@@ -106,15 +164,20 @@ export async function updateLeadStatusAndNotes(params: {
 
     if (error) {
       console.warn('[OpenHouse Admin] Supabase update note (memory fallback):', error.message);
-      const targetIndex = memoryRegistrations.findIndex((r) => r.id === params.id);
-      if (targetIndex >= 0) {
-        memoryRegistrations[targetIndex].lead_status = params.leadStatus;
-        memoryRegistrations[targetIndex].follow_up_notes = params.followUpNotes;
-        memoryRegistrations[targetIndex].last_contacted_at = nowIso;
-      }
+    }
+
+    const targetIndex = memoryRegistrations.findIndex((r) => r.id === params.id);
+    if (targetIndex >= 0) {
+      memoryRegistrations[targetIndex].lead_status = params.leadStatus;
+      memoryRegistrations[targetIndex].follow_up_notes = params.followUpNotes;
+      memoryRegistrations[targetIndex].last_contacted_at = nowIso;
+      if (params.eventId) memoryRegistrations[targetIndex].event_id = params.eventId;
     }
 
     revalidatePath('/management/openhouse');
+    if (params.eventId) {
+      revalidatePath(`/management/openhouse/${params.eventId}`);
+    }
     return { success: true };
   } catch (err) {
     console.error('[OpenHouse Admin] updateLeadStatusAndNotes error:', err);
@@ -143,7 +206,10 @@ export async function createManualOpenHouseRegistration(
       cleanWa = '62' + cleanWa;
     }
 
+    const notesWithEvent = embedEventTag(formData.event_id, formData.event_slug, formData.follow_up_notes);
+
     const record = {
+      event_id: formData.event_id || null,
       ticket_code: ticketCode,
       parent_name: formData.parent_name.trim(),
       whatsapp: cleanWa,
@@ -159,32 +225,51 @@ export async function createManualOpenHouseRegistration(
       topics_of_interest: formData.topics_of_interest || [],
       admission_consultation: formData.admission_consultation || 'Ya',
       lead_status: formData.lead_status || 'ATTENDED',
-      follow_up_notes: formData.follow_up_notes || 'Pendaftaran manual / on-spot oleh staf admission',
+      follow_up_notes: notesWithEvent,
       last_contacted_at: nowIso,
     };
 
     const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from('open_house_registrations')
-      .insert(record)
-      .select()
-      .single();
+    let { data, error } = await supabase.from('open_house_registrations').insert(record).select().single();
+
+    // Fallback jika kolom event_id belum ada di database Supabase (legacy schema)
+    if (error && error.message && error.message.includes('event_id')) {
+      const { event_id, ...fallbackRecord } = record as any;
+      const retry = await supabase.from('open_house_registrations').insert(fallbackRecord).select().single();
+      data = retry.data;
+      error = retry.error;
+    }
 
     if (error) {
       console.warn('[OpenHouse Admin] Supabase manual insert fallback:', error.message);
       const fallbackLead: OpenHouseLead = {
         ...record,
         id: `manual-${Date.now()}`,
+        follow_up_notes: formData.follow_up_notes || null,
         created_at: nowIso,
         updated_at: nowIso,
       };
       memoryRegistrations.unshift(fallbackLead);
       revalidatePath('/management/openhouse');
+      if (formData.event_id) {
+        revalidatePath(`/management/openhouse/${formData.event_id}`);
+      }
       return { success: true, lead: fallbackLead };
     }
 
+    const savedLead: OpenHouseLead = {
+      ...(data as OpenHouseLead),
+      event_id: formData.event_id,
+      event_slug: formData.event_slug,
+      follow_up_notes: formData.follow_up_notes || null,
+    };
+    memoryRegistrations.unshift(savedLead);
+
     revalidatePath('/management/openhouse');
-    return { success: true, lead: data as OpenHouseLead };
+    if (formData.event_id) {
+      revalidatePath(`/management/openhouse/${formData.event_id}`);
+    }
+    return { success: true, lead: savedLead };
   } catch (err) {
     console.error('[OpenHouse Admin] createManualOpenHouseRegistration error:', err);
     return { success: false, message: 'Gagal menambahkan pendaftaran manual' };
@@ -194,7 +279,10 @@ export async function createManualOpenHouseRegistration(
 /**
  * 4. Hapus Pendaftar Open House
  */
-export async function deleteOpenHouseRegistration(id: string): Promise<{ success: boolean; message?: string }> {
+export async function deleteOpenHouseRegistration(
+  id: string,
+  eventId?: string | null
+): Promise<{ success: boolean; message?: string }> {
   try {
     const supabase = createAdminClient();
     const { error } = await supabase.from('open_house_registrations').delete().eq('id', id);
@@ -206,6 +294,9 @@ export async function deleteOpenHouseRegistration(id: string): Promise<{ success
     }
 
     revalidatePath('/management/openhouse');
+    if (eventId) {
+      revalidatePath(`/management/openhouse/${eventId}`);
+    }
     return { success: true };
   } catch (err) {
     console.error('[OpenHouse Admin] deleteOpenHouseRegistration error:', err);
@@ -224,6 +315,7 @@ export async function sendFollowUpEmail(params: {
   targetProgram: string;
   ticketCode: string;
   customMessage?: string;
+  eventId?: string | null;
 }): Promise<{ success: boolean; message?: string }> {
   try {
     const resend = getResend();
@@ -320,6 +412,7 @@ export async function sendFollowUpEmail(params: {
       id: params.leadId,
       leadStatus: 'FOLLOW_UP_PROGRESS',
       followUpNotes: `Email follow up resmi berhasil dikirim pada ${new Date().toLocaleString('id-ID')}`,
+      eventId: params.eventId,
     });
 
     return { success: true };
@@ -335,11 +428,7 @@ export async function sendFollowUpEmail(params: {
 export async function getOpenHouseEventSetting(): Promise<OpenHouseSetting> {
   try {
     const supabase = createAdminClient();
-    const { data, error } = await supabase
-      .from('open_house_settings')
-      .select('*')
-      .eq('id', 'default')
-      .single();
+    const { data, error } = await supabase.from('open_house_settings').select('*').eq('id', 'default').single();
 
     if (error || !data) {
       return memorySetting;
@@ -371,9 +460,7 @@ export async function toggleOpenHouseEventStatus(
     };
 
     const supabase = createAdminClient();
-    const { error } = await supabase
-      .from('open_house_settings')
-      .upsert(updatedSetting, { onConflict: 'id' });
+    const { error } = await supabase.from('open_house_settings').upsert(updatedSetting, { onConflict: 'id' });
 
     if (error) {
       console.warn('[OpenHouse Admin] Supabase settings update fallback:', error.message);

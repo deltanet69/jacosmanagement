@@ -75,11 +75,24 @@ export default function LobbyDisplayPage() {
     setMounted(true);
     setCurrentTime(new Date());
     fetchData();
-    const interval = setInterval(() => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      fetchData();
-    }, 4000);
-    return () => clearInterval(interval);
+
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      const supabase = createClient();
+      const channel = supabase
+        .channel("pickup_queue_changes")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "pickup_queue" },
+          (payload: any) => {
+            fetchData();
+          }
+        )
+        .subscribe();
+      
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    });
   }, [soundEnabled]);
 
   useEffect(() => {
@@ -104,9 +117,8 @@ export default function LobbyDisplayPage() {
 
   const calledStudents = queue.filter((q) => q.status === "CALLED");
   const waitingStudents = queue.filter((q) => q.status === "WAITING");
-
   return (
-    <div className="min-h-screen bg-[#060B16] text-white relative overflow-hidden flex flex-col font-sans selection:bg-sky-500/30">
+    <div className="min-h-screen bg-[#060B16] text-white relative overflow-hidden overflow-x-hidden flex flex-col font-sans selection:bg-sky-500/30">
       {/* Cinematic Studio Glow & Gradients */}
       <div className="absolute top-0 inset-x-0 h-96 bg-[radial-gradient(ellipse_70%_50%_at_50%_-10%,rgba(14,165,233,0.18),transparent)] pointer-events-none" />
       <div className="absolute bottom-0 right-0 w-[600px] h-[600px] bg-[radial-gradient(circle_at_bottom_right,rgba(47,111,237,0.15),transparent)] pointer-events-none" />
@@ -334,7 +346,7 @@ export default function LobbyDisplayPage() {
 
             <div className="mt-8 flex items-center gap-3 px-5 py-2.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-white/70">
               <Radio size={15} className="text-leaf-400 animate-ping" />
-              <span>Sistem terhubung &amp; memperbarui otomatis setiap 3 detik</span>
+              <span>Sistem terhubung &amp; menerima pembaruan secara instan (Realtime)</span>
             </div>
           </div>
         )}

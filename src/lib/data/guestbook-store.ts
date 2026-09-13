@@ -19,9 +19,9 @@ export interface GuestbookEntry {
   village_name?: string | null;
   postal_code?: string | null;
   address_detail?: string | null;
-  child_name?: string | null;
+  child_name: string;
   child_age?: number | null;
-  target_grade?: string | null;
+  target_grade: string;
   visit_date?: string | null;
   visit_time?: string | null;
   visit_purpose?: string | null;
@@ -62,7 +62,7 @@ if (!globalForGuestbook.memoryGuestbook) {
       target_grade: "Kindergarten A (TK A)",
       visit_date: new Date().toISOString().split("T")[0],
       visit_time: "09:30 WIB",
-      visit_purpose: "School visit",
+      visit_purpose: "School Tour & Konsultasi Kurikulum Trilingual",
       source_info: "Instagram JACOS (@jacos.school)",
       notes: "Tertarik dengan kelas bahasa Arab & Inggris sejak dini",
       follow_up_status: "BELUM_FOLLOW_UP",
@@ -93,7 +93,7 @@ if (!globalForGuestbook.memoryGuestbook) {
       target_grade: "Primary Grade 1 (SD Kelas 1)",
       visit_date: new Date().toISOString().split("T")[0],
       visit_time: "11:00 WIB",
-      visit_purpose: "Admission",
+      visit_purpose: "Konsultasi Admisi & Info Biaya Pendaftaran",
       source_info: "Rekomendasi Keluarga / Teman",
       notes: "Menanyakan fasilitas lab komputer dan ekstrakurikuler tahfidz",
       follow_up_status: "SUDAH_FOLLOW_UP",

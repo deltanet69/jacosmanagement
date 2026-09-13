@@ -1,22 +1,27 @@
-import { UnderDevelopment } from "@/components/shared/UnderDevelopment";
+import { getPayslipManagementData } from "./actions";
+import { PayslipListClient } from "@/components/hr/PayslipListClient";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Payslip Management - JACOS HR Management",
+  title: "Payslip & Payroll Management - JACOS HR",
+  description:
+    "Pengelolaan slip gaji, master komponen gaji tetap/variabel, integrasi KPI & lembur, serta cetak slip resmi JACOS.",
 };
 
-export default function HrPayslipPage() {
+export default async function HrPayslipPage() {
+  const result = await getPayslipManagementData();
+
   return (
-    <UnderDevelopment
-      title="Payslip & Penggajian Staff"
-      category="Administrasi HR"
-      description="Penyusunan slip gaji, kalkulasi gaji pokok, tunjangan jabatan, potongan BPJS/PPh21, dan pengiriman otomatis ke akun pegawai."
-      iconName="banknote"
-      expectedFeatures={[
-        "Kalkulator gaji otomatis terintegrasi absensi & lembur",
-        "Generasi dokumen slip gaji PDF terenkripsi dengan PIN",
-        "Pengiriman slip gaji via Email & WhatsApp terenkripsi",
-        "Laporan rekapitulasi pengeluaran gaji (Payroll Summary)"
-      ]}
-    />
+    <div className="max-w-full mx-auto pb-12 w-full">
+      <PayslipListClient
+        initialPayslips={result.data.payslips || []}
+        initialSalaryComponents={result.data.salaryComponents || []}
+        employees={result.data.employees || []}
+        initialStats={result.data.summaryStats}
+        currentMonth={result.data.currentMonth}
+        currentYear={result.data.currentYear}
+      />
+    </div>
   );
 }

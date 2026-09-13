@@ -13,6 +13,15 @@ const nextConfig: NextConfig = {
       'papaparse',
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: '/admission',
+        destination: '/onlineadmission',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

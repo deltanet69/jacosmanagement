@@ -52,8 +52,8 @@ export default function LandingPage() {
             <Image
               src="/publicjacos/logo.png"
               alt="JACOS Logo"
-              width={160}
-              height={44}
+              width={120}
+              height={35}
               style={{ width: "auto", height: "auto" }}
               className="dark:hidden object-contain transition group-hover:opacity-90"
               priority

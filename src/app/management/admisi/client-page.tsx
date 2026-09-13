@@ -29,6 +29,7 @@ import {
   ExternalLink,
   Eye,
   Copy,
+  X,
 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -252,6 +253,12 @@ export default function AdmisiClient({
       } else if (statusFilter === "REJECTED") {
         matchStatus = app.status === "REJECTED";
       }
+
+      const isPublic =
+        app.status === "WAITING_REVIEW" ||
+        (app.payment_note && app.payment_note.includes("[PUBLIC_ADMISSION]"));
+
+      if (isPublic) return false;
 
       return matchSearch && matchStatus;
     });
@@ -547,104 +554,163 @@ export default function AdmisiClient({
 
       {/* Proof Modal Viewer */}
       {proofModalApplicant && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-xl w-full shadow-2xl border border-ink/10 space-y-5 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/70 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-2xl w-full shadow-2xl border border-ink/10 space-y-5 max-h-[92vh] overflow-y-auto">
+            {/* Modal Header */}
             <div className="flex items-center justify-between pb-3 border-b border-ink/10">
-              <div>
-                <h3 className="font-display text-xl font-bold text-ink">Bukti Transfer Pendaftaran</h3>
-                <p className="text-xs text-ink-400 mt-0.5 font-mono">
-                  {proofModalApplicant.registration_no} • {proofModalApplicant.student_name}
-                </p>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky flex items-center justify-center shrink-0">
+                  <Eye size={20} />
+                </div>
+                <div>
+                  <h3 className="font-display text-xl font-bold text-ink">Bukti Transfer Pendaftaran</h3>
+                  <p className="text-xs text-ink-400 mt-0.5 font-mono">
+                    {proofModalApplicant.registration_no} • <strong className="text-ink">{proofModalApplicant.student_name}</strong> ({getProgramLabel(proofModalApplicant.program)})
+                  </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={() => setProofModalApplicant(null)}
-                className="w-8 h-8 rounded-full bg-cloud flex items-center justify-center text-ink-400 hover:text-ink transition"
+                className="w-9 h-9 rounded-full bg-cloud flex items-center justify-center text-ink-400 hover:text-ink hover:bg-slate-200 transition cursor-pointer"
               >
-                <XCircle size={20} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="bg-cloud/50 rounded-2xl p-4 border border-ink/5 space-y-2 text-xs">
-              <div className="flex justify-between">
-                <span className="text-ink-400">Orang Tua / Kontak:</span>
-                <span className="font-bold text-ink">
-                  {proofModalApplicant.guardians?.[0]?.full_name || "-"} ({proofModalApplicant.guardians?.[0]?.phone || "-"})
-                </span>
+            {/* Applicant Summary Meta */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-cloud/50 rounded-2xl p-4 border border-ink/5 text-xs">
+              <div>
+                <span className="text-ink-400 block mb-0.5 font-medium">Orang Tua / Kontak:</span>
+                <p className="font-bold text-ink truncate">
+                  {proofModalApplicant.guardians?.[0]?.full_name || "-"}
+                </p>
+                <p className="font-mono text-[11px] text-ink-400">
+                  {proofModalApplicant.guardians?.[0]?.phone || "-"}
+                </p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-ink-400">Nominal Transfer:</span>
-                <span className="font-bold text-ink">Rp 1.000.000 ({proofModalApplicant.payment_method || "Transfer BNI"})</span>
+              <div>
+                <span className="text-ink-400 block mb-0.5 font-medium">Biaya & Metode:</span>
+                <p className="font-bold text-leaf-700">Rp 1.000.000</p>
+                <p className="text-[11px] text-ink-400 font-medium">
+                  {proofModalApplicant.payment_method || "Transfer Bank BNI"}
+                </p>
               </div>
-              <div className="flex justify-between">
-                <span className="text-ink-400">Status Saat Ini:</span>
-                <span className="font-bold text-gold-600 uppercase">
-                  {proofModalApplicant.payment_status || "PENDING_VERIFICATION"}
+              <div>
+                <span className="text-ink-400 block mb-0.5 font-medium">Status Pembayaran:</span>
+                <span className={`inline-flex items-center gap-1 font-bold px-2.5 py-0.5 rounded-full text-[11px] mt-0.5 ${
+                  proofModalApplicant.payment_status === "PAID"
+                    ? "bg-leaf-100 text-leaf-800"
+                    : proofModalApplicant.payment_status === "REJECTED"
+                    ? "bg-coral-100 text-coral-800"
+                    : "bg-amber-100 text-amber-800"
+                }`}>
+                  {proofModalApplicant.payment_status === "PAID" ? "Lunas (Approved)" : proofModalApplicant.payment_status === "REJECTED" ? "Ditolak" : "Perlu Cek / Verifikasi"}
                 </span>
               </div>
             </div>
 
             {/* Proof Image / File Preview */}
-            <div className="rounded-2xl border border-ink/10 overflow-hidden bg-slate-950 flex items-center justify-center min-h-[260px] max-h-[420px] p-2">
+            <div className="rounded-2xl border border-ink/10 overflow-hidden bg-slate-950 flex flex-col items-center justify-center min-h-[300px] max-h-[480px] p-3 relative group">
               {isLoadingProofUrl ? (
                 <div className="text-center p-8 space-y-3">
                   <div className="w-8 h-8 border-3 border-sky border-t-transparent rounded-full animate-spin mx-auto" />
                   <p className="text-xs text-slate-300 font-medium">Memuat berkas bukti transfer...</p>
                 </div>
               ) : proofModalApplicant.doc_payment_proof_signed ? (
-                proofModalApplicant.doc_payment_proof_signed.includes(".pdf") ? (
-                  <div className="text-center p-8 space-y-3">
-                    <FileText className="w-12 h-12 text-sky mx-auto" />
-                    <p className="text-sm font-bold text-white">Dokumen Bukti Transfer (PDF)</p>
+                proofModalApplicant.doc_payment_proof_signed.toLowerCase().includes(".pdf") ? (
+                  <div className="text-center p-8 space-y-4">
+                    <FileText className="w-14 h-14 text-sky-400 mx-auto" />
+                    <div className="space-y-1">
+                      <p className="text-sm font-bold text-white">Dokumen Bukti Transfer (PDF)</p>
+                      <p className="text-xs text-slate-400">Klik tombol di bawah untuk membuka dan memeriksa isi PDF</p>
+                    </div>
                     <a
                       href={proofModalApplicant.doc_payment_proof_signed}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky text-white text-xs font-bold hover:bg-sky-600 transition"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-sky text-white text-xs font-bold hover:bg-sky-600 shadow-md transition"
                     >
-                      Buka Dokumen PDF
+                      <ExternalLink size={14} /> Buka Dokumen PDF di Tab Baru
                     </a>
                   </div>
                 ) : (
-                  <img
-                    src={proofModalApplicant.doc_payment_proof_signed}
-                    alt="Bukti Transfer"
-                    className="max-h-[380px] w-auto object-contain rounded-xl"
-                  />
+                  <div className="relative w-full h-full flex items-center justify-center">
+                    <a
+                      href={proofModalApplicant.doc_payment_proof_signed}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title="Klik untuk membuka gambar resolusi penuh di tab baru"
+                      className="cursor-zoom-in block"
+                    >
+                      <img
+                        src={proofModalApplicant.doc_payment_proof_signed}
+                        alt="Bukti Transfer Pendaftaran"
+                        className="max-h-[420px] max-w-full object-contain rounded-xl shadow-lg hover:opacity-95 transition"
+                      />
+                    </a>
+                    <div className="absolute bottom-2 right-2">
+                      <a
+                        href={proofModalApplicant.doc_payment_proof_signed}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-ink/80 hover:bg-ink text-white text-[11px] font-bold backdrop-blur-sm transition shadow-md"
+                      >
+                        <ExternalLink size={12} /> Buka Resolusi Penuh
+                      </a>
+                    </div>
+                  </div>
                 )
               ) : (
-                <p className="text-xs text-slate-400">Berkas bukti transfer tidak dapat ditampilkan.</p>
+                <p className="text-xs text-slate-400">Berkas bukti transfer tidak dapat ditampilkan atau belum diunggah.</p>
               )}
             </div>
 
             {/* Action Buttons */}
-            <div className="flex items-center justify-end gap-2.5 pt-2">
-              <Button
-                variant="outline"
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+              <Link
+                href={`/management/admisi/${proofModalApplicant.id}`}
+                className="w-full sm:w-auto"
                 onClick={() => setProofModalApplicant(null)}
-                className="h-11 px-4 rounded-xl border-ink/15 font-bold text-xs"
               >
-                Tutup
-              </Button>
-              {proofModalApplicant.payment_status !== "PAID" && (
-                <>
-                  <Button
-                    variant="outline"
-                    onClick={() => handleOpenRejectPayment(proofModalApplicant)}
-                    disabled={isProcessingPayment}
-                    className="h-11 px-4 rounded-xl border-coral-200 text-coral hover:bg-coral-50 font-bold text-xs"
-                  >
-                    Tolak Pembayaran
-                  </Button>
-                  <Button
-                    onClick={() => handleApprovePayment(proofModalApplicant)}
-                    disabled={isProcessingPayment}
-                    className="h-11 px-5 rounded-xl bg-leaf-600 hover:bg-leaf-700 text-white font-bold text-xs shadow-md"
-                  >
-                    {isProcessingPayment ? "Memproses..." : "Approve Pembayaran & Kirim Link"}
-                  </Button>
-                </>
-              )}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full sm:w-auto h-11 px-4 rounded-xl border-sky-300 text-sky-700 hover:bg-sky-50 font-bold text-xs inline-flex items-center gap-1.5"
+                >
+                  <FileText size={14} />
+                  <span>Lihat Detail Admisi Lengkap →</span>
+                </Button>
+              </Link>
+
+              <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                <Button
+                  variant="outline"
+                  onClick={() => setProofModalApplicant(null)}
+                  className="h-11 px-4 rounded-xl border-ink/15 font-bold text-xs"
+                >
+                  Tutup
+                </Button>
+                {proofModalApplicant.payment_status !== "PAID" && (
+                  <>
+                    <Button
+                      variant="outline"
+                      onClick={() => handleOpenRejectPayment(proofModalApplicant)}
+                      disabled={isProcessingPayment}
+                      className="h-11 px-4 rounded-xl border-coral-200 text-coral hover:bg-coral-50 font-bold text-xs"
+                    >
+                      Tolak
+                    </Button>
+                    <Button
+                      onClick={() => handleApprovePayment(proofModalApplicant)}
+                      disabled={isProcessingPayment}
+                      className="h-11 px-5 rounded-xl bg-leaf-600 hover:bg-leaf-700 text-white font-bold text-xs shadow-md"
+                    >
+                      {isProcessingPayment ? "Memproses..." : "Approve & Kirim Link"}
+                    </Button>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -1668,245 +1734,449 @@ export default function AdmisiClient({
             </div>
           </div>
 
-          {/* Public Applicants Table */}
-          <div className="bg-white rounded-3xl border border-ink/10 shadow-sm overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-left border-collapse">
-                <thead>
-                  <tr className="border-b border-ink/10 bg-cloud/40 text-[11px] font-bold text-ink-400 uppercase tracking-wider">
-                    <th className="py-3.5 px-4 sm:px-6">No. Registrasi &amp; Tanggal</th>
-                    <th className="py-3.5 px-4">Calon Siswa</th>
-                    <th className="py-3.5 px-4">Orang Tua / Kontak</th>
-                    <th className="py-3.5 px-4">Bukti Transfer (Rp 1jt)</th>
-                    <th className="py-3.5 px-4">Status</th>
-                    <th className="py-3.5 px-4 sm:px-6 text-right">Aksi</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-ink/5 text-xs sm:text-sm">
-                  {paginatedPublicApplicants.length === 0 ? (
-                    <tr>
-                      <td colSpan={6} className="py-12 text-center text-ink-300">
-                        Tidak ada data pendaftaran publik yang sesuai dengan filter.
-                      </td>
-                    </tr>
-                  ) : (
-                    paginatedPublicApplicants.map((app) => {
-                      const guardian = app.guardians?.[0];
-                      const rawPhone = (guardian?.phone || "").replace(/[^0-9]/g, "");
-                      const waPhone = rawPhone.startsWith("0") ? `62${rawPhone.slice(1)}` : rawPhone;
-                      const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://jacosmanagement.vercel.app";
-                      const uniqueLink = `${baseUrl}/reg/${app.registration_token}`;
-                      const waReminderMessage = `Assalamu'alaikum Warahmatullahi Wabarakatuh Bapak/Ibu ${guardian?.full_name || ""},\n\nBerikut tautan formulir pendaftaran eksklusif calon siswa ananda *${app.student_name}* di JACOS:\n👉 ${uniqueLink}\n\nSilakan isi formulir dengan lengkap dan lampirkan dokumen pendukung.\n\nSalam hangat,\n*Tim Admisi JACOS*`;
+          {/* Public Applicants Content */}
+          {paginatedPublicApplicants.length === 0 ? (
+            <div className="py-16 text-center bg-white rounded-3xl border border-ink/5 p-6 sm:p-8">
+              <div className="w-14 h-14 rounded-2xl bg-cloud text-ink-300 flex items-center justify-center mx-auto mb-3">
+                <Globe size={24} />
+              </div>
+              <h3 className="font-bold text-base sm:text-lg text-ink">Tidak Ada Pendaftaran Publik</h3>
+              <p className="text-ink-400 text-xs mt-1 max-w-sm mx-auto">
+                {publicSearchQuery || publicStatusFilter !== "ALL"
+                  ? "Tidak ada data pendaftaran publik yang sesuai dengan filter pencarian."
+                  : "Belum ada calon siswa yang mendaftar melalui formulir online publik."}
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* ========================================================= */}
+              {/* 1. MOBILE VIEW: COMPACT, CLEAN & INFORMATIVE CARDS */}
+              {/* ========================================================= */}
+              <div className="space-y-3 md:hidden">
+                {paginatedPublicApplicants.map((app) => {
+                  const guardian = app.guardians?.[0];
+                  const rawPhone = (guardian?.phone || "").replace(/[^0-9]/g, "");
+                  const waPhone = rawPhone.startsWith("0") ? `62${rawPhone.slice(1)}` : rawPhone;
+                  const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://jacosmanagement.vercel.app";
+                  const uniqueLink = `${baseUrl}/reg/${app.registration_token}`;
+                  
+                  const hasProof = !!(app.has_payment_proof || app.doc_payment_proof || app.doc_payment_proof_signed || app.payment_note?.includes("Bukti: "));
 
-                      const isPending =
-                        app.payment_status === "PENDING_VERIFICATION" ||
-                        app.status === "WAITING_REVIEW";
-                      const isPaid = app.payment_status === "PAID";
-                      const isRejected =
-                        app.payment_status === "REJECTED" || app.status === "REJECTED";
+                  const waPaymentFollowUpMessage = `Assalamu'alaikum Warahmatullahi Wabarakatuh Bapak/Ibu ${guardian?.full_name || "Orang Tua"},\n\nTerima kasih telah mendaftarkan ananda *${app.student_name}* (No. Reg: *${app.registration_no}*) di JACOS.\n\nUntuk melanjutkan proses formulir pendaftaran, mohon menyelesaikan pembayaran biaya formulir pendaftaran Rp 1.000.000 ke rekening resmi:\n🏦 *Bank BNI: 1928374650*\n*a.n. Yayasan Jakarta Cosmopolite*\n\nSetelah transfer, silakan unggah bukti transfer melalui tautan resmi pendaftaran ananda berikut:\n👉 ${uniqueLink}\n\nSetelah bukti terverifikasi oleh tim kami, formulir pendaftaran lengkap akan otomatis dapat diisi.\n\nTerima kasih.\n*Tim Admisi JACOS*`;
 
-                      return (
-                        <tr key={app.id} className="hover:bg-cloud/25 transition">
-                          {/* 1. Reg No & Date */}
-                          <td className="py-4 px-4 sm:px-6">
-                            <span className="font-mono font-bold text-sky text-xs block">
-                              {app.registration_no}
+                  const waFormReadyMessage = `Assalamu'alaikum Warahmatullahi Wabarakatuh Bapak/Ibu ${guardian?.full_name || "Orang Tua"},\n\nPembayaran pendaftaran ananda *${app.student_name}* di JACOS telah berhasil diverifikasi.\n\nBerikut tautan formulir pendaftaran online eksklusif ananda:\n👉 ${uniqueLink}\n\nSilakan isi formulir dengan lengkap dan lampirkan dokumen pendukung.\n\nSalam hangat,\n*Tim Admisi JACOS*`;
+
+                  const isPending =
+                    app.payment_status === "PENDING_VERIFICATION" ||
+                    app.status === "WAITING_REVIEW";
+                  const isPaid = app.payment_status === "PAID";
+                  const isRejected =
+                    app.payment_status === "REJECTED" || app.status === "REJECTED";
+
+                  return (
+                    <div
+                      key={app.id}
+                      className="p-4 rounded-2xl bg-white border border-ink/10 shadow-2xs space-y-3"
+                    >
+                      {/* Top Row: Reg No + Date + Status */}
+                      <div className="flex items-start justify-between gap-2 pb-2 border-b border-ink/5">
+                        <Link
+                          href={`/management/admisi/${app.id}`}
+                          className="group/reg inline-block"
+                        >
+                          <span className="font-mono font-bold text-sky text-xs block group-hover/reg:underline">
+                            {app.registration_no}
+                          </span>
+                          <span className="text-[10px] text-ink-300">
+                            {app.submitted_at
+                              ? new Date(app.submitted_at).toLocaleDateString("id-ID", {
+                                  day: "numeric",
+                                  month: "short",
+                                  year: "numeric",
+                                })
+                              : "-"}
+                          </span>
+                        </Link>
+
+                        <div>
+                          {isPending && !hasProof && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-[11px] font-bold">
+                              <Clock size={11} /> Menunggu Bukti
                             </span>
-                            <span className="text-[11px] text-ink-300">
-                              {app.submitted_at
-                                ? new Date(app.submitted_at).toLocaleDateString("id-ID", {
-                                    day: "numeric",
-                                    month: "short",
-                                    year: "numeric",
-                                  })
-                                : "-"}
+                          )}
+                          {isPending && hasProof && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-sky-50 text-sky-800 border border-sky-300 text-[11px] font-bold">
+                              <Eye size={11} /> Cek Transfer
                             </span>
-                          </td>
+                          )}
+                          {isPaid && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-leaf-50 text-leaf-700 border border-leaf-200 text-[11px] font-bold">
+                              <CheckCircle2 size={11} /> Lunas
+                            </span>
+                          )}
+                          {isRejected && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-coral-50 text-coral border border-coral-200 text-[11px] font-bold">
+                              <XCircle size={11} /> Ditolak
+                            </span>
+                          )}
+                        </div>
+                      </div>
 
-                          {/* 2. Student Info */}
-                          <td className="py-4 px-4">
-                            <p className="font-bold text-ink">{app.student_name}</p>
-                            <div className="flex items-center gap-1.5 mt-0.5">
-                              <span className="text-[11px] font-semibold text-ink-400">
-                                {getProgramLabel(app.program)}
-                              </span>
-                              <span className="text-[10px] px-1.5 py-0.2 rounded bg-cloud text-ink-400">
-                                {app.gender === "MALE" ? "L" : "P"}
-                              </span>
-                            </div>
-                          </td>
+                      {/* Middle Row: Student Name & Contacts */}
+                      <div>
+                        <Link
+                          href={`/management/admisi/${app.id}`}
+                          className="font-bold text-sm text-ink hover:text-sky transition-colors block"
+                        >
+                          {app.student_name}
+                        </Link>
+                        <div className="flex items-center gap-2 mt-1 text-xs text-ink-400">
+                          <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 font-semibold text-[11px] border border-sky-100">
+                            {getProgramLabel(app.program)}
+                          </span>
+                          <span className="text-ink-400">
+                            Wali: <strong>{guardian?.full_name || "-"}</strong>
+                          </span>
+                        </div>
+                        {guardian?.phone && (
+                          <div className="mt-1.5 text-xs">
+                            <a
+                              href={`https://wa.me/${waPhone}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-green-600 hover:underline inline-flex items-center gap-1 font-mono font-bold"
+                            >
+                              <Phone size={11} /> {guardian.phone}
+                            </a>
+                          </div>
+                        )}
+                      </div>
 
-                          {/* 3. Guardian & Contacts */}
-                          <td className="py-4 px-4">
-                            <p className="font-semibold text-ink">{guardian?.full_name || "-"}</p>
-                            <div className="flex flex-col gap-0.5 text-[11px] text-ink-400 mt-0.5">
-                              {guardian?.phone && (
-                                <a
-                                  href={`https://wa.me/${waPhone}`}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="text-green-600 hover:underline inline-flex items-center gap-1 font-mono"
-                                >
-                                  <Phone size={11} /> {guardian.phone}
-                                </a>
-                              )}
-                              <span className="text-slate-400 truncate max-w-[150px]">
-                                {guardian?.email || "-"}
-                              </span>
-                            </div>
-                          </td>
+                      {/* Action Bar */}
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-ink/5">
+                        {hasProof ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleOpenProofModal(app)}
+                            className="h-8 px-2.5 rounded-xl border-sky-200 bg-sky-50/70 hover:bg-sky-100 text-sky-700 font-bold text-xs inline-flex items-center gap-1"
+                          >
+                            <Eye size={12} />
+                            <span>Lihat Bukti</span>
+                          </Button>
+                        ) : (
+                          <span className="text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md font-bold">
+                            Belum Ada Bukti
+                          </span>
+                        )}
 
-                          {/* 4. Payment Proof */}
-                          <td className="py-4 px-4">
-                            {app.has_payment_proof || app.doc_payment_proof || app.doc_payment_proof_signed || app.payment_note?.includes("Bukti: ") ? (
+                        <div className="flex items-center gap-1.5">
+                          {isPending && !hasProof && waPhone && (
+                            <a
+                              href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waPaymentFollowUpMessage)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="inline-flex items-center gap-1 h-8 px-2.5 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold text-xs shadow-xs"
+                            >
+                              <Phone size={11} /> Follow Up WA
+                            </a>
+                          )}
+                          {isPending && hasProof && (
+                            <>
+                              <Button
+                                size="sm"
+                                onClick={() => handleApprovePayment(app)}
+                                disabled={isProcessingPayment}
+                                className="h-8 px-3 rounded-xl bg-leaf-600 hover:bg-leaf-700 text-white font-bold text-xs"
+                              >
+                                Approve
+                              </Button>
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => handleOpenProofModal(app)}
-                                className="h-8 px-2.5 rounded-xl border-sky-200 bg-sky-50/50 hover:bg-sky-100 text-sky-700 font-bold text-xs inline-flex items-center gap-1.5"
+                                onClick={() => handleOpenRejectPayment(app)}
+                                disabled={isProcessingPayment}
+                                className="h-8 px-2 rounded-xl border-coral-200 text-coral font-bold text-xs"
                               >
-                                <Eye size={13} />
-                                <span>Lihat Bukti</span>
+                                Tolak
                               </Button>
-                            ) : (
-                              <span className="text-xs text-slate-400 italic">Belum ada file</span>
-                            )}
-                          </td>
+                            </>
+                          )}
+                          <Link href={`/management/admisi/${app.id}`}>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 px-3 rounded-xl border-ink/15 font-bold text-xs hover:bg-sky-50 hover:text-sky"
+                            >
+                              Detail →
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
 
-                          {/* 5. Status Badges */}
-                          <td className="py-4 px-4">
-                            {isPending && (
-                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-xs font-bold">
-                                <Clock size={12} /> Cek Transfer
-                              </span>
-                            )}
-                            {isPaid && (
-                              <div className="space-y-1">
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-leaf-50 text-leaf-700 border border-leaf-200 text-xs font-bold">
-                                  <CheckCircle2 size={12} /> Lunas
+              {/* ========================================================= */}
+              {/* 2. DESKTOP VIEW: FULL RICH DATA TABLE */}
+              {/* ========================================================= */}
+              <div className="hidden md:block bg-white rounded-3xl border border-ink/10 shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-ink/10 bg-cloud/40 text-[11px] font-bold text-ink-400 uppercase tracking-wider">
+                        <th className="py-3.5 px-4 sm:px-6">No. Registrasi &amp; Tanggal</th>
+                        <th className="py-3.5 px-4">Calon Siswa</th>
+                        <th className="py-3.5 px-4">Orang Tua / Kontak</th>
+                        <th className="py-3.5 px-4">Bukti Transfer (Rp 1jt)</th>
+                        <th className="py-3.5 px-4">Status</th>
+                        <th className="py-3.5 px-4 sm:px-6 text-right">Aksi</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-ink/5 text-xs sm:text-sm">
+                      {paginatedPublicApplicants.map((app) => {
+                        const guardian = app.guardians?.[0];
+                        const rawPhone = (guardian?.phone || "").replace(/[^0-9]/g, "");
+                        const waPhone = rawPhone.startsWith("0") ? `62${rawPhone.slice(1)}` : rawPhone;
+                        const baseUrl = typeof window !== "undefined" ? window.location.origin : "https://jacosmanagement.vercel.app";
+                        const uniqueLink = `${baseUrl}/reg/${app.registration_token}`;
+
+                        const hasProof = !!(app.has_payment_proof || app.doc_payment_proof || app.doc_payment_proof_signed || app.payment_note?.includes("Bukti: "));
+
+                        const waPaymentFollowUpMessage = `Assalamu'alaikum Warahmatullahi Wabarakatuh Bapak/Ibu ${guardian?.full_name || "Orang Tua"},\n\nTerima kasih telah mendaftarkan ananda *${app.student_name}* (No. Reg: *${app.registration_no}*) di JACOS.\n\nUntuk melanjutkan proses formulir pendaftaran, mohon menyelesaikan pembayaran biaya formulir pendaftaran Rp 1.000.000 ke rekening resmi:\n🏦 *Bank BNI: 1928374650*\n*a.n. Yayasan Jakarta Cosmopolite*\n\nSetelah transfer, silakan unggah bukti transfer melalui tautan resmi pendaftaran ananda berikut:\n👉 ${uniqueLink}\n\nSetelah bukti terverifikasi oleh tim kami, formulir pendaftaran lengkap akan otomatis dapat diisi.\n\nTerima kasih.\n*Tim Admisi JACOS*`;
+
+                        const waFormReadyMessage = `Assalamu'alaikum Warahmatullahi Wabarakatuh Bapak/Ibu ${guardian?.full_name || "Orang Tua"},\n\nPembayaran pendaftaran ananda *${app.student_name}* di JACOS telah berhasil diverifikasi.\n\nBerikut tautan formulir pendaftaran online eksklusif ananda:\n👉 ${uniqueLink}\n\nSilakan isi formulir dengan lengkap dan lampirkan dokumen pendukung.\n\nSalam hangat,\n*Tim Admisi JACOS*`;
+
+                        const isPending =
+                          app.payment_status === "PENDING_VERIFICATION" ||
+                          app.status === "WAITING_REVIEW";
+                        const isPaid = app.payment_status === "PAID";
+                        const isRejected =
+                          app.payment_status === "REJECTED" || app.status === "REJECTED";
+
+                        return (
+                          <tr key={app.id} className="hover:bg-sky-50/40 transition-colors group">
+                            {/* 1. Reg No & Date (Clickable to Detail) */}
+                            <td className="py-4 px-4 sm:px-6 whitespace-nowrap">
+                              <Link
+                                href={`/management/admisi/${app.id}`}
+                                className="group/reg inline-block"
+                                title="Lihat Detail Pendaftaran"
+                              >
+                                <span className="font-mono font-bold text-sky text-sm block group-hover/reg:text-sky-700 group-hover/reg:underline transition-colors">
+                                  {app.registration_no}
                                 </span>
-                                <p className="text-[10px] text-slate-400">
-                                  {app.form_submitted ? "Form Lengkap" : "Menunggu Form"}
+                                <span className="text-[11px] font-medium text-ink-300">
+                                  {app.submitted_at
+                                    ? new Date(app.submitted_at).toLocaleDateString("id-ID", {
+                                        day: "numeric",
+                                        month: "short",
+                                        year: "numeric",
+                                      })
+                                    : "-"}
+                                </span>
+                              </Link>
+                            </td>
+
+                            {/* 2. Student Info (Clickable to Detail) */}
+                            <td className="py-4 px-4">
+                              <Link
+                                href={`/management/admisi/${app.id}`}
+                                className="group/name block"
+                                title="Lihat Detail Pendaftaran"
+                              >
+                                <p className="font-bold text-sm text-ink group-hover/name:text-sky group-hover/name:underline transition-colors">
+                                  {app.student_name}
                                 </p>
-                              </div>
-                            )}
-                            {isRejected && (
-                              <div className="space-y-0.5">
-                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-coral-50 text-coral border border-coral-200 text-xs font-bold">
-                                  <XCircle size={12} /> Ditolak
-                                </span>
-                                {app.rejection_reason && (
-                                  <p className="text-[10px] text-coral-600 truncate max-w-[140px]" title={app.rejection_reason}>
-                                    {app.rejection_reason}
-                                  </p>
+                                <div className="flex items-center gap-1.5 mt-0.5">
+                                  <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-100">
+                                    {getProgramLabel(app.program)}
+                                  </span>
+                                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-cloud text-ink-400 font-bold">
+                                    {app.gender === "MALE" ? "L" : "P"}
+                                  </span>
+                                </div>
+                              </Link>
+                            </td>
+
+                            {/* 3. Guardian & Contacts */}
+                            <td className="py-4 px-4">
+                              <p className="font-semibold text-ink text-sm">{guardian?.full_name || "-"}</p>
+                              <div className="flex flex-col gap-0.5 text-[11px] text-ink-400 mt-0.5">
+                                {guardian?.phone && (
+                                  <a
+                                    href={`https://wa.me/${waPhone}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-green-600 hover:underline inline-flex items-center gap-1 font-mono font-bold"
+                                  >
+                                    <Phone size={11} /> {guardian.phone}
+                                  </a>
                                 )}
+                                <span className="text-slate-400 truncate max-w-[170px]">
+                                  {guardian?.email || "-"}
+                                </span>
                               </div>
-                            )}
-                          </td>
+                            </td>
 
-                          {/* 6. Actions */}
-                          <td className="py-4 px-4 sm:px-6 text-right">
-                            <div className="flex items-center justify-end gap-1.5">
-                              {isPending && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    onClick={() => handleApprovePayment(app)}
-                                    disabled={isProcessingPayment}
-                                    className="h-8 px-3 rounded-xl bg-leaf-600 hover:bg-leaf-700 text-white font-bold text-xs shadow-xs"
-                                  >
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => handleOpenRejectPayment(app)}
-                                    disabled={isProcessingPayment}
-                                    className="h-8 px-2.5 rounded-xl border-coral-200 text-coral hover:bg-coral-50 font-bold text-xs"
-                                  >
-                                    Tolak
-                                  </Button>
-                                </>
+                            {/* 4. Payment Proof Button */}
+                            <td className="py-4 px-4 whitespace-nowrap">
+                              {hasProof ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleOpenProofModal(app)}
+                                  className="h-8 px-3 rounded-xl border-sky-200 bg-sky-50/70 hover:bg-sky-100 text-sky-700 font-bold text-xs inline-flex items-center gap-1.5 shadow-2xs transition active:scale-95"
+                                >
+                                  <Eye size={13} />
+                                  <span>Lihat Bukti</span>
+                                </Button>
+                              ) : (
+                                <span className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-bold inline-block">
+                                  Belum Diunggah
+                                </span>
                               )}
+                            </td>
 
+                            {/* 5. Status Badges */}
+                            <td className="py-4 px-4 whitespace-nowrap">
+                              {isPending && !hasProof && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-bold">
+                                  <Clock size={12} /> Menunggu Bukti
+                                </span>
+                              )}
+                              {isPending && hasProof && (
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-sky-50 text-sky-800 border border-sky-300 text-xs font-bold">
+                                  <Eye size={12} /> Cek Transfer
+                                </span>
+                              )}
                               {isPaid && (
-                                <>
-                                  {waPhone && (
-                                    <a
-                                      href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waReminderMessage)}`}
-                                      target="_blank"
-                                      rel="noreferrer"
-                                      className="inline-flex items-center gap-1 h-8 px-2.5 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 font-bold text-xs transition"
-                                      title="Kirim tautan pendaftaran via WhatsApp"
-                                    >
-                                      <Phone size={12} />
-                                      <span className="hidden sm:inline">WA Link</span>
-                                    </a>
+                                <div className="space-y-0.5">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-leaf-50 text-leaf-700 border border-leaf-200 text-xs font-bold">
+                                    <CheckCircle2 size={12} /> Lunas
+                                  </span>
+                                  <p className="text-[10px] text-slate-400">
+                                    {app.form_submitted ? "Form Lengkap" : "Menunggu Form"}
+                                  </p>
+                                </div>
+                              )}
+                              {isRejected && (
+                                <div className="space-y-0.5">
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-coral-50 text-coral border border-coral-200 text-xs font-bold">
+                                    <XCircle size={12} /> Ditolak
+                                  </span>
+                                  {app.rejection_reason && (
+                                    <p className="text-[10px] text-coral-600 truncate max-w-[140px]" title={app.rejection_reason}>
+                                      {app.rejection_reason}
+                                    </p>
                                   )}
-                                  <Link href={`/management/admisi/${app.id}`}>
+                                </div>
+                              )}
+                            </td>
+
+                            {/* 6. Actions (Always include Detail button) */}
+                            <td className="py-4 px-4 sm:px-6 text-right whitespace-nowrap">
+                              <div className="flex items-center justify-end gap-1.5">
+                                {isPending && !hasProof && waPhone && (
+                                  <a
+                                    href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waPaymentFollowUpMessage)}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 h-8 px-3 rounded-xl bg-green-500 hover:bg-green-600 text-white font-bold text-xs shadow-xs transition active:scale-95"
+                                    title="Kirim Follow-Up Tagihan & Link Pembayaran via WhatsApp"
+                                  >
+                                    <Phone size={12} />
+                                    <span>Follow Up WA</span>
+                                  </a>
+                                )}
+
+                                {isPending && hasProof && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      onClick={() => handleApprovePayment(app)}
+                                      disabled={isProcessingPayment}
+                                      className="h-8 px-3 rounded-xl bg-leaf-600 hover:bg-leaf-700 text-white font-bold text-xs shadow-xs transition active:scale-95"
+                                    >
+                                      Approve
+                                    </Button>
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      className="h-8 px-2.5 rounded-xl border-ink/15 font-bold text-xs hover:bg-cloud"
+                                      onClick={() => handleOpenRejectPayment(app)}
+                                      disabled={isProcessingPayment}
+                                      className="h-8 px-2.5 rounded-xl border-coral-200 text-coral hover:bg-coral-50 font-bold text-xs transition active:scale-95"
                                     >
-                                      Detail
+                                      Tolak
                                     </Button>
-                                  </Link>
-                                </>
-                              )}
+                                  </>
+                                )}
 
-                              {isRejected && (
+                                {isPaid && waPhone && (
+                                  <a
+                                    href={`https://wa.me/${waPhone}?text=${encodeURIComponent(waFormReadyMessage)}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 h-8 px-2.5 rounded-xl bg-green-50 text-green-700 hover:bg-green-100 border border-green-200 font-bold text-xs transition"
+                                    title="Kirim tautan formulir pendaftaran via WhatsApp"
+                                  >
+                                    <Phone size={12} />
+                                    <span className="hidden sm:inline">WA Link Form</span>
+                                  </a>
+                                )}
+
                                 <Link href={`/management/admisi/${app.id}`}>
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="h-8 px-2.5 rounded-xl border-ink/15 font-bold text-xs hover:bg-cloud"
+                                    className="h-8 px-3 rounded-xl border-ink/15 font-bold text-xs hover:bg-sky-50 hover:text-sky transition"
                                   >
-                                    Detail
+                                    Detail →
                                   </Button>
                                 </Link>
-                              )}
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
 
-            {/* Pagination Controls */}
-            <div className="p-4 sm:p-5 border-t border-ink/10 flex flex-col sm:flex-row items-center justify-between gap-3 bg-cloud/20 text-xs">
-              <span className="text-ink-300">
-                Menampilkan {paginatedPublicApplicants.length} dari {filteredPublicApplicants.length} pendaftar publik
-              </span>
+                {/* Desktop Pagination Controls */}
+                <div className="p-4 sm:p-5 border-t border-ink/10 flex flex-col sm:flex-row items-center justify-between gap-3 bg-cloud/20 text-xs">
+                  <span className="text-ink-400">
+                    Menampilkan <strong className="text-ink">{paginatedPublicApplicants.length}</strong> dari <strong className="text-ink">{filteredPublicApplicants.length}</strong> pendaftar publik
+                  </span>
 
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={publicCurrentPage === 1}
-                  onClick={() => setPublicCurrentPage((p) => Math.max(1, p - 1))}
-                  className="h-8 px-2.5 rounded-xl border-ink/15 font-bold"
-                >
-                  <ChevronLeft size={14} className="mr-1" /> Prev
-                </Button>
-                <span className="font-bold text-ink px-2">
-                  {publicCurrentPage} / {publicTotalPages}
-                </span>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  disabled={publicCurrentPage >= publicTotalPages}
-                  onClick={() => setPublicCurrentPage((p) => p + 1)}
-                  className="h-8 px-2.5 rounded-xl border-ink/15 font-bold"
-                >
-                  Next <ChevronRight size={14} className="ml-1" />
-                </Button>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={publicCurrentPage === 1}
+                      onClick={() => setPublicCurrentPage((p) => Math.max(1, p - 1))}
+                      className="h-8 px-2.5 rounded-xl border-ink/15 font-bold"
+                    >
+                      <ChevronLeft size={14} className="mr-1" /> Prev
+                    </Button>
+                    <span className="font-bold text-ink px-2">
+                      {publicCurrentPage} / {publicTotalPages}
+                    </span>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={publicCurrentPage >= publicTotalPages}
+                      onClick={() => setPublicCurrentPage((p) => p + 1)}
+                      className="h-8 px-2.5 rounded-xl border-ink/15 font-bold"
+                    >
+                      Next <ChevronRight size={14} className="ml-1" />
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
       )}
     </div>

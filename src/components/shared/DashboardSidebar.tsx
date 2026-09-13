@@ -27,6 +27,7 @@ import {
   TrendingUp,
   Banknote,
   Lock,
+  PackageCheck,
   ChevronRight
 } from "lucide-react";
 import { logout } from "@/app/(public)/login/actions";
@@ -112,7 +113,7 @@ export const HR_MENU_GROUPS: MenuGroup[] = [
     items: [
       { href: "/management/hr/payslip", label: "Payslip Management", icon: Banknote, color: "text-leaf", bgColor: "bg-leaf-50" },
       { href: "/management/hr/reimburse", label: "Reimburse HR", icon: FileText, color: "text-teal-600", bgColor: "bg-teal-50" },
-      { href: "/management/hr/otorisasi", label: "Otorisasi Staff", icon: Lock, color: "text-sky-600", bgColor: "bg-sky-50" },
+      { href: "/management/hr/pengajuan", label: "Pengajuan", icon: PackageCheck, color: "text-sky-600", bgColor: "bg-sky-50" },
     ],
   },
   {

@@ -2,6 +2,8 @@
 
 import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase/server';
+import { getOpenHouseEventBySlug } from '@/app/management/openhouse/event-actions';
+import { embedEventTag, DEFAULT_JACOS_EVENT_ID, DEFAULT_JACOS_EVENT_SLUG } from '@/app/management/openhouse/event-store';
 import { Resend } from 'resend';
 
 function getResend() {
@@ -12,6 +14,7 @@ function getResend() {
 }
 
 const openHouseSchema = z.object({
+  event_slug: z.string().trim().optional(),
   parent_name: z.string().min(2, 'Nama orang tua wajib diisi (minimal 2 karakter)'),
   whatsapp: z.string().min(8, 'Nomor WhatsApp aktif wajib diisi (minimal 8 digit)'),
   email: z.string().email('Format email tidak valid'),
@@ -56,6 +59,16 @@ export async function submitOpenHouseRegistration(
 ): Promise<OpenHouseRegistrationResult> {
   try {
     const validated = openHouseSchema.parse(formData);
+    const supabase = createAdminClient();
+    let selectedEvent: { id: string; name: string; slug: string; event_dates: Array<{ date: string; start_time: string; end_time: string }> } | null = null;
+
+    if (validated.event_slug) {
+      const event = await getOpenHouseEventBySlug(validated.event_slug);
+      if (!event) {
+        return { success: false, message: 'Event tidak ditemukan atau pendaftaran telah ditutup' };
+      }
+      selectedEvent = event;
+    }
 
     // Format Nomor WhatsApp (+62 standard)
     let cleanWa = validated.whatsapp.replace(/[^0-9]/g, '');
@@ -71,7 +84,12 @@ export async function submitOpenHouseRegistration(
     const ticketCode = `JOH-${programPrefix}-${randomSuffix}`;
     const nowIso = new Date().toISOString();
 
+    const eventId = selectedEvent?.id ?? DEFAULT_JACOS_EVENT_ID;
+    const eventSlug = selectedEvent?.slug ?? DEFAULT_JACOS_EVENT_SLUG;
+    const notesWithEvent = embedEventTag(eventId, eventSlug, null);
+
     const record = {
+      event_id: eventId,
       ticket_code: ticketCode,
       parent_name: validated.parent_name.trim(),
       whatsapp: cleanWa,
@@ -82,42 +100,55 @@ export async function submitOpenHouseRegistration(
       entry_year: validated.entry_year,
       interest_attendance: validated.interest_attendance,
       attendance_date: validated.attendance_date || 'Sabtu, 29 Agustus 2026',
-      attendance_session: validated.attendance_session || 'Session 1 (08.30 - 10.00)',
+      attendance_session: validated.attendance_session || '08:30 - 10:00',
       source_info: validated.source_info,
       topics_of_interest: validated.topics_of_interest,
       admission_consultation: validated.admission_consultation,
       lead_status: validated.interest_attendance === 'Ya' ? 'CONFIRMED_ATTENDING' : 'NEW_LEAD',
+      follow_up_notes: notesWithEvent,
     };
 
     // Save to Supabase
     try {
-      const supabase = createAdminClient();
-      const { error: dbError } = await supabase
+      let { error: dbError } = await supabase
         .from('open_house_registrations')
         .insert(record);
 
+      // Fallback jika kolom event_id belum ada di database Supabase (legacy schema)
+      if (dbError && dbError.message && dbError.message.includes('event_id')) {
+        const { event_id, ...fallbackRecord } = record as any;
+        const retry = await supabase.from('open_house_registrations').insert(fallbackRecord);
+        dbError = retry.error;
+      }
+
       if (dbError) {
         console.warn('[OpenHouse] Supabase insert note (fallback mode active):', dbError.message);
-        const { memoryRegistrations } = await import('@/app/management/openhouse/memory-store');
-        memoryRegistrations.unshift({
-          ...record,
-          id: `public-${Date.now()}`,
-          created_at: nowIso,
-          updated_at: nowIso,
-          last_contacted_at: null,
-          follow_up_notes: null
-        });
       }
+
+      // Selalu daftarkan ke memoryRegistrations agar ter-cache secara instan
+      const { memoryRegistrations } = await import('@/app/management/openhouse/memory-store');
+      memoryRegistrations.unshift({
+        ...record,
+        id: `public-${Date.now()}`,
+        event_id: eventId,
+        event_slug: eventSlug,
+        created_at: nowIso,
+        updated_at: nowIso,
+        last_contacted_at: null,
+        follow_up_notes: null,
+      });
     } catch (dbErr) {
       console.warn('[OpenHouse] Supabase connection error:', dbErr);
       const { memoryRegistrations } = await import('@/app/management/openhouse/memory-store');
       memoryRegistrations.unshift({
         ...record,
         id: `public-${Date.now()}`,
+        event_id: eventId,
+        event_slug: eventSlug,
         created_at: nowIso,
         updated_at: nowIso,
         last_contacted_at: null,
-        follow_up_notes: null
+        follow_up_notes: null,
       });
     }
 
@@ -125,16 +156,17 @@ export async function submitOpenHouseRegistration(
     const resend = getResend();
     if (resend && record.email) {
       try {
+        const eventTitle = selectedEvent?.name || 'JACOS Open House 2026';
         await resend.emails.send({
           from: 'JACOS Open House <admission@jacos.id>',
           to: record.email,
-          subject: `✨ E-Ticket VIP Open House JACOS 2026 — ${record.child_name} (${ticketCode})`,
+          subject: `✨ E-Ticket VIP ${eventTitle} — ${record.child_name} (${ticketCode})`,
           html: `
 <!DOCTYPE html>
 <html lang="id">
 <head>
   <meta charset="UTF-8">
-  <title>VIP Pass JACOS Open House 2026</title>
+  <title>VIP Pass ${eventTitle}</title>
 </head>
 <body style="margin:0;padding:0;background-color:#F7F9FD;font-family:'Plus Jakarta Sans',-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;color:#16233D;">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 16px;">
@@ -146,7 +178,7 @@ export async function submitOpenHouseRegistration(
             <td style="background:linear-gradient(135deg, #2F6FED 0%, #1E479E 100%);padding:32px 24px;text-align:center;color:#ffffff;">
               <p style="margin:0;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:#FCE9BE;">JAKARTA COSMOPOLITE ISLAMIC SCHOOL</p>
               <h1 style="margin:8px 0 0;font-size:24px;font-weight:800;letter-spacing:-0.5px;line-height:1.2;">VIP ADMISSION PASS</h1>
-              <p style="margin:6px 0 0;font-size:13px;opacity:0.9;">JACOS Open House 2026 — Kindergarten & Primary</p>
+              <p style="margin:6px 0 0;font-size:13px;opacity:0.9;">${eventTitle}</p>
             </td>
           </tr>
           
@@ -157,7 +189,7 @@ export async function submitOpenHouseRegistration(
                 Assalamu'alaikum Wr. Wb. <strong>${record.parent_name}</strong>,
               </p>
               <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:#59647D;">
-                Terima kasih atas pendaftaran Mommy/Daddy untuk menghadiri <strong>JACOS Open House 2026</strong>. Kami sangat menantikan kehadiran keluarga Mommy/Daddy untuk mengenal lebih dekat lingkungan belajar islami berstandar internasional kami.
+                Terima kasih atas pendaftaran Mommy/Daddy untuk menghadiri <strong>${eventTitle}</strong>. Kami sangat menantikan kehadiran keluarga Mommy/Daddy untuk mengenal lebih dekat lingkungan belajar islami berstandar internasional kami.
               </p>
 
               <!-- Ticket Box -->
@@ -223,7 +255,7 @@ export async function submitOpenHouseRegistration(
           <!-- Footer -->
           <tr>
             <td style="background:#F7F9FD;padding:18px 24px;text-align:center;border-top:1px solid #E2E8F0;font-size:12px;color:#8C95AB;">
-              © 2026 Jakarta Cosmopolite Islamic School (JACOS). All rights reserved.
+              © ${new Date().getFullYear()} Jakarta Cosmopolite Islamic School (JACOS). All rights reserved.
             </td>
           </tr>
         </table>

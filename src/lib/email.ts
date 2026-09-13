@@ -307,6 +307,174 @@ export async function sendPublicAdmissionReceivedEmail(params: {
 }
 
 // ============================================================
+// EMAIL 2B — Pengingat / Follow-Up Pembayaran Biaya Pendaftaran
+// (Kirim instruksi transfer & link upload bukti ke orang tua)
+// ============================================================
+
+export async function sendPaymentReminderEmail(params: {
+  parentName: string;
+  parentEmail: string;
+  studentName: string;
+  registrationNo: string;
+  program: string;
+  paymentLink: string;
+  amount?: number;
+}) {
+  try {
+    const cleanEmail = params.parentEmail?.trim();
+    if (!cleanEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail)) {
+      console.warn("[email] Invalid email for payment reminder:", params.parentEmail);
+      return { success: false, message: "Invalid email" };
+    }
+
+    console.log("[email] Sending payment reminder email to:", cleanEmail);
+
+    const programName = formatProgram(params.program);
+    const formattedAmount = (params.amount || 1000000).toLocaleString("id-ID");
+
+    const { data, error } = await getResend().emails.send({
+      from: "JACOS Admission <admission@jacos.id>",
+      to: cleanEmail,
+      subject: `Tagihan & Instruksi Pembayaran Pendaftaran — ${params.studentName} (${params.registrationNo})`,
+      html: `
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1.0">
+  <title>Instruksi Pembayaran Pendaftaran - JACOS</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F0F4FA;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;color:#0F172A;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F0F4FA;padding:36px 16px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.06);border:1px solid #E2E8F0;">
+          
+          <!-- Header Banner -->
+          <tr>
+            <td style="background:linear-gradient(135deg,#0284C7 0%,#0369A1 100%);padding:36px 32px;text-align:center;">
+              <img src="https://jacosmanagement.vercel.app/publicjacos/logoputih.png" alt="JACOS Logo" style="height:36px;margin-bottom:14px;object-fit:contain;" />
+              <p style="margin:0;color:rgba(255,255,255,0.9);font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Admission &amp; Billing</p>
+              <h1 style="margin:8px 0 0;color:#ffffff;font-size:24px;font-weight:800;line-height:1.3;">Instruksi Pembayaran Formulir</h1>
+            </td>
+          </tr>
+
+          <!-- Body Content -->
+          <tr>
+            <td style="padding:36px 32px;">
+              <p style="margin:0 0 10px;color:#64748B;font-size:15px;">Yth. Bapak/Ibu <strong style="color:#0F172A;">${params.parentName}</strong>,</p>
+              <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.7;">
+                Terima kasih telah mendaftarkan ananda di <strong>Jakarta Cosmopolite Islamic School (JACOS)</strong>. Untuk melanjutkan ke tahap pengisian formulir pendaftaran lengkap, mohon melakukan pembayaran biaya formulir pendaftaran dan mengunggah bukti transfer Anda.
+              </p>
+
+              <!-- Card Detail Tagihan -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F8FAFC;border-radius:18px;border:1px solid #E2E8F0;margin-bottom:24px;">
+                <tr>
+                  <td style="padding:22px;">
+                    <p style="margin:0 0 14px;color:#0284C7;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;">Rincian Tagihan Pendaftaran</p>
+                    <table width="100%" cellpadding="4" cellspacing="0">
+                      <tr>
+                        <td style="color:#64748B;font-size:14px;">Nama Calon Siswa</td>
+                        <td style="color:#0F172A;font-weight:700;font-size:14px;text-align:right;">${params.studentName}</td>
+                      </tr>
+                      <tr>
+                        <td style="color:#64748B;font-size:14px;">Jenjang Pendidikan</td>
+                        <td style="color:#0F172A;font-weight:700;font-size:14px;text-align:right;">${programName}</td>
+                      </tr>
+                      <tr>
+                        <td style="color:#64748B;font-size:14px;">Nomor Registrasi</td>
+                        <td style="color:#0284C7;font-weight:800;font-size:14px;text-align:right;font-family:monospace;">${params.registrationNo}</td>
+                      </tr>
+                      <tr>
+                        <td style="color:#64748B;font-size:14px;">Total Tagihan Biaya Form</td>
+                        <td style="color:#0F172A;font-weight:800;font-size:16px;text-align:right;">Rp ${formattedAmount}</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Card Rekening Tujuan -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F0FDF4;border-radius:18px;border:1px solid #BBF7D0;margin-bottom:28px;">
+                <tr>
+                  <td style="padding:22px;">
+                    <p style="margin:0 0 8px;color:#15803D;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;">Rekening Resmi Pembayaran JACOS</p>
+                    <table width="100%" cellpadding="3" cellspacing="0">
+                      <tr>
+                        <td style="color:#166534;font-size:14px;">Nama Bank</td>
+                        <td style="color:#0F172A;font-weight:800;font-size:14px;text-align:right;">Bank BNI</td>
+                      </tr>
+                      <tr>
+                        <td style="color:#166534;font-size:14px;">Nomor Rekening</td>
+                        <td style="color:#15803D;font-weight:800;font-size:18px;text-align:right;font-family:monospace;letter-spacing:1px;">1928374650</td>
+                      </tr>
+                      <tr>
+                        <td style="color:#166534;font-size:14px;">Atas Nama</td>
+                        <td style="color:#0F172A;font-weight:700;font-size:14px;text-align:right;">Yayasan Jakarta Cosmopolite</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Card Link Upload Bukti -->
+              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F0F9FF;border-radius:18px;border:1px solid #BAE6FD;margin-bottom:28px;">
+                <tr>
+                  <td style="padding:22px;">
+                    <p style="margin:0 0 10px;color:#0369A1;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;">Unggah Bukti Transfer Anda</p>
+                    <p style="margin:0 0 16px;color:#475569;font-size:14px;line-height:1.6;">
+                      Setelah melakukan transfer, silakan buka tautan resmi pendaftaran ananda untuk mengunggah foto / tangkapan layar bukti transfer:
+                    </p>
+                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
+                      <tr>
+                        <td align="center">
+                          <a href="${params.paymentLink}" style="display:inline-block;background:linear-gradient(135deg,#0284C7,#0369A1);color:#ffffff;font-weight:800;font-size:14px;text-decoration:none;padding:14px 34px;border-radius:100px;box-shadow:0 4px 14px rgba(2,132,199,0.3);">Unggah Bukti Transfer Sekarang &rarr;</a>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin:10px 0 0;color:#64748B;font-size:12px;line-height:1.5;word-break:break-all;text-align:center;">
+                      Atau salin tautan ini di browser: <br/>
+                      <a href="${params.paymentLink}" style="color:#0284C7;font-weight:600;text-decoration:none;">${params.paymentLink}</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <p style="margin:24px 0 0;color:#94A3B8;font-size:13px;line-height:1.6;border-top:1px solid #E2E8F0;padding-top:20px;">
+                Jika memerlukan bantuan atau konfirmasi transfer, hubungi tim Admisi JACOS melalui WhatsApp di <strong>0821-4000-0477</strong> atau email ke <strong>admission@jacos.id</strong>.
+              </p>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="background-color:#F8FAFC;padding:24px 32px;text-align:center;border-top:1px solid #E2E8F0;">
+              <p style="margin:0;color:#64748B;font-size:13px;font-weight:700;">Jakarta Cosmopolite Islamic School</p>
+              <p style="margin:4px 0 0;color:#94A3B8;font-size:12px;">&copy; ${new Date().getFullYear()} JACOS. All rights reserved.</p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+      `,
+    });
+
+    if (error) {
+      console.error("[email] Resend sendPaymentReminderEmail error:", JSON.stringify(error));
+      return { success: false, error };
+    }
+    return { success: true, data };
+  } catch (err) {
+    console.error("[email] Exception in sendPaymentReminderEmail:", err);
+    return { success: false, error: err };
+  }
+}
+
+// ============================================================
 // EMAIL 3 — Formulir Lengkap Disubmit Orang Tua
 // (Menunggu Review & Approval Admin, TANPA PASSWORD DULU)
 // ============================================================
@@ -630,8 +798,6 @@ export async function sendRejectionEmail(params: {
   studentName: string;
   registrationNo: string;
   reason: string;
-  uniqueLink?: string;
-  registrationToken?: string;
 }) {
   try {
     const cleanEmail = params.parentEmail?.trim();
@@ -641,9 +807,6 @@ export async function sendRejectionEmail(params: {
     }
 
     console.log("[email] Sending rejection email to:", cleanEmail);
-
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://admission.jacos.id";
-    const editLink = params.uniqueLink || (params.registrationToken ? `${baseUrl}/reg/${params.registrationToken}` : "");
 
     const { data, error } = await getResend().emails.send({
       from: "JACOS Admission <admission@jacos.id>",
@@ -663,13 +826,11 @@ export async function sendRejectionEmail(params: {
       <td align="center">
         <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:24px;overflow:hidden;box-shadow:0 10px 30px rgba(15,23,42,0.06);border:1px solid #E2E8F0;">
           
-          <!-- Header Banner (Warm Crimson / Charcoal) -->
+          <!-- Header Banner (Subtle Slate/Charcoal) -->
           <tr>
-            <td style="background:linear-gradient(135deg,#334155 0%,#1E293B 100%);padding:36px 32px;text-align:center;">
-              <img src="https://jacosmanagement.vercel.app/publicjacos/logoputih.png" alt="JACOS Logo" style="height:36px;margin-bottom:14px;object-fit:contain;" />
-              <p style="margin:0;color:#FCE9BE;font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Jakarta Cosmopolite Islamic School</p>
+            <td style="background:linear-gradient(135deg,#475569 0%,#334155 100%);padding:36px 32px;text-align:center;">
+              <p style="margin:0;color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;">Jakarta Cosmopolite Islamic School</p>
               <h1 style="margin:8px 0 0;color:#ffffff;font-size:24px;font-weight:800;line-height:1.3;">Update Status Pendaftaran</h1>
-              <p style="margin:6px 0 0;color:rgba(255,255,255,0.8);font-size:13px;">Perlu Penyesuaian / Perbaikan Data Pendaftaran</p>
             </td>
           </tr>
 
@@ -677,77 +838,42 @@ export async function sendRejectionEmail(params: {
           <tr>
             <td style="padding:36px 32px;">
               <p style="margin:0 0 10px;color:#64748B;font-size:15px;">Yth. Bapak/Ibu <strong style="color:#0F172A;">${params.parentName}</strong>,</p>
-              <p style="margin:0 0 20px;color:#475569;font-size:15px;line-height:1.7;">
-                Terima kasih atas minat dan kepercayaan Anda mendaftarkan ananda <strong style="color:#0F172A;">${params.studentName}</strong> (No. Registrasi: <code style="font-family:monospace;background:#F1F5F9;padding:2px 6px;border-radius:4px;color:#0284C7;font-weight:700;">${params.registrationNo}</code>) di JACOS.
+              <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.7;">
+                Terima kasih atas minat dan kepercayaan Anda mendaftarkan ananda <strong style="color:#0F172A;">${params.studentName}</strong> (No. Registrasi: <code style="font-family:monospace;background:#F1F5F9;padding:2px 6px;border-radius:4px;">${params.registrationNo}</code>) di JACOS.
               </p>
               <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.7;">
-                Setelah melalui proses peninjauan berkas oleh Tim Admisi, terdapat beberapa informasi atau dokumen pendaftaran yang <strong>perlu diperbaiki/dilengkapi kembali</strong> sebelum pendaftaran dapat kami setujui.
+                Setelah melalui proses peninjauan berkas dan kriteria seleksi admisi, kami menyampaikan bahwa untuk saat ini pendaftaran ananda <strong>belum dapat kami terima</strong>.
               </p>
 
-              <!-- Box Catatan / Alasan Penolakan -->
+              <!-- Box Alasan Penolakan -->
               <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#FFF7ED;border-radius:18px;border:1px solid #FED7AA;margin-bottom:28px;">
                 <tr>
                   <td style="padding:22px;">
-                    <p style="margin:0 0 8px;color:#C2410C;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;">📌 Catatan Perbaikan dari Tim Admisi</p>
+                    <p style="margin:0 0 8px;color:#C2410C;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;">Catatan / Arahan dari Tim Admisi</p>
                     <p style="margin:0;color:#9A3412;font-size:14px;font-weight:600;line-height:1.7;">
-                      ${params.reason || "Mohon periksa kembali kelengkapan dokumen atau data pendaftaran yang belum sesuai."}
+                      ${params.reason || "Mohon maaf, berkas belum memenuhi kriteria atau bukti pembayaran belum terverifikasi."}
                     </p>
                   </td>
                 </tr>
               </table>
-
-              ${
-                editLink
-                  ? `
-              <!-- Box Tautan Pembaruan Formulir (Link Unik Pendaftar) -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F0F9FF;border-radius:20px;border:1px solid #BAE6FD;margin-bottom:28px;">
-                <tr>
-                  <td style="padding:24px;">
-                    <p style="margin:0 0 8px;color:#0369A1;font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;">📝 Tautan Perbaikan Formulir Pendaftaran</p>
-                    <p style="margin:0 0 18px;color:#334155;font-size:14px;line-height:1.6;">
-                      Silakan klik tombol di bawah ini untuk langsung membuka dan memperbarui data/dokumen formulir pendaftaran ananda:
-                    </p>
-                    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:14px;">
-                      <tr>
-                        <td align="center">
-                          <a href="${editLink}" style="display:inline-block;background:linear-gradient(135deg,#0284C7 0%,#0369A1 100%);color:#ffffff;font-weight:800;font-size:14px;text-decoration:none;padding:15px 36px;border-radius:100px;box-shadow:0 4px 14px rgba(2,132,199,0.35);">
-                            ✏️ Perbarui Formulir Pendaftaran Sekarang &rarr;
-                          </a>
-                        </td>
-                      </tr>
-                    </table>
-                    <p style="margin:10px 0 0;color:#64748B;font-size:12px;line-height:1.5;word-break:break-all;text-align:center;">
-                      Atau salin tautan unik ini di browser: <br/>
-                      <a href="${editLink}" style="color:#0284C7;font-weight:600;text-decoration:none;">${editLink}</a>
-                    </p>
-                  </td>
-                </tr>
-              </table>
-              `
-                  : ""
-              }
 
               <!-- Panduan Selanjutnya -->
-              <p style="margin:0 0 10px;color:#0F172A;font-size:14px;font-weight:700;">Langkah yang Perlu Dilakukan:</p>
-              <ol style="margin:0 0 28px;padding-left:20px;color:#475569;font-size:14px;line-height:1.7;">
-                <li>Buka tautan perbaikan formulir pendaftaran di atas.</li>
-                <li>Sesuaikan data atau unggah ulang dokumen yang diminta pada catatan tim admisi.</li>
-                <li>Kirimkan kembali formulir tersebut untuk proses verifikasi ulang oleh tim kami.</li>
-              </ol>
+              <p style="margin:0 0 10px;color:#0F172A;font-size:14px;font-weight:700;">Langkah yang Dapat Anda Lakukan:</p>
+              <ul style="margin:0 0 28px;padding-left:20px;color:#475569;font-size:14px;line-height:1.7;">
+                <li>Periksa kembali catatan admin di atas mengenai perbaikan data atau berkas yang diperlukan.</li>
+                <li>Anda dapat berkonsultasi langsung dengan Tim Admisi JACOS melalui tautan WhatsApp resmi kami.</li>
+              </ul>
 
-              <!-- Hubungi WhatsApp -->
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:12px;">
+              <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
-                  <td align="center">
-                    <a href="https://wa.me/6282140000477?text=${encodeURIComponent(`Assalamu'alaikum Tim Admisi JACOS, saya ${params.parentName} orang tua dari ${params.studentName} (No. Registrasi: ${params.registrationNo}) ingin berkonsultasi mengenai perbaikan berkas pendaftaran.`)}" style="display:inline-block;background:#25D366;color:#ffffff;font-weight:700;font-size:13px;text-decoration:none;padding:12px 28px;border-radius:100px;box-shadow:0 3px 10px rgba(37,211,102,0.25);">
-                      💬 Konsultasi via WhatsApp Tim Admisi
-                    </a>
+                  <td align="center" style="padding-bottom:12px;">
+                    <a href="https://wa.me/6282140000477" style="display:inline-block;background:linear-gradient(135deg,#22C55E,#16A34A);color:#ffffff;font-weight:800;font-size:14px;text-decoration:none;padding:14px 34px;border-radius:100px;box-shadow:0 4px 14px rgba(22,163,74,0.3);">Hubungi Tim Admisi via WhatsApp &rarr;</a>
                   </td>
                 </tr>
               </table>
 
               <p style="margin:24px 0 0;color:#94A3B8;font-size:13px;line-height:1.6;border-top:1px solid #E2E8F0;padding-top:20px;">
-                Kami sangat mengapresiasi kerjasama Bapak/Ibu dalam melengkapi data pendaftaran ananda tercinta.
+                Kami sangat mengapresiasi waktu dan perhatian yang telah Anda berikan dalam proses pendaftaran ini.
               </p>
             </td>
           </tr>
@@ -755,7 +881,7 @@ export async function sendRejectionEmail(params: {
           <!-- Footer -->
           <tr>
             <td style="background-color:#F8FAFC;padding:24px 32px;text-align:center;border-top:1px solid #E2E8F0;">
-              <p style="margin:0;color:#64748B;font-size:13px;font-weight:700;">Jakarta Cosmopolite Islamic School (JACOS)</p>
+              <p style="margin:0;color:#64748B;font-size:13px;font-weight:700;">Jakarta Cosmopolite Islamic School</p>
               <p style="margin:4px 0 0;color:#94A3B8;font-size:12px;">&copy; ${new Date().getFullYear()} JACOS. All rights reserved.</p>
             </td>
           </tr>

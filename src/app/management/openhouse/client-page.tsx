@@ -5,7 +5,6 @@ import Image from 'next/image';
 import {
   Users,
   Search,
-  Filter,
   Plus,
   Download,
   Calendar,
@@ -14,40 +13,33 @@ import {
   AlertCircle,
   MessageCircle,
   Mail,
-  MoreVertical,
   GraduationCap,
   Sparkles,
   ExternalLink,
   Trash2,
-  Edit,
   Phone,
   HeartHandshake,
-  Check,
-  ChevronRight,
   Send,
   Loader2,
   X,
   Eye,
   Info,
   CalendarDays,
-  Tag,
-  Share2,
+  Check,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Label } from '@/components/ui/label';
 import {
   getOpenHouseRegistrations,
   updateLeadStatusAndNotes,
   createManualOpenHouseRegistration,
   deleteOpenHouseRegistration,
   sendFollowUpEmail,
-  toggleOpenHouseEventStatus,
   type OpenHouseLead,
   type OpenHouseStats,
   type OpenHouseSetting,
 } from './actions';
+import { slugify, type OpenHouseEvent } from './event-store';
 
 const LEAD_STATUS_CONFIG: Record<
   string,
@@ -98,6 +90,8 @@ const LEAD_STATUS_CONFIG: Record<
 };
 
 export default function OpenHouseClient({
+  eventId,
+  event,
   initialRegistrations = [],
   initialStats = {
     total: 0,
@@ -108,25 +102,16 @@ export default function OpenHouseClient({
     converted: 0,
     followUpProgress: 0,
   },
-  initialSetting = {
-    id: 'default',
-    is_active: true,
-    inactive_message: '',
-    event_title: 'JACOS OPEN HOUSE 2026',
-    event_dates: '',
-    updated_at: '',
-  },
 }: {
+  eventId?: string;
+  event?: OpenHouseEvent | null;
   initialRegistrations?: OpenHouseLead[];
   initialStats?: OpenHouseStats;
   initialSetting?: OpenHouseSetting;
 }) {
   const [registrations, setRegistrations] = useState<OpenHouseLead[]>(initialRegistrations);
   const [stats, setStats] = useState<OpenHouseStats>(initialStats);
-  const [setting, setSetting] = useState<OpenHouseSetting>(initialSetting);
-
   const [isLoading, setIsLoading] = useState(false);
-  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
 
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
@@ -136,7 +121,7 @@ export default function OpenHouseClient({
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
-  const pageSize = 10;
+  const pageSize = 15;
 
   // Modals & Detail
   const [selectedLead, setSelectedLead] = useState<OpenHouseLead | null>(null);
@@ -156,6 +141,13 @@ export default function OpenHouseClient({
   const [isSendingEmail, setIsSendingEmail] = useState(false);
   const [emailFeedback, setEmailFeedback] = useState<string | null>(null);
 
+  // First default schedule
+  const defaultSch = event?.event_dates?.[0] || {
+    date: 'Sabtu, 29 Agustus 2026',
+    start_time: '08:30',
+    end_time: '10:00',
+  };
+
   // Manual Form State
   const [manualForm, setManualForm] = useState({
     parent_name: '',
@@ -166,13 +158,14 @@ export default function OpenHouseClient({
     target_program: 'Primary School',
     entry_year: '2026',
     interest_attendance: 'Ya',
-    attendance_date: 'Sabtu, 29 Agustus 2026',
-    attendance_session: 'Session 1 (08.30 - 10.00)',
+    attendance_date: defaultSch.date,
+    attendance_session: `${defaultSch.start_time} - ${defaultSch.end_time}`,
     source_info: 'Walk-in On Spot',
     topics_of_interest: ['Kurikulum & Metode Belajar'],
     admission_consultation: 'Ya',
     lead_status: 'ATTENDED',
     follow_up_notes: 'Pendaftaran langsung di lokasi open house',
+    event_id: eventId || event?.id || null,
   });
   const [isSubmittingManual, setIsSubmittingManual] = useState(false);
 
@@ -180,10 +173,9 @@ export default function OpenHouseClient({
   const loadData = async () => {
     setIsLoading(true);
     try {
-      const res = await getOpenHouseRegistrations();
+      const res = await getOpenHouseRegistrations(eventId);
       setRegistrations(res.registrations);
       setStats(res.stats);
-      setSetting(res.setting);
     } catch (err) {
       console.error(err);
     } finally {
@@ -191,24 +183,10 @@ export default function OpenHouseClient({
     }
   };
 
-  // Handle Event Toggle ON / OFF
-  const handleToggleEventStatus = async (checked: boolean) => {
-    setIsTogglingStatus(true);
-    try {
-      const res = await toggleOpenHouseEventStatus(checked);
-      setSetting(res.setting);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setIsTogglingStatus(false);
-    }
-  };
-
   // Filtered Leads
   const filteredLeads = useMemo(() => {
     return registrations.filter((lead) => {
-      // Search
-      const q = searchQuery.toLowerCase();
+      const q = searchQuery.toLowerCase().trim();
       const matchSearch =
         !q ||
         lead.child_name?.toLowerCase().includes(q) ||
@@ -217,15 +195,10 @@ export default function OpenHouseClient({
         lead.whatsapp?.includes(q) ||
         lead.email?.toLowerCase().includes(q);
 
-      // Status
       const matchStatus = statusFilter === 'ALL' || lead.lead_status === statusFilter;
-
-      // Program
       const matchProgram =
         programFilter === 'ALL' ||
         lead.target_program?.toLowerCase().includes(programFilter.toLowerCase());
-
-      // Date
       const matchDate = dateFilter === 'ALL' || lead.attendance_date?.includes(dateFilter);
 
       return matchSearch && matchStatus && matchProgram && matchDate;
@@ -236,7 +209,7 @@ export default function OpenHouseClient({
   const paginatedLeads = useMemo(() => {
     const start = (currentPage - 1) * pageSize;
     return filteredLeads.slice(start, start + pageSize);
-  }, [filteredLeads, currentPage]);
+  }, [filteredLeads, currentPage, pageSize]);
 
   const totalPages = Math.ceil(filteredLeads.length / pageSize) || 1;
 
@@ -257,12 +230,18 @@ export default function OpenHouseClient({
         id: selectedLead.id,
         leadStatus: editStatus,
         followUpNotes: editNotes,
+        eventId: eventId || selectedLead.event_id,
       });
-      // Update local state
+
       setRegistrations((prev) =>
         prev.map((r) =>
           r.id === selectedLead.id
-            ? { ...r, lead_status: editStatus, follow_up_notes: editNotes, last_contacted_at: new Date().toISOString() }
+            ? {
+                ...r,
+                lead_status: editStatus,
+                follow_up_notes: editNotes,
+                last_contacted_at: new Date().toISOString(),
+              }
             : r
         )
       );
@@ -282,11 +261,12 @@ export default function OpenHouseClient({
     if (cleanWa.startsWith('0')) cleanWa = '62' + cleanWa.slice(1);
     if (cleanWa.startsWith('8')) cleanWa = '62' + cleanWa;
 
+    const eventName = event?.name || 'JACOS Open House';
     const topicsText = lead.topics_of_interest?.length
       ? `mengenai ${lead.topics_of_interest.slice(0, 2).join(' & ')}`
       : 'informasi program unggulan & kurikulum';
 
-    const message = `Assalamu'alaikum Wr. Wb. Ayah/Bunda ${lead.parent_name},\n\nPerkenalkan kami dari Tim Admission Jakarta Cosmopolite Islamic School (JACOS).\n\nTerima kasih atas pendaftaran ananda ${lead.child_name} pada acara JACOS Open House (${lead.target_program}) dengan Kode Tiket: *${lead.ticket_code}*.\n\nApakah ada hal yang dapat kami bantu ${topicsText}? Kami juga dapat menjadwalkan konsultasi tatap muka khusus dengan pimpinan akademik JACOS.\n\nTerima kasih. Wassalamu'alaikum Wr. Wb.`;
+    const message = `Assalamu'alaikum Wr. Wb. Ayah/Bunda ${lead.parent_name},\n\nPerkenalkan kami dari Tim Admission Jakarta Cosmopolite Islamic School (JACOS).\n\nTerima kasih atas pendaftaran ananda ${lead.child_name} pada acara *${eventName}* (${lead.target_program}) dengan Kode Tiket: *${lead.ticket_code}*.\n\nApakah ada hal yang dapat kami bantu ${topicsText}? Kami juga dapat menjadwalkan konsultasi tatap muka khusus dengan pimpinan akademik JACOS.\n\nTerima kasih. Wassalamu'alaikum Wr. Wb.`;
 
     const url = `https://wa.me/${cleanWa}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
@@ -308,6 +288,7 @@ export default function OpenHouseClient({
         targetProgram: selectedLead.target_program,
         ticketCode: selectedLead.ticket_code,
         customMessage: emailCustomMessage,
+        eventId: eventId || selectedLead.event_id,
       });
 
       if (res.success) {
@@ -321,7 +302,7 @@ export default function OpenHouseClient({
       } else {
         setEmailFeedback(res.message || 'Gagal mengirim email.');
       }
-    } catch (err) {
+    } catch {
       setEmailFeedback('Terjadi kesalahan koneksi server.');
     } finally {
       setIsSendingEmail(false);
@@ -333,7 +314,10 @@ export default function OpenHouseClient({
     e.preventDefault();
     setIsSubmittingManual(true);
     try {
-      const res = await createManualOpenHouseRegistration(manualForm);
+      const res = await createManualOpenHouseRegistration({
+        ...manualForm,
+        event_id: eventId || event?.id || null,
+      });
       if (res.success) {
         setManualModalOpen(false);
         loadData();
@@ -349,7 +333,7 @@ export default function OpenHouseClient({
   const handleDeleteConfirm = async () => {
     if (!leadToDelete) return;
     try {
-      await deleteOpenHouseRegistration(leadToDelete.id);
+      await deleteOpenHouseRegistration(leadToDelete.id, eventId);
       setRegistrations((prev) => prev.filter((r) => r.id !== leadToDelete.id));
       setDeleteModalOpen(false);
       setLeadToDelete(null);
@@ -402,75 +386,21 @@ export default function OpenHouseClient({
       `"${new Date(r.created_at).toLocaleString('id-ID')}"`,
     ]);
 
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
+    const csvContent =
+      'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(','), ...rows.map((e) => e.join(','))].join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `JACOS_Open_House_Leads_${new Date().toISOString().slice(0, 10)}.csv`);
+    const eventSlug = event?.slug || (eventId ? `event-${eventId}` : 'all');
+    link.setAttribute('download', `JACOS_Audience_${slugify(eventSlug)}_${new Date().toISOString().slice(0, 10)}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
   };
 
   return (
-    <div className="space-y-8 pb-20 font-body">
-      {/* 1. TOP HEADER & EVENT STATUS CONTROL */}
-      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-ink/10 shadow-sm flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <span className="w-9 h-9 rounded-xl bg-gold-50 text-gold-600 flex items-center justify-center font-bold">
-              <Sparkles className="w-5 h-5" />
-            </span>
-            <span className="text-xs font-bold uppercase tracking-wider text-ink-300">
-              JACOS Management Portal
-            </span>
-          </div>
-          <h1 className="font-display text-2xl sm:text-3xl font-extrabold text-ink">
-            Data Pendaftaran & Leads Open House
-          </h1>
-          <p className="text-ink-400 text-sm mt-1">
-            Kelola, analisa, dan tindak lanjuti calon wali murid yang mendaftar melalui form publik Open House.
-          </p>
-        </div>
-
-        {/* Action Controls */}
-        <div className="flex flex-wrap items-center gap-4 w-full lg:w-auto">
-          {/* Toggle Event Switch */}
-          <div className="flex items-center gap-3 bg-cloud px-4 py-2.5 rounded-2xl border border-ink/10 shrink-0">
-            <div className="text-right">
-              <p className="text-xs font-bold text-ink">Status Event Open House</p>
-              <p className={`text-[11px] font-semibold ${setting.is_active ? 'text-leaf-600' : 'text-coral-600'}`}>
-                {setting.is_active ? '🟢 Form Publik Aktif' : '🔴 Form Publik Ditutup'}
-              </p>
-            </div>
-            <Switch
-              checked={setting.is_active}
-              disabled={isTogglingStatus}
-              onCheckedChange={handleToggleEventStatus}
-              className="data-[state=checked]:bg-leaf"
-            />
-          </div>
-
-          <Button
-            onClick={handleExportCSV}
-            variant="outline"
-            className="flex items-center gap-2 rounded-2xl border-ink/10 font-bold text-ink hover:bg-cloud h-11 px-4 cursor-pointer"
-          >
-            <Download className="w-4 h-4 text-sky" />
-            <span className="text-xs sm:text-sm">Export CSV</span>
-          </Button>
-
-          <Button
-            onClick={() => setManualModalOpen(true)}
-            className="flex items-center gap-2 bg-sky hover:bg-sky-600 text-white font-bold rounded-2xl shadow-sm h-11 px-5 cursor-pointer"
-          >
-            <Plus className="w-4 h-4" />
-            <span className="text-xs sm:text-sm">Tambah Manual</span>
-          </Button>
-        </div>
-      </div>
-
-      {/* 2. STATS CARDS */}
+    <div className="space-y-6 font-body">
+      {/* 1. STATS CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <div className="bg-white rounded-3xl p-5 border border-ink/10 shadow-sm">
           <div className="w-10 h-10 rounded-2xl bg-sky-50 text-sky flex items-center justify-center mb-3 font-bold">
@@ -478,7 +408,7 @@ export default function OpenHouseClient({
           </div>
           <p className="text-xs text-ink-300 font-semibold uppercase tracking-wider">Total Pendaftar</p>
           <p className="font-display text-2xl sm:text-3xl font-extrabold text-ink mt-0.5">{stats.total}</p>
-          <p className="text-[11px] text-ink-400 mt-1">Seluruh prospek masuk</p>
+          <p className="text-[11px] text-ink-400 mt-1">Calon wali murid</p>
         </div>
 
         <div className="bg-white rounded-3xl p-5 border border-ink/10 shadow-sm">
@@ -486,7 +416,9 @@ export default function OpenHouseClient({
             <CheckCircle2 className="w-5 h-5" />
           </div>
           <p className="text-xs text-ink-300 font-semibold uppercase tracking-wider">Siap Hadir</p>
-          <p className="font-display text-2xl sm:text-3xl font-extrabold text-leaf-600 mt-0.5">{stats.confirmed}</p>
+          <p className="font-display text-2xl sm:text-3xl font-extrabold text-leaf-600 mt-0.5">
+            {stats.confirmed}
+          </p>
           <p className="text-[11px] text-ink-400 mt-1">Konfirmasi hadir fisik</p>
         </div>
 
@@ -495,8 +427,10 @@ export default function OpenHouseClient({
             <Sparkles className="w-5 h-5" />
           </div>
           <p className="text-xs text-ink-300 font-semibold uppercase tracking-wider">Kindergarten</p>
-          <p className="font-display text-2xl sm:text-3xl font-extrabold text-gold-600 mt-0.5">{stats.kindergarten}</p>
-          <p className="text-[11px] text-ink-400 mt-1">Peminat Playgroup/TK</p>
+          <p className="font-display text-2xl sm:text-3xl font-extrabold text-gold-600 mt-0.5">
+            {stats.kindergarten}
+          </p>
+          <p className="text-[11px] text-ink-400 mt-1">Peminat Playgroup / TK</p>
         </div>
 
         <div className="bg-white rounded-3xl p-5 border border-ink/10 shadow-sm">
@@ -513,31 +447,55 @@ export default function OpenHouseClient({
             <HeartHandshake className="w-5 h-5" />
           </div>
           <p className="text-xs text-ink-300 font-semibold uppercase tracking-wider">Terkonversi Admisi</p>
-          <p className="font-display text-2xl sm:text-3xl font-extrabold text-purple-600 mt-0.5">{stats.converted}</p>
+          <p className="font-display text-2xl sm:text-3xl font-extrabold text-purple-600 mt-0.5">
+            {stats.converted}
+          </p>
           <p className="text-[11px] text-ink-400 mt-1">Lanjut daftar siswa baru</p>
         </div>
       </div>
 
-      {/* 3. FILTER & SEARCH BAR */}
+      {/* 2. FILTER & ACTIONS BAR */}
       <div className="bg-white rounded-3xl p-5 border border-ink/10 shadow-sm space-y-4">
-        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
+        <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center justify-between">
           {/* Search Box */}
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-ink-300" />
             <Input
               type="text"
-              placeholder="Cari nama anak, nama orang tua, tiket, no WA..."
+              placeholder="Cari nama anak, orang tua, kode tiket, nomor WA, atau email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-11 h-12 rounded-2xl bg-cloud border-transparent focus-visible:border-sky text-sm"
             />
           </div>
 
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Button
+              onClick={handleExportCSV}
+              variant="outline"
+              className="flex items-center gap-2 rounded-2xl border-ink/10 font-bold text-ink hover:bg-cloud h-12 px-4 cursor-pointer"
+            >
+              <Download className="w-4 h-4 text-sky" />
+              <span className="text-xs sm:text-sm">Export CSV</span>
+            </Button>
+
+            <Button
+              onClick={() => setManualModalOpen(true)}
+              className="flex items-center gap-2 bg-sky hover:bg-sky-600 text-white font-bold rounded-2xl shadow-sm h-12 px-5 cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="text-xs sm:text-sm">Tambah Manual</span>
+            </Button>
+          </div>
+        </div>
+
+        {/* Dropdown Filters */}
+        <div className="flex flex-wrap items-center gap-3 pt-2 border-t border-slate-100">
           {/* Status Filter */}
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="h-12 px-4 rounded-2xl bg-cloud border border-ink/5 text-sm font-semibold text-ink outline-none focus:border-sky cursor-pointer"
+            className="h-11 px-4 rounded-xl bg-cloud border border-ink/5 text-xs font-bold text-ink outline-none focus:border-sky cursor-pointer"
           >
             <option value="ALL">Semua Status Follow-Up</option>
             <option value="NEW_LEAD">Lead Baru</option>
@@ -552,7 +510,7 @@ export default function OpenHouseClient({
           <select
             value={programFilter}
             onChange={(e) => setProgramFilter(e.target.value)}
-            className="h-12 px-4 rounded-2xl bg-cloud border border-ink/5 text-sm font-semibold text-ink outline-none focus:border-sky cursor-pointer"
+            className="h-11 px-4 rounded-xl bg-cloud border border-ink/5 text-xs font-bold text-ink outline-none focus:border-sky cursor-pointer"
           >
             <option value="ALL">Semua Jenjang</option>
             <option value="Kindergarten">Kindergarten</option>
@@ -560,23 +518,28 @@ export default function OpenHouseClient({
           </select>
 
           {/* Date Filter */}
-          <select
-            value={dateFilter}
-            onChange={(e) => setDateFilter(e.target.value)}
-            className="h-12 px-4 rounded-2xl bg-cloud border border-ink/5 text-sm font-semibold text-ink outline-none focus:border-sky cursor-pointer"
-          >
-            <option value="ALL">Semua Jadwal</option>
-            <option value="29 Agustus">Sabtu, 29 Agustus 2026</option>
-            <option value="30 Agustus">Ahad, 30 Agustus 2026</option>
-          </select>
+          {event?.event_dates && event.event_dates.length > 0 && (
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="h-11 px-4 rounded-xl bg-cloud border border-ink/5 text-xs font-bold text-ink outline-none focus:border-sky cursor-pointer"
+            >
+              <option value="ALL">Semua Jadwal Sesi</option>
+              {event.event_dates.map((sch, i) => (
+                <option key={i} value={sch.date}>
+                  {sch.date} ({sch.start_time} - {sch.end_time})
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
-      {/* 4. TABLE SECTION */}
+      {/* 3. TABLE SECTION */}
       <div className="bg-white rounded-3xl border border-ink/10 shadow-sm overflow-hidden">
         <div className="p-5 border-b border-ink/5 flex items-center justify-between">
           <div>
-            <h2 className="font-display text-lg font-bold text-ink">Daftar Partisipan Open House</h2>
+            <h2 className="font-display text-lg font-bold text-ink">Daftar Calon Partisipan</h2>
             <p className="text-xs text-ink-300">Menampilkan {filteredLeads.length} data pendaftar</p>
           </div>
         </div>
@@ -588,8 +551,10 @@ export default function OpenHouseClient({
           </div>
         ) : paginatedLeads.length === 0 ? (
           <div className="p-12 text-center text-ink-300 space-y-2">
-            <p className="font-bold text-base text-ink">Belum ada data pendaftar yang cocok</p>
-            <p className="text-xs text-ink-400">Silakan sesuaikan kata kunci pencarian atau filter Anda.</p>
+            <p className="font-bold text-base text-ink">Belum ada data pendaftar untuk event ini</p>
+            <p className="text-xs text-ink-400">
+              Bagikan link formulir publik event ini atau tambahkan pendaftar manual on-spot.
+            </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -600,7 +565,7 @@ export default function OpenHouseClient({
                   <th className="py-4 px-6">Orang Tua / Wali</th>
                   <th className="py-4 px-6">Jadwal Kehadiran</th>
                   <th className="py-4 px-6">Minat & Konsultasi</th>
-                  <th className="py-4 px-6">Status Follow-Up</th>
+                  <th className="py-4 px-6">Status Lead</th>
                   <th className="py-4 px-6 text-right">Aksi Cepat</th>
                 </tr>
               </thead>
@@ -620,7 +585,9 @@ export default function OpenHouseClient({
                             <p className="font-bold text-ink text-sm flex items-center gap-2">
                               {lead.child_name}
                               {lead.child_age ? (
-                                <span className="text-[11px] font-normal text-ink-400">({lead.child_age} Thn)</span>
+                                <span className="text-[11px] font-normal text-ink-400">
+                                  ({lead.child_age} Thn)
+                                </span>
                               ) : null}
                             </p>
                             <div className="flex items-center gap-1.5 mt-0.5">
@@ -683,7 +650,10 @@ export default function OpenHouseClient({
                           >
                             Konsultasi: {lead.admission_consultation || 'Ya'}
                           </span>
-                          <p className="text-[11px] text-ink-400 truncate max-w-[160px]" title={(lead.topics_of_interest || []).join(', ')}>
+                          <p
+                            className="text-[11px] text-ink-400 truncate max-w-[160px]"
+                            title={(lead.topics_of_interest || []).join(', ')}
+                          >
                             {(lead.topics_of_interest || []).length} Topik Diminati
                           </p>
                         </div>
@@ -790,10 +760,10 @@ export default function OpenHouseClient({
       </div>
 
       {/* ============================================================ */}
-      {/* 5. MODAL DETAIL DATA & CATATAN FOLLOW-UP */}
+      {/* 4. MODAL DETAIL DATA & CATATAN FOLLOW-UP */}
       {/* ============================================================ */}
       {detailModalOpen && selectedLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 sm:p-8 space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
@@ -806,6 +776,7 @@ export default function OpenHouseClient({
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setDetailModalOpen(false)}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-ink flex items-center justify-center cursor-pointer"
               >
@@ -836,8 +807,12 @@ export default function OpenHouseClient({
               <div className="p-4 rounded-2xl bg-cloud border border-slate-100">
                 <span className="text-xs text-ink-300 font-semibold block mb-1">Jadwal & Sesi Kehadiran</span>
                 <p className="font-bold text-ink">{selectedLead.attendance_date}</p>
-                <p className="text-xs text-gold-600 font-semibold mt-0.5">{selectedLead.attendance_session}</p>
-                <p className="text-xs text-ink-400 mt-1">Minat Hadir: <strong>{selectedLead.interest_attendance}</strong></p>
+                <p className="text-xs text-gold-600 font-semibold mt-0.5">
+                  {selectedLead.attendance_session}
+                </p>
+                <p className="text-xs text-ink-400 mt-1">
+                  Minat Hadir: <strong>{selectedLead.interest_attendance}</strong>
+                </p>
               </div>
 
               <div className="p-4 rounded-2xl bg-cloud border border-slate-100">
@@ -866,7 +841,9 @@ export default function OpenHouseClient({
 
             {/* Follow-up Status Update Section */}
             <div className="p-5 rounded-3xl bg-slate-50 border border-slate-200 space-y-4">
-              <h4 className="font-display text-base font-bold text-ink">Manajemen Status & Catatan Tim Admission</h4>
+              <h4 className="font-display text-base font-bold text-ink">
+                Manajemen Status & Catatan Tim Admission
+              </h4>
 
               <div className="space-y-1.5">
                 <label className="text-xs font-bold text-ink-400">Ubah Status Prospek Lead:</label>
@@ -921,17 +898,20 @@ export default function OpenHouseClient({
       )}
 
       {/* ============================================================ */}
-      {/* 6. MODAL EMAIL FOLLOW-UP RESEND */}
+      {/* 5. MODAL EMAIL FOLLOW-UP RESEND */}
       {/* ============================================================ */}
       {emailModalOpen && selectedLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-200 p-6 sm:p-8 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-display text-xl font-bold text-ink">Kirim Email Follow-Up Resmi</h3>
-                <p className="text-xs text-ink-400 mt-0.5">Kepada: {selectedLead.parent_name} ({selectedLead.email})</p>
+                <p className="text-xs text-ink-400 mt-0.5">
+                  Kepada: {selectedLead.parent_name} ({selectedLead.email})
+                </p>
               </div>
               <button
+                type="button"
                 onClick={() => setEmailModalOpen(false)}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-ink flex items-center justify-center cursor-pointer"
               >
@@ -942,7 +922,9 @@ export default function OpenHouseClient({
             <form onSubmit={handleSendEmailSubmit} className="space-y-4">
               <div className="p-4 rounded-2xl bg-sky-50 text-xs text-sky-800 space-y-1">
                 <p className="font-bold">Template Email Resmi JACOS Admission</p>
-                <p>Email akan memuat header branding JACOS, informasi tiket Open House, penawaran promo pendaftaran, dan tombol direct WA admission.</p>
+                <p>
+                  Email akan memuat header branding JACOS, informasi tiket Open House, penawaran promo pendaftaran, dan tombol direct WA admission.
+                </p>
               </div>
 
               <div className="space-y-1.5">
@@ -957,7 +939,11 @@ export default function OpenHouseClient({
               </div>
 
               {emailFeedback && (
-                <p className={`text-xs font-semibold ${emailFeedback.includes('berhasil') ? 'text-leaf-600' : 'text-coral-600'}`}>
+                <p
+                  className={`text-xs font-semibold ${
+                    emailFeedback.includes('berhasil') ? 'text-leaf-600' : 'text-coral-600'
+                  }`}
+                >
                   {emailFeedback}
                 </p>
               )}
@@ -995,17 +981,20 @@ export default function OpenHouseClient({
       )}
 
       {/* ============================================================ */}
-      {/* 7. MODAL INPUT PENDAFTARAN MANUAL */}
+      {/* 6. MODAL INPUT PENDAFTARAN MANUAL */}
       {/* ============================================================ */}
       {manualModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200 p-6 sm:p-8 space-y-6">
             <div className="flex items-center justify-between border-b border-slate-100 pb-4">
               <div>
                 <h3 className="font-display text-xl font-bold text-ink">Input Pendaftar Manual / On-Spot</h3>
-                <p className="text-xs text-ink-400 mt-0.5">Untuk tamu walk-in atau pendaftaran via telepon.</p>
+                <p className="text-xs text-ink-400 mt-0.5">
+                  Untuk tamu walk-in atau pendaftaran via telepon pada {event?.name || 'Open House'}.
+                </p>
               </div>
               <button
+                type="button"
                 onClick={() => setManualModalOpen(false)}
                 className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-ink flex items-center justify-center cursor-pointer"
               >
@@ -1079,6 +1068,30 @@ export default function OpenHouseClient({
                     <option value="2028">2028</option>
                   </select>
                 </div>
+
+                {/* Date Selection */}
+                {event?.event_dates && event.event_dates.length > 0 ? (
+                  <div className="sm:col-span-2 space-y-1">
+                    <label className="text-xs font-bold text-ink-400">Jadwal Sesi</label>
+                    <select
+                      value={`${manualForm.attendance_date}|${manualForm.attendance_session}`}
+                      onChange={(e) => {
+                        const [d, s] = e.target.value.split('|');
+                        setManualForm({ ...manualForm, attendance_date: d, attendance_session: s });
+                      }}
+                      className="w-full h-11 px-3 rounded-xl border border-slate-200 outline-none focus:border-sky text-sm"
+                    >
+                      {event.event_dates.map((sch, i) => (
+                        <option
+                          key={i}
+                          value={`${sch.date}|${sch.start_time} - ${sch.end_time}`}
+                        >
+                          {sch.date} ({sch.start_time} - {sch.end_time} WIB)
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ) : null}
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
@@ -1104,10 +1117,10 @@ export default function OpenHouseClient({
       )}
 
       {/* ============================================================ */}
-      {/* 8. MODAL DELETE CONFIRMATION */}
+      {/* 7. MODAL DELETE CONFIRMATION */}
       {/* ============================================================ */}
       {deleteModalOpen && leadToDelete && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/40 backdrop-blur-xs animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/50 backdrop-blur-xs animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-200 p-6 space-y-5">
             <div className="w-12 h-12 rounded-2xl bg-coral-50 text-coral flex items-center justify-center mx-auto">
               <Trash2 className="w-6 h-6" />

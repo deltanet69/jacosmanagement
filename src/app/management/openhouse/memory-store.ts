@@ -8,6 +8,8 @@
 
 export interface OpenHouseLead {
   id: string;
+  event_id?: string | null;
+  event_slug?: string | null;
   ticket_code: string;
   parent_name: string;
   whatsapp: string;

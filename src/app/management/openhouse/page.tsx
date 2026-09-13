@@ -1,21 +1,19 @@
-import { getOpenHouseRegistrations } from "./actions";
-import OpenHouseClient from "./client-page";
+import { getOpenHouseEvents } from "./event-actions";
+import OpenHouseEventManager from "./event-manager";
 
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Open House Leads - JACOS Management",
-  description: "Manajemen data calon wali murid pendaftar Open House JACOS",
+  title: "Manajemen Open House - JACOS Management",
+  description: "Kelola daftar event Open House, link publik, QR Code, dan data audience JACOS",
 };
 
 export default async function OpenHouseAdminPage() {
-  const { registrations, stats, setting } = await getOpenHouseRegistrations();
+  const events = await getOpenHouseEvents();
 
   return (
-    <OpenHouseClient
-      initialRegistrations={registrations}
-      initialStats={stats}
-      initialSetting={setting}
-    />
+    <div className="space-y-6">
+      <OpenHouseEventManager initialEvents={events} />
+    </div>
   );
 }

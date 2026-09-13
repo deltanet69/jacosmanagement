@@ -54,14 +54,8 @@ export const getGuestbookEntries = cache(async function getGuestbookEntries(): P
       today: list.filter((r) => r.visit_date === todayStr || (r.created_at && r.created_at.startsWith(todayStr))).length,
       unfollowed: list.filter((r) => r.follow_up_status === 'BELUM_FOLLOW_UP' || !r.follow_up_status).length,
       followed: list.filter((r) => r.follow_up_status === 'SUDAH_FOLLOW_UP').length,
-      kindergarten: list.filter((r) => {
-        const g = r.target_grade?.toLowerCase() || '';
-        return g.includes('kindergarten') || g.includes('tk') || g.includes('pre-school') || g.includes('toddler');
-      }).length,
-      primary: list.filter((r) => {
-        const g = r.target_grade?.toLowerCase() || '';
-        return g.includes('primary') || g.includes('sd');
-      }).length,
+      kindergarten: list.filter((r) => r.target_grade?.toLowerCase().includes('kindergarten') || r.target_grade?.toLowerCase().includes('tk') || r.target_grade?.toLowerCase().includes('toddler')).length,
+      primary: list.filter((r) => r.target_grade?.toLowerCase().includes('primary') || r.target_grade?.toLowerCase().includes('sd')).length,
     };
 
     return { entries: list, stats };
@@ -74,14 +68,8 @@ export const getGuestbookEntries = cache(async function getGuestbookEntries(): P
         today: 0,
         unfollowed: memoryGuestbook.filter((r) => r.follow_up_status === 'BELUM_FOLLOW_UP').length,
         followed: memoryGuestbook.filter((r) => r.follow_up_status === 'SUDAH_FOLLOW_UP').length,
-        kindergarten: memoryGuestbook.filter((r) => {
-          const g = r.target_grade?.toLowerCase() || '';
-          return g.includes('kindergarten') || g.includes('tk') || g.includes('pre-school') || g.includes('toddler');
-        }).length,
-        primary: memoryGuestbook.filter((r) => {
-          const g = r.target_grade?.toLowerCase() || '';
-          return g.includes('primary') || g.includes('sd');
-        }).length,
+        kindergarten: 0,
+        primary: 0,
       },
     };
   }
@@ -168,9 +156,9 @@ export async function createManualGuestbookEntry(
       village_name: formData.village_name || null,
       postal_code: formData.postal_code || null,
       address_detail: formData.address_detail || 'Kampus JACOS (Walk-in)',
-      child_name: formData.child_name ? formData.child_name.trim() : '-',
+      child_name: formData.child_name.trim(),
       child_age: formData.child_age || null,
-      target_grade: formData.target_grade || '-',
+      target_grade: formData.target_grade,
       visit_date: formData.visit_date || todayStr,
       visit_time: formData.visit_time || new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) + ' WIB',
       visit_purpose: formData.visit_purpose || 'Konsultasi Admisi (Walk-in)',
