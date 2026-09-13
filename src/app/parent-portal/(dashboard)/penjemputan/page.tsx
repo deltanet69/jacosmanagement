@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { createParentClient } from "@/lib/supabase/client";
 import { getCompletePickupData } from "../../server-actions";
 import { QRCodeSVG } from "qrcode.react";
@@ -9,14 +9,13 @@ import {
   UserCircle,
   Users,
   CheckCircle2,
-  X,
   Clock,
   RefreshCcw,
   ShieldCheck,
   Baby,
   AlertTriangle,
-  ChevronRight,
 } from "lucide-react";
+import { PickupQRModal } from "@/components/parent-portal/PickupQRModal";
 
 // ─── Types ──────────────────────────────────────────
 interface StudentData {
@@ -65,35 +64,6 @@ function formatTime(iso: string) {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-// ─── QR Timer ───────────────────────────────────────
-function QRTimer({ duration = 30, onExpire }: { duration?: number; onExpire: () => void }) {
-  const [seconds, setSeconds] = useState(duration);
-  useEffect(() => {
-    if (seconds <= 0) { onExpire(); return; }
-    const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
-    return () => clearTimeout(t);
-  }, [seconds, onExpire]);
-  const pct = (seconds / duration) * 100;
-  const stroke = 2 * Math.PI * 18;
-  const dash = (pct / 100) * stroke;
-  const color = seconds > 10 ? "#22c55e" : "#ef4444";
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <svg width="48" height="48" viewBox="0 0 48 48" className="-rotate-90">
-        <circle cx="24" cy="24" r="18" fill="none" stroke="#e5e7eb" strokeWidth="3" />
-        <circle
-          cx="24" cy="24" r="18" fill="none"
-          stroke={color} strokeWidth="3"
-          strokeDasharray={`${dash} ${stroke}`}
-          strokeLinecap="round"
-          style={{ transition: "stroke-dasharray 1s linear, stroke 0.3s" }}
-        />
-      </svg>
-      <span className="text-xs font-bold" style={{ color }}>{seconds}s</span>
-    </div>
-  );
 }
 
 // ─── Main Page ──────────────────────────────────────
@@ -175,23 +145,6 @@ export default function PenjemputanPage() {
     setShowQR(true);
     setIsSubmitting(false);
   };
-
-  const handleQRExpire = useCallback(() => {
-    setQrKey(Date.now()); // auto renew
-  }, []);
-
-  const pickerDisplay = pickerType === "parent" ? parentName : pickerName;
-  const roleDisplay = pickerType === "parent" ? "Orang Tua / Wali Utama" : pickerRole;
-
-  const qrPayload = JSON.stringify({
-    v: 2,
-    studentId: student?.id,
-    studentName: student?.full_name,
-    studentNis: student?.nis,
-    pickerName: pickerDisplay,
-    pickerRole: roleDisplay,
-    ts: qrKey,
-  });
 
   const className = getClassName(student?.school_classes ?? null);
 
@@ -333,10 +286,10 @@ export default function PenjemputanPage() {
 
             {/* Other picker fields */}
             {pickerType === "other" && (
-              <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+              <div className="space-y-3.5 animate-in fade-in slide-in-from-top-2 duration-200">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1.5">
-                    Nama Lengkap Penjemput <span className="text-red-400">*</span>
+                  <label className="block text-xs font-bold text-gray-600 mb-1.5">
+                    Nama Lengkap Penjemput <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
@@ -344,19 +297,44 @@ export default function PenjemputanPage() {
                     onChange={(e) => setPickerName(e.target.value)}
                     placeholder="Cth: Budi Santoso"
                     className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 bg-gray-50"
+                    autoCapitalize="words"
+                    autoComplete="name"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1.5">
-                    Relasi / Tanggung Jawab <span className="text-red-400">*</span>
+                  <label className="block text-xs font-bold text-gray-600 mb-1.5">
+                    Relasi / Tanggung Jawab <span className="text-red-500">*</span>
                   </label>
                   <input
                     type="text"
                     value={pickerRole}
                     onChange={(e) => setPickerRole(e.target.value)}
-                    placeholder="Cth: Paman / Supir Pribadi"
+                    placeholder="Cth: Supir Pribadi / Paman"
                     className="w-full h-11 px-4 rounded-xl border border-gray-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-violet-300 focus:border-violet-400 bg-gray-50"
                   />
+                </div>
+
+                {/* Quick Chips for easy selection */}
+                <div>
+                  <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1.5">
+                    Pilihan Cepat:
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {["Supir Pribadi", "Paman / Tante", "Kakek / Nenek", "Wali Pengganti", "Keluarga"].map((chip) => (
+                      <button
+                        key={chip}
+                        type="button"
+                        onClick={() => setPickerRole(chip)}
+                        className={`text-[11px] font-bold px-3 py-1 rounded-lg border transition ${
+                          pickerRole === chip
+                            ? "bg-violet-100 text-violet-900 border-violet-300"
+                            : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
+                        }`}
+                      >
+                        {chip}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
@@ -447,77 +425,14 @@ export default function PenjemputanPage() {
         </div>
       </div>
 
-      {/* ── QR Modal ── */}
-      {showQR && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm p-0 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-white w-full sm:max-w-sm rounded-t-[2rem] sm:rounded-[2rem] shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-300 overflow-hidden">
-            {/* Modal Header */}
-            <div className="bg-gradient-to-r from-violet-600 to-purple-600 px-6 pt-6 pb-4 relative">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-              <button
-                onClick={() => setShowQR(false)}
-                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors"
-              >
-                <X size={16} />
-              </button>
-              <p className="text-white/70 text-xs font-bold uppercase tracking-wider">QR Penjemputan</p>
-              <h3 className="text-white font-bold text-lg mt-0.5">{student.full_name}</h3>
-              <p className="text-purple-200 text-xs font-medium">
-                {className ? `${className} · ` : ""}{programLabel[student.program || ""] || "JACOS"}
-                {student.nis ? ` · NIS: ${student.nis}` : ""}
-              </p>
-            </div>
-
-            <div className="px-6 pb-6 pt-5 space-y-5">
-              {/* QR Code */}
-              <div className="flex flex-col items-center gap-3">
-                <div className="bg-white border-4 border-violet-100 rounded-3xl p-4 shadow-inner flex items-center justify-center relative">
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-violet-400 to-transparent animate-pulse rounded-t-3xl" />
-                  <QRCodeSVG
-                    key={qrKey}
-                    value={qrPayload}
-                    size={200}
-                    level="H"
-                    includeMargin={false}
-                    className="rounded-xl"
-                    imageSettings={{
-                      src: "/publicjacos/logohijau.png",
-                      x: undefined,
-                      y: undefined,
-                      height: 32,
-                      width: 32,
-                      excavate: true,
-                    }}
-                  />
-                </div>
-                <QRTimer key={`timer-${qrKey}`} duration={30} onExpire={handleQRExpire} />
-                <p className="text-xs text-gray-400 text-center">
-                  QR diperbarui otomatis setiap 30 detik
-                </p>
-              </div>
-
-              {/* Picker info */}
-              <div className="bg-violet-50 border border-violet-100 rounded-2xl p-4 flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
-                  <ShieldCheck size={18} className="text-violet-600" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-wider">Penjemput</p>
-                  <p className="font-bold text-violet-900 text-sm">{pickerDisplay}</p>
-                  <p className="text-xs text-violet-500 font-medium">{roleDisplay}</p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => setShowQR(false)}
-                className="w-full h-12 rounded-2xl border-2 border-gray-100 text-gray-500 font-bold text-sm hover:bg-gray-50 transition-colors"
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* ── Shared QR Modal ── */}
+      <PickupQRModal
+        isOpen={showQR}
+        onClose={() => setShowQR(false)}
+        student={student}
+        parentName={parentName}
+        showLinkToFullPage={false}
+      />
     </div>
   );
 }

@@ -2,16 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup } from '@/components/ui/radio-group';
 import { createParentClient } from '@/lib/supabase/client';
-import { QRCodeSVG } from 'qrcode.react';
 import Link from 'next/link';
 import { 
-  Car, 
-  UserCircle, 
-  Users, 
   CheckCircle2, 
   CalendarCheck, 
   Megaphone, 
@@ -25,22 +18,19 @@ import {
   PiggyBank,
   User,
   ChevronRight,
-  Baby
 } from 'lucide-react';
 import { uploadJacosAgreement, getParentDashboardData, getParentAnnouncements } from '@/app/parent-portal/actions';
+import { PickupQRModal } from '@/components/parent-portal/PickupQRModal';
 
 export default function ParentDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<string | null>(null);
   const [student, setStudent] = useState<any>(null);
+  const [parentName, setParentName] = useState<string>("Orang Tua");
   const [announcements, setAnnouncements] = useState<any[]>([]);
   
-  // QR Generator Modal States
+  // QR Generator Modal State
   const [showQR, setShowQR] = useState(false);
-  const [qrKey, setQrKey] = useState(Date.now());
-  const [pickerType, setPickerType] = useState('parent');
-  const [pickerName, setPickerName] = useState('');
-  const [pickerRole, setPickerRole] = useState('');
   
   // Agreement States
   const [applicantId, setApplicantId] = useState<string | null>(null);
@@ -60,6 +50,8 @@ export default function ParentDashboardPage() {
         const userEmail = user.email;
         const studentIdFromMeta = user.user_metadata?.student_id;
         const applicantIdFromMeta = user.user_metadata?.applicant_id;
+        const fullName = user.user_metadata?.full_name;
+        if (fullName) setParentName(fullName);
 
         // Fetch dashboard metadata and announcements in parallel
         const [dashboardRes, annRes] = await Promise.all([
@@ -189,29 +181,8 @@ export default function ParentDashboardPage() {
     };
   }, [supabase]);
 
-  // Auto reload QR every 30 seconds for security when modal is active
-  useEffect(() => {
-    let interval: NodeJS.Timeout;
-    if (showQR) {
-      interval = setInterval(() => {
-        setQrKey(Date.now());
-      }, 30000);
-    }
-    return () => clearInterval(interval);
-  }, [showQR]);
-
   const handleOpenQRModal = () => {
-    setQrKey(Date.now());
     setShowQR(true);
-  };
-
-  const handleGenerateQRSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pickerType === 'other' && (!pickerName.trim() || !pickerRole.trim())) {
-      alert("Harap lengkapi nama dan peran penjemput.");
-      return;
-    }
-    setQrKey(Date.now());
   };
 
   const handleAgreementUpload = async (e: React.FormEvent) => {
@@ -392,13 +363,6 @@ export default function ParentDashboardPage() {
   const className = Array.isArray(student?.school_classes) 
     ? student?.school_classes[0]?.name 
     : student?.school_classes?.name || 'Grade 1';
-
-  const qrPayload = JSON.stringify({
-    studentId: student?.id || 'student-demo',
-    timestamp: qrKey,
-    picker: pickerType === 'parent' ? 'Orang Tua' : pickerName || 'Utusan',
-    role: pickerType === 'parent' ? 'Orang Tua / Wali Utama' : pickerRole || 'Utusan Penjemput'
-  });
 
   return (
     <>
@@ -623,130 +587,15 @@ export default function ParentDashboardPage() {
           </div>
         </div>
 
-      {/* Interactive Full QR Code Modal Overlay */}
-      {showQR && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-[2rem] p-6 sm:p-8 max-w-md w-full text-center shadow-2xl animate-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
-            
-            <div className="flex items-center justify-between pb-4 mb-4 border-b border-ink/5">
-              <div className="text-left">
-                <h3 className="font-display text-xl font-bold text-ink">QR Code Penjemputan</h3>
-                <p className="text-xs text-ink-400 font-medium">Tunjukkan kode ini kepada security saat menjemput.</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-purple-50 flex items-center justify-center text-purple-600">
-                <Car size={20} />
-              </div>
-            </div>
-
-            {/* Picker Selection Tabs */}
-            <form onSubmit={handleGenerateQRSubmit} className="space-y-5 text-left mb-6">
-              <div>
-                <Label className="text-xs font-bold text-ink-400 uppercase tracking-wider block mb-2">
-                  Siapa yang Menjemput?
-                </Label>
-                <RadioGroup value={pickerType} onValueChange={setPickerType} className="grid grid-cols-2 gap-3">
-                  <div 
-                    onClick={() => setPickerType('parent')}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 cursor-pointer transition-all ${
-                      pickerType === 'parent' ? 'border-purple-600 bg-purple-50/60' : 'border-ink/10 hover:border-purple-300'
-                    }`}
-                  >
-                    <UserCircle size={24} className={`mb-1 ${pickerType === 'parent' ? 'text-purple-600' : 'text-ink-300'}`} />
-                    <span className={`font-bold text-xs ${pickerType === 'parent' ? 'text-purple-900' : 'text-ink-500'}`}>
-                      Orang Tua
-                    </span>
-                  </div>
-
-                  <div 
-                    onClick={() => setPickerType('other')}
-                    className={`flex flex-col items-center justify-center p-3 rounded-2xl border-2 cursor-pointer transition-all ${
-                      pickerType === 'other' ? 'border-purple-600 bg-purple-50/60' : 'border-ink/10 hover:border-purple-300'
-                    }`}
-                  >
-                    <Users size={24} className={`mb-1 ${pickerType === 'other' ? 'text-purple-600' : 'text-ink-300'}`} />
-                    <span className={`font-bold text-xs ${pickerType === 'other' ? 'text-purple-900' : 'text-ink-500'}`}>
-                      Utusan / Supir
-                    </span>
-                  </div>
-                </RadioGroup>
-              </div>
-
-              {pickerType === 'other' && (
-                <div className="space-y-3 p-4 bg-cloud/60 rounded-2xl border border-ink/5 animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div>
-                    <Label htmlFor="modalPickerName" className="text-xs font-bold text-ink-600">Nama Penjemput</Label>
-                    <Input 
-                      id="modalPickerName"
-                      placeholder="Contoh: Pak Budi (Supir)" 
-                      value={pickerName}
-                      onChange={(e) => setPickerName(e.target.value)}
-                      className="h-10 bg-white rounded-xl mt-1 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="modalPickerRole" className="text-xs font-bold text-ink-600">Tanggung Jawab / Relasi</Label>
-                    <Input 
-                      id="modalPickerRole"
-                      placeholder="Contoh: Supir Pribadi / Paman" 
-                      value={pickerRole}
-                      onChange={(e) => setPickerRole(e.target.value)}
-                      className="h-10 bg-white rounded-xl mt-1 text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-            </form>
-
-            {/* QR Display */}
-            <div className="bg-cloud p-4 rounded-[1.5rem] flex justify-center mb-4 relative overflow-hidden">
-              <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-purple-500 to-transparent animate-pulse" />
-              <QRCodeSVG 
-                value={qrPayload} 
-                size={200}
-                level="H"
-                includeMargin={true}
-                className="rounded-xl"
-              />
-            </div>
-
-            {/* Information Pill */}
-            <div className="bg-purple-50 rounded-2xl p-3.5 text-left mb-6 border border-purple-100">
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-[10px] font-bold text-purple-400 uppercase tracking-wider">Siswa: {studentName}</span>
-                <span className="text-[10px] font-bold text-purple-600 flex items-center gap-1">
-                  <Clock size={12} /> Auto-reload 30s
-                </span>
-              </div>
-              <p className="font-bold text-purple-900 text-sm">
-                Penjemput: {pickerType === 'parent' ? 'Orang Tua / Wali' : (pickerName || 'Utusan Belum Diisi')}
-              </p>
-              <p className="text-xs font-medium text-purple-600">
-                Status: {pickerType === 'parent' ? 'Wali Utama' : (pickerRole || 'Utusan')}
-              </p>
-            </div>
-
-            {/* Action Buttons */}
-            <div className="space-y-2">
-              <Link href="/parent-portal/penjemputan" onClick={() => setShowQR(false)} className="block">
-                <Button 
-                  variant="outline"
-                  className="w-full h-11 rounded-xl font-bold text-xs text-purple-700 border-purple-200 hover:bg-purple-50 gap-2"
-                >
-                  <Car size={15} /> Buka Halaman Penjemputan Lengkap
-                </Button>
-              </Link>
-              <Button 
-                onClick={() => setShowQR(false)}
-                className="w-full h-11 bg-ink text-white hover:bg-ink-700 rounded-xl font-bold text-xs"
-              >
-                Tutup
-              </Button>
-            </div>
-
-          </div>
-        </div>
-      )}
-    </div>
+        {/* Interactive Full QR Code Modal Overlay (Shared Component) */}
+        <PickupQRModal
+          isOpen={showQR}
+          onClose={() => setShowQR(false)}
+          student={student}
+          parentName={parentName}
+          showLinkToFullPage={true}
+        />
+      </div>
     </>
   );
 }
