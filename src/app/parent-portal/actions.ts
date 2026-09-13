@@ -61,7 +61,7 @@ export async function getParentDashboardData(applicantId: string | null, userEma
     const { data: guardians } = await supabase
       .from('guardians')
       .select(`applicant_id, applicants(${selectCols})`)
-      .ilike('email', userEmail)
+      .eq('email', userEmail.toLowerCase())
       .limit(1);
 
     if (guardians && guardians.length > 0) {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createParentClient } from "@/lib/supabase/client";
 import { ParentSidebar } from "@/components/parent-portal/ParentSidebar";
@@ -12,16 +12,13 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [loading, setLoading] = useState(true);
-  const [isApproved, setIsApproved] = useState(false);
   const router = useRouter();
-
   const supabase = createParentClient();
 
   useEffect(() => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session || session.user?.user_metadata?.role !== 'PARENT') {
         const isSubdomain = typeof window !== 'undefined' && window.location.hostname.startsWith('parent.');
         router.push(isSubdomain ? '/login' : '/parent-portal/login');
@@ -30,47 +27,32 @@ export default function DashboardLayout({
 
       const user = session.user;
 
-      // Check metadata first — fastest path
-      const metaStatus = user.user_metadata?.admission_status || "";
-      const metaStudentId = user.user_metadata?.student_id;
-      const isApprovedByMeta = metaStatus === "Approved" || !!metaStudentId;
-
-      if (isApprovedByMeta) {
-        // Still check first_login gate
-        if (user.user_metadata?.first_login) {
-          router.push("/parent-portal/change-password");
-          return;
-        }
-        setIsApproved(true);
-        setLoading(false);
+      // Fast path: first_login gate
+      if (user.user_metadata?.first_login) {
+        router.push("/parent-portal/change-password");
         return;
       }
 
-      // Fallback: verify via guardians table (handles legacy accounts)
-      let isApprovedInDB = false;
+      // Check metadata status — no DB query needed for approved users
+      const metaStatus = user.user_metadata?.admission_status || "";
+      const metaStudentId = user.user_metadata?.student_id;
+      const isApprovedByMeta = metaStatus === "Approved" || !!metaStudentId;
+      if (isApprovedByMeta) return;
+
+      // Fallback: verify via guardians table (legacy accounts only)
       if (user?.email) {
         const { data: guardians } = await supabase
           .from("guardians")
           .select("applicant_id, applicants(status, student_record_id)")
-          .ilike("email", user.email)
+          .eq("email", user.email.toLowerCase())
           .limit(1);
 
         const applicant = (guardians?.[0] as any)?.applicants;
-        if (applicant?.status === "ENROLLED" || applicant?.student_record_id) {
-          isApprovedInDB = true;
+        // No redirect needed — page.tsx handles waiting/rejected states
+        if (!applicant?.status && !applicant?.student_record_id) {
+          // Not enrolled and not in DB — leave it to page to show waiting state
         }
       }
-
-      if (isApprovedInDB) {
-        setIsApproved(true);
-      } else {
-        if (user.user_metadata?.first_login) {
-          router.push("/parent-portal/change-password");
-          return;
-        }
-      }
-
-      setLoading(false);
     };
 
     checkSession();
@@ -81,19 +63,6 @@ export default function DashboardLayout({
     const isSubdomain = window.location.hostname.startsWith('parent.');
     router.push(isSubdomain ? '/login' : '/parent-portal/login');
   };
-
-  if (loading) {
-    return (
-      <div className="flex h-screen items-center justify-center bg-cloud">
-        <p className="text-ink-400 font-bold">Memuat portal...</p>
-      </div>
-    );
-  }
-
-  // If not approved, just render children (which will handle Waiting/Rejected screens)
-  if (!isApproved) {
-    return <main className="flex-1 flex flex-col">{children}</main>;
-  }
 
   return (
     <div className="flex min-h-screen bg-cloud text-ink font-body">

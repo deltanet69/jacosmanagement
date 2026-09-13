@@ -23,7 +23,7 @@ export async function getCompleteStudentProfile(userEmail: string | undefined, m
       const { data: gRows } = await supabase
         .from("guardians")
         .select("applicant_id, applicants(student_record_id, student_name, birth_date, birth_place, gender, program, address, status, nisn, religion, nationality, primary_language, blood_type, allergies_special_needs, medical_history, emergency_contact_name, emergency_contact_relation, emergency_contact_phone, height, weight, child_order, previous_school)")
-        .ilike("email", userEmail)
+        .eq("email", userEmail.toLowerCase())
         .limit(1);
       
       if (gRows && gRows.length > 0) {
@@ -81,7 +81,7 @@ export async function getCompletePickupData(userEmail: string | undefined, metaS
       const { data: gRows } = await supabase
         .from("guardians")
         .select("applicant_id, applicants(student_record_id, student_name, authorized_pickup_name, authorized_pickup_relation)")
-        .ilike("email", userEmail)
+        .eq("email", userEmail.toLowerCase())
         .limit(1);
       
       if (gRows && gRows.length > 0) {
