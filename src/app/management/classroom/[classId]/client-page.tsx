@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useTransition, useMemo } from "react";
+import { useState, useTransition, useMemo, useEffect } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import {
   Users,
   CalendarDays,
@@ -72,7 +73,20 @@ export default function ClassroomClientPage({
   todaySchedule: any[];
   summary: { totalStudents: number; presentToday: number; todayPct: number; pendingAbsences: number };
 }) {
-  const [activeTab, setActiveTab] = useState<Tab>("overview");
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab") as Tab | null;
+  const initialTab: Tab = (requestedTab && ["overview", "jadwal", "siswa", "absensi", "perizinan", "informasi"].includes(requestedTab))
+    ? requestedTab
+    : "overview";
+
+  const [activeTab, setActiveTab] = useState<Tab>(initialTab);
+
+  useEffect(() => {
+    if (requestedTab && ["overview", "jadwal", "siswa", "absensi", "perizinan", "informasi"].includes(requestedTab)) {
+      setActiveTab(requestedTab);
+    }
+  }, [requestedTab]);
+
   const [attPeriod, setAttPeriod] = useState<"harian" | "mingguan" | "bulanan">("harian");
   const [absenceFilter, setAbsenceFilter] = useState<"all" | "PENDING" | "done">("all");
   const [showPostModal, setShowPostModal] = useState(false);

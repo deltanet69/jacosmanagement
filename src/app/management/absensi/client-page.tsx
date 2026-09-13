@@ -246,104 +246,207 @@ export function StudentAttendanceClient({
         </div>
       </div>
 
-      {/* Overview Stat Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-6">
-        {/* Total Active Students */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-ink-400 uppercase tracking-wider">Total Siswa</span>
-            <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky flex items-center justify-center">
-              <Users size={18} />
+      {/* ========================================================================= */}
+      {/* Overview Stat Cards (Modern, Playful, Colorful & Eye-Catching)            */}
+      {/* ========================================================================= */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-5">
+        {/* 1. Total Active Students (Sky/Blue) */}
+        <div className="group relative bg-gradient-to-br from-sky-500/10 via-sky-50/70 to-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-sky-200/80 hover:border-sky-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col justify-between">
+          <div className="absolute -top-10 -right-10 w-28 h-28 bg-sky-400/20 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform" />
+          
+          <div className="relative z-10 flex items-start justify-between gap-2">
+            <div>
+              <span className="text-[10px] sm:text-xs font-extrabold text-sky-800 uppercase tracking-wider block">
+                Total Siswa
+              </span>
+              <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-sky-100 text-sky-700 border border-sky-200/60">
+                Terdaftar Aktif
+              </span>
+            </div>
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-md shadow-sky-500/25 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <Users size={18} className="sm:size-20" />
             </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-black text-ink">{summary.totalStudents}</p>
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-sky">
-            <School size={12} />
-            <span>Terdaftar di Sistem</span>
-          </div>
-        </div>
 
-        {/* Hadir */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-leaf-600 uppercase tracking-wider">Hadir</span>
-            <div className="w-9 h-9 rounded-xl bg-leaf-50 text-leaf flex items-center justify-center">
-              <CheckCircle2 size={18} />
+          <div className="relative z-10 mt-3 sm:mt-4">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-4xl font-display font-extrabold text-slate-900 leading-tight">
+                {summary.totalStudents}
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-slate-500">Siswa</span>
             </div>
           </div>
-          <div className="flex items-baseline gap-2">
-            <p className="text-2xl sm:text-3xl font-black text-leaf">{summary.totalHadir}</p>
-            <span className="text-xs font-bold text-leaf bg-leaf-50 px-2 py-0.5 rounded-full border border-leaf-100">
-              {summary.percentage}% Rate
+
+          <div className="relative z-10 mt-3 pt-3 border-t border-sky-100/80 flex items-center justify-between text-[11px] sm:text-xs font-semibold text-sky-800">
+            <span className="flex items-center gap-1">
+              <School size={13} className="text-sky-600" />
+              {classes.length} Kelas
             </span>
-          </div>
-          <div className="w-full bg-cloud h-1.5 rounded-full overflow-hidden">
-            <div
-              className="bg-leaf h-full rounded-full transition-all duration-500"
-              style={{ width: `${summary.percentage}%` }}
-            />
+            <span className="text-[10px] text-sky-600/80 font-medium">Basis Database</span>
           </div>
         </div>
 
-        {/* Izin / Sakit */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-amber-600 uppercase tracking-wider">Izin & Sakit</span>
-            <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
-              <Clock size={18} />
+        {/* 2. Hadir (Emerald/Leaf Green) */}
+        <div className="group relative bg-gradient-to-br from-emerald-500/10 via-emerald-50/70 to-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-emerald-200/80 hover:border-emerald-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col justify-between">
+          <div className="absolute -top-10 -right-10 w-28 h-28 bg-emerald-400/20 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform" />
+          
+          <div className="relative z-10 flex items-start justify-between gap-2">
+            <div>
+              <span className="text-[10px] sm:text-xs font-extrabold text-emerald-800 uppercase tracking-wider block">
+                Siswa Hadir
+              </span>
+              <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200/60">
+                {summary.percentage}% Rate
+              </span>
+            </div>
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <CheckCircle2 size={18} className="sm:size-20" />
             </div>
           </div>
-          <div className="flex items-baseline gap-3">
-            <p className="text-2xl sm:text-3xl font-black text-amber-600">
-              {summary.totalIzin + summary.totalSakit}
-            </p>
-            <span className="text-[11px] text-ink-400 font-semibold">
-              ({summary.totalIzin} Izin, {summary.totalSakit} Sakit)
+
+          <div className="relative z-10 mt-3 sm:mt-4 space-y-1.5">
+            <div className="flex items-baseline justify-between gap-1">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-2xl sm:text-4xl font-display font-extrabold text-slate-900 leading-tight">
+                  {summary.totalHadir}
+                </span>
+                <span className="text-xs sm:text-sm font-semibold text-slate-500">Siswa</span>
+              </div>
+              <span className="text-[10px] sm:text-xs font-bold text-emerald-700">
+                {summary.totalHadir}/{summary.totalStudents}
+              </span>
+            </div>
+            <div className="w-full bg-emerald-100/70 h-2 rounded-full overflow-hidden">
+              <div
+                className="bg-gradient-to-r from-emerald-500 to-teal-500 h-full rounded-full transition-all duration-500"
+                style={{ width: `${summary.percentage}%` }}
+              />
+            </div>
+          </div>
+
+          <div className="relative z-10 mt-3 pt-3 border-t border-emerald-100/80 flex items-center justify-between text-[11px] sm:text-xs font-semibold text-emerald-800">
+            <span className="flex items-center gap-1 truncate">
+              <Check size={13} className="text-emerald-600 shrink-0" />
+              Presensi Tepat Waktu
             </span>
+            <span className="text-[10px] text-emerald-700 font-bold shrink-0">Hari Ini</span>
           </div>
-          <p className="text-[11px] text-ink-400 font-medium">Tercatat dengan Keterangan</p>
         </div>
 
-        {/* Alpha */}
-        <div className="bg-white rounded-3xl p-5 sm:p-6 border border-ink/10 shadow-xs relative overflow-hidden space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-coral-600 uppercase tracking-wider">Alpha</span>
-            <div className="w-9 h-9 rounded-xl bg-coral-50 text-coral flex items-center justify-center">
-              <XCircle size={18} />
+        {/* 3. Izin & Sakit (Amber/Gold) */}
+        <div className="group relative bg-gradient-to-br from-amber-500/10 via-amber-50/70 to-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-amber-200/80 hover:border-amber-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col justify-between">
+          <div className="absolute -top-10 -right-10 w-28 h-28 bg-amber-400/20 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform" />
+          
+          <div className="relative z-10 flex items-start justify-between gap-2">
+            <div>
+              <span className="text-[10px] sm:text-xs font-extrabold text-amber-800 uppercase tracking-wider block">
+                Izin & Sakit
+              </span>
+              <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200/60">
+                Terkonfirmasi
+              </span>
+            </div>
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-md shadow-amber-500/25 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <Clock size={18} className="sm:size-20" />
             </div>
           </div>
-          <p className="text-2xl sm:text-3xl font-black text-coral">{summary.totalAlpha}</p>
-          <div className="flex items-center gap-1.5 text-[11px] font-semibold text-coral">
-            <AlertTriangle size={12} />
-            <span>Tanpa Keterangan</span>
+
+          <div className="relative z-10 mt-3 sm:mt-4">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-4xl font-display font-extrabold text-slate-900 leading-tight">
+                {summary.totalIzin + summary.totalSakit}
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-slate-500">Siswa</span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-1.5 text-[10px] sm:text-[11px] font-bold">
+              <span className="px-2 py-0.5 rounded-md bg-sky-100/90 text-sky-800 border border-sky-200/80">
+                📋 {summary.totalIzin} Izin
+              </span>
+              <span className="px-2 py-0.5 rounded-md bg-amber-100/90 text-amber-800 border border-amber-200/80">
+                🩺 {summary.totalSakit} Sakit
+              </span>
+            </div>
+          </div>
+
+          <div className="relative z-10 mt-3 pt-3 border-t border-amber-100/80 flex items-center justify-between text-[11px] sm:text-xs font-semibold text-amber-800">
+            <span className="truncate">Ada Keterangan</span>
+            <span className="text-[10px] text-amber-700/90 font-medium">Tervalidasi</span>
+          </div>
+        </div>
+
+        {/* 4. Alpha (Rose/Coral) */}
+        <div className="group relative bg-gradient-to-br from-rose-500/10 via-rose-50/70 to-white rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-rose-200/80 hover:border-rose-400 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden flex flex-col justify-between">
+          <div className="absolute -top-10 -right-10 w-28 h-28 bg-rose-400/20 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform" />
+          
+          <div className="relative z-10 flex items-start justify-between gap-2">
+            <div>
+              <span className="text-[10px] sm:text-xs font-extrabold text-rose-800 uppercase tracking-wider block">
+                Alpha / Belum Presensi
+              </span>
+              <span className="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[9px] sm:text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-200/60">
+                {summary.totalAlpha > 0 ? "Perlu Tindak Lanjut" : "Lengkap"}
+              </span>
+            </div>
+            <div className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl sm:rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-md shadow-rose-500/25 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+              <XCircle size={18} className="sm:size-20" />
+            </div>
+          </div>
+
+          <div className="relative z-10 mt-3 sm:mt-4">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl sm:text-4xl font-display font-extrabold text-slate-900 leading-tight">
+                {summary.totalAlpha}
+              </span>
+              <span className="text-xs sm:text-sm font-semibold text-slate-500">Siswa</span>
+            </div>
+            <div className="mt-1.5">
+              {summary.totalAlpha > 0 ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-rose-100/90 text-rose-800 border border-rose-200/80 text-[10px] sm:text-[11px] font-bold">
+                  <AlertTriangle size={11} className="text-rose-600" />
+                  Tanpa Keterangan
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-100/90 text-emerald-800 border border-emerald-200/80 text-[10px] sm:text-[11px] font-bold">
+                  <CheckCircle2 size={11} className="text-emerald-600" />
+                  Semua Siswa Terabsen
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="relative z-10 mt-3 pt-3 border-t border-rose-100/80 flex items-center justify-between text-[11px] sm:text-xs font-semibold text-rose-800">
+            <span className="truncate">Status Kehadiran</span>
+            <span className="text-[10px] text-rose-700/90 font-medium">
+              {summary.totalAlpha > 0 ? "Belum Tap RFID" : "Nol Alpha"}
+            </span>
           </div>
         </div>
       </div>
 
       {/* Per-Class Progress Breakdown Grid */}
       {classBreakdown.length > 0 && (
-        <div className="bg-white rounded-3xl border border-ink/10 p-6 space-y-4 shadow-xs">
+        <div className="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 p-4 sm:p-6 space-y-3.5 shadow-xs">
           <div className="flex items-center justify-between flex-wrap gap-2">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky flex items-center justify-center">
-                <School size={18} />
+              <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center font-bold">
+                <School size={16} />
               </div>
               <div>
-                <h2 className="text-base font-bold text-ink">Ringkasan Kehadiran Per Kelas</h2>
-                <p className="text-xs text-ink-400">Klik kelas untuk memfilter daftar siswa secara instan</p>
+                <h2 className="text-sm sm:text-base font-bold text-slate-900">Ringkasan Kehadiran Per Kelas</h2>
+                <p className="text-[11px] sm:text-xs text-slate-500">Klik kelas untuk memfilter daftar siswa secara instan</p>
               </div>
             </div>
             {selectedClass !== "ALL" && (
               <button
                 onClick={() => handleClassChange("ALL")}
-                className="text-xs font-bold text-sky hover:underline cursor-pointer"
+                className="text-xs font-bold text-sky-600 hover:text-sky-700 hover:underline cursor-pointer"
               >
                 Reset Filter Kelas
               </button>
             )}
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5 sm:gap-3">
             {classBreakdown.map((cls) => {
               const pct = cls.total > 0 ? Math.round((cls.hadir / cls.total) * 100) : 0;
               const isSelected = selectedClass === cls.classId;
@@ -352,24 +455,38 @@ export function StudentAttendanceClient({
                 <button
                   key={cls.classId}
                   onClick={() => handleClassChange(cls.classId)}
-                  className={`p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                  className={`p-3 sm:p-3.5 rounded-xl sm:rounded-2xl border text-left transition-all cursor-pointer ${
                     isSelected
-                      ? "bg-sky-50 border-sky ring-2 ring-sky/20"
-                      : "bg-cloud/60 border-ink/5 hover:bg-white hover:border-ink/20"
+                      ? "bg-sky-50 border-sky-400 ring-2 ring-sky-400/20 shadow-xs"
+                      : "bg-slate-50/70 border-slate-200/70 hover:bg-white hover:border-slate-300 hover:shadow-xs"
                   }`}
                 >
-                  <p className="text-xs font-bold text-ink truncate">{cls.className}</p>
+                  <p className="text-xs font-bold text-slate-900 truncate">{cls.className}</p>
                   <div className="flex items-baseline justify-between mt-1">
-                    <span className="text-sm font-extrabold text-ink">
+                    <span className="text-xs sm:text-sm font-extrabold text-slate-800">
                       {cls.hadir}/{cls.total}
                     </span>
-                    <span className={`text-[10px] font-bold ${pct >= 90 ? "text-leaf" : pct >= 75 ? "text-amber-600" : "text-coral"}`}>
+                    <span
+                      className={`text-[10px] font-bold ${
+                        pct >= 90
+                          ? "text-emerald-600"
+                          : pct >= 75
+                          ? "text-amber-600"
+                          : "text-rose-600"
+                      }`}
+                    >
                       {pct}%
                     </span>
                   </div>
-                  <div className="w-full bg-ink/5 h-1.5 rounded-full overflow-hidden mt-1.5">
+                  <div className="w-full bg-slate-200/60 h-1.5 rounded-full overflow-hidden mt-1.5">
                     <div
-                      className={`h-full rounded-full ${pct >= 90 ? "bg-leaf" : pct >= 75 ? "bg-amber-500" : "bg-coral"}`}
+                      className={`h-full rounded-full ${
+                        pct >= 90
+                          ? "bg-emerald-500"
+                          : pct >= 75
+                          ? "bg-amber-500"
+                          : "bg-rose-500"
+                      } transition-all duration-300`}
                       style={{ width: `${pct}%` }}
                     />
                   </div>
@@ -418,14 +535,14 @@ export function StudentAttendanceClient({
         </div>
 
         {/* Status Filter Tabs */}
-        <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-ink/5">
-          <span className="text-xs font-bold text-ink-300 shrink-0 uppercase tracking-wider">Status:</span>
+        <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pt-2.5 border-t border-slate-100 scrollbar-none">
+          <span className="text-[11px] sm:text-xs font-bold text-slate-400 shrink-0 uppercase tracking-wider">Status:</span>
           {[
-            { key: "ALL", label: "Semua Status", count: items.length },
-            { key: "HADIR", label: "Hadir", count: items.filter((i) => i.status === "HADIR").length },
-            { key: "IZIN", label: "Izin", count: items.filter((i) => i.status === "IZIN").length },
-            { key: "SAKIT", label: "Sakit", count: items.filter((i) => i.status === "SAKIT").length },
-            { key: "ALPHA", label: "Alpha", count: items.filter((i) => i.status === "ALPHA").length },
+            { key: "ALL", label: "Semua Status", count: items.length, activeClass: "bg-slate-900 text-white shadow-xs" },
+            { key: "HADIR", label: "Hadir", count: items.filter((i) => i.status === "HADIR").length, activeClass: "bg-emerald-600 text-white shadow-xs" },
+            { key: "IZIN", label: "Izin", count: items.filter((i) => i.status === "IZIN").length, activeClass: "bg-sky-600 text-white shadow-xs" },
+            { key: "SAKIT", label: "Sakit", count: items.filter((i) => i.status === "SAKIT").length, activeClass: "bg-amber-600 text-white shadow-xs" },
+            { key: "ALPHA", label: "Alpha", count: items.filter((i) => i.status === "ALPHA").length, activeClass: "bg-rose-600 text-white shadow-xs" },
           ].map((tab) => (
             <button
               key={tab.key}
@@ -435,8 +552,8 @@ export function StudentAttendanceClient({
               }}
               className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer shrink-0 ${
                 selectedStatus === tab.key
-                  ? "bg-sky text-white shadow-xs"
-                  : "bg-cloud text-ink-400 hover:text-ink hover:bg-ink/5"
+                  ? tab.activeClass
+                  : "bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200"
               }`}
             >
               {tab.label} <span className="opacity-80 font-normal">({tab.count})</span>
