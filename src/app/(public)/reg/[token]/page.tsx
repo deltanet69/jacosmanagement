@@ -1,5 +1,6 @@
 import { getApplicantByToken } from "./actions";
 import RegFormClient from "./RegFormClient";
+import PaymentPendingClient from "./PaymentPendingClient";
 import Image from "next/image";
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, Phone, ArrowLeft, ShieldCheck } from "lucide-react";
@@ -55,6 +56,16 @@ export default async function RegPage({
           </div>
         </div>
       </div>
+    );
+  }
+
+  // Pembayaran belum lunas / belum di-approve admin
+  if (applicant.payment_status !== "PAID") {
+    return (
+      <PaymentPendingClient
+        token={token}
+        applicant={applicant}
+      />
     );
   }
 

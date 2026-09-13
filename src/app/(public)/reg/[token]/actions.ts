@@ -3,8 +3,9 @@
 import { createAdminClient } from "@/lib/supabase/server";
 import { sendFormWaitingApprovalEmail } from "@/lib/email";
 import { isValidEmail, getFirstValidEmail } from "@/lib/utils";
+import { revalidatePath } from "next/cache";
 
-// Verifikasi token dan kembalikan data pendaftar (prefill)
+// Verifikasi token dan kembalikan data pendaftar (prefill & payment status)
 export async function getApplicantByToken(token: string) {
   const supabase = createAdminClient();
   const { data: applicant, error } = await supabase
@@ -24,10 +25,115 @@ export async function getApplicantByToken(token: string) {
     console.error("Error fetching guardians for token:", guardianError);
   }
 
+  // Generate signed URL untuk bukti pembayaran jika ada
+  let proofSignedUrl: string | null = null;
+  let proofPath = applicant.doc_payment_proof;
+  if (!proofPath && applicant.payment_note?.includes("Bukti: ")) {
+    proofPath = applicant.payment_note.split("Bukti: ")[1]?.trim();
+  }
+
+  if (proofPath) {
+    if (proofPath.startsWith("http://") || proofPath.startsWith("https://")) {
+      proofSignedUrl = proofPath;
+    } else {
+      const cleanPath = proofPath.replace(/^admission-documents\//, "").replace(/^\/+/, "");
+      const { data: urlData } = await supabase.storage
+        .from("admission-documents")
+        .createSignedUrl(cleanPath, 3600);
+      if (urlData) proofSignedUrl = urlData.signedUrl;
+    }
+  }
+
   return {
     ...applicant,
     guardians: Array.isArray(guardians) ? guardians : guardians ? [guardians] : [],
+    proofSignedUrl,
   };
+}
+
+// Upload / Update Bukti Transfer oleh Orang Tua via Halaman Token
+export async function uploadPaymentProofByToken(token: string, formData: FormData) {
+  const supabase = createAdminClient();
+  try {
+    const { data: applicant, error: findError } = await supabase
+      .from("applicants")
+      .select("id, registration_no, payment_note")
+      .eq("registration_token", token)
+      .single();
+
+    if (findError || !applicant) {
+      return { success: false, message: "Link pendaftaran tidak valid atau data tidak ditemukan." };
+    }
+
+    const file = formData.get("paymentProof") as File | null;
+    if (!file || file.size === 0) {
+      return { success: false, message: "Harap pilih berkas foto atau dokumen bukti transfer." };
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      return { success: false, message: "Ukuran berkas maksimal adalah 10MB." };
+    }
+
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const filePath = `payment-proofs/${applicant.registration_no}_${Date.now()}_${safeFileName}`;
+    const fileBuffer = await file.arrayBuffer();
+
+    const { error: uploadErr } = await supabase.storage
+      .from("admission-documents")
+      .upload(filePath, fileBuffer, {
+        contentType: file.type || "image/jpeg",
+        upsert: true,
+      });
+
+    if (uploadErr) {
+      console.error("[uploadPaymentProofByToken] Upload error:", uploadErr);
+      return { success: false, message: "Gagal mengunggah berkas ke server storage. Silakan coba lagi." };
+    }
+
+    // Update applicant
+    let updatedNote = applicant.payment_note || "[PUBLIC_ADMISSION]";
+    if (updatedNote.includes("Bukti: ")) {
+      updatedNote = updatedNote.replace(/Bukti:\s*[^\s]+/, `Bukti: ${filePath}`);
+    } else {
+      updatedNote = `${updatedNote} Bukti: ${filePath}`;
+    }
+
+    const updatePayload: Record<string, any> = {
+      doc_payment_proof: filePath,
+      payment_status: "PENDING_VERIFICATION",
+      payment_note: updatedNote,
+      rejection_reason: null, // Bersihkan alasan penolakan terdahulu
+      updated_at: new Date().toISOString(),
+    };
+
+    let { error: updateError } = await supabase
+      .from("applicants")
+      .update(updatePayload)
+      .eq("id", applicant.id);
+
+    if (updateError && (updateError.message?.toLowerCase().includes("doc_payment_proof") || updateError.code === "PGRST204")) {
+      delete updatePayload.doc_payment_proof;
+      const retry = await supabase.from("applicants").update(updatePayload).eq("id", applicant.id);
+      updateError = retry.error;
+    }
+
+    if (updateError) {
+      console.error("[uploadPaymentProofByToken] Update applicant error:", updateError);
+      return { success: false, message: "Gagal memperbarui status pendaftaran: " + updateError.message };
+    }
+
+    revalidatePath(`/reg/${token}`);
+    revalidatePath(`/management/admisi/${applicant.id}`);
+    revalidatePath("/management/admisi");
+
+    return {
+      success: true,
+      message: "Bukti transfer berhasil dikirim! Tim Admisi JACOS akan segera memverifikasi pembayaran Anda.",
+    };
+  } catch (err: any) {
+    console.error("[uploadPaymentProofByToken] Exception:", err);
+    return { success: false, message: err.message || "Terjadi kesalahan sistem saat mengunggah." };
+  }
 }
 
 // Submit form lengkap dari orang tua

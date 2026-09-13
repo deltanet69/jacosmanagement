@@ -38,8 +38,29 @@ export default function SecurityScannerPage() {
 
   useEffect(() => {
     fetchQueue();
-    const interval = setInterval(fetchQueue, 3500);
-    return () => clearInterval(interval);
+    let channel: any;
+    
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      const supabase = createClient();
+      channel = supabase
+        .channel("pickup_queue_scanner")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "pickup_queue" },
+          () => {
+            fetchQueue();
+          }
+        )
+        .subscribe();
+    });
+
+    return () => {
+      if (channel) {
+        import("@/lib/supabase/client").then(({ createClient }) => {
+          createClient().removeChannel(channel);
+        });
+      }
+    };
   }, []);
 
   const handleCall = async (queueId: string) => {

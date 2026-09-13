@@ -578,7 +578,7 @@ export default function RegFormClient({
                 </div>
                 <ol className="text-sm text-slate-600 space-y-2 list-decimal list-inside leading-relaxed">
                   <li>
-                    Tim Admission JACOS akan memverifikasi kelengkapan data &amp; berkas Anda dalam waktu <strong>1x24 jam kerja</strong>.
+                    Tim Admission JACOS akan memverifikasi kelengkapan data &amp; berkas Anda dalam waktu <strong>2x24 jam kerja</strong>.
                   </li>
                   <li>
                     Anda akan menerima <strong>email konfirmasi</strong> beserta <strong>akun login resmi Portal Orang Tua (Parent Portal)</strong>.
@@ -1267,7 +1267,8 @@ export default function RegFormClient({
                         value={formData.fatherEmail}
                         onChange={(e) => updateForm("fatherEmail", e.target.value)}
                         placeholder="ayah@contoh.com"
-                        className="w-full h-12 px-4 rounded-2xl border border-slate-200/90 bg-white focus:border-sky focus:ring-4 focus:ring-sky/10 transition outline-none text-sm font-semibold text-ink placeholder:text-slate-400"
+                        className="w-full h-12 px-4 rounded-2xl border border-slate-200/90 bg-slate-100 focus:border-sky focus:ring-4 focus:ring-sky/10 transition outline-none text-sm font-semibold text-ink placeholder:text-slate-400 cursor-not-allowed opacity-80"
+                        disabled
                       />
                       {errors.fatherEmail && (
                         <p className="text-xs font-bold text-coral mt-1">{errors.fatherEmail}</p>
@@ -1382,7 +1383,8 @@ export default function RegFormClient({
                         value={formData.motherEmail}
                         onChange={(e) => updateForm("motherEmail", e.target.value)}
                         placeholder="ibu@contoh.com"
-                        className="w-full h-12 px-4 rounded-2xl border border-slate-200/90 bg-white focus:border-sky focus:ring-4 focus:ring-sky/10 transition outline-none text-sm font-semibold text-ink placeholder:text-slate-400"
+                        className="w-full h-12 px-4 rounded-2xl border border-slate-200/90 bg-slate-100 focus:border-sky focus:ring-4 focus:ring-sky/10 transition outline-none text-sm font-semibold text-ink placeholder:text-slate-400 cursor-not-allowed opacity-80"
+                        disabled
                       />
                       {errors.motherEmail && (
                         <p className="text-xs font-bold text-coral mt-1">{errors.motherEmail}</p>

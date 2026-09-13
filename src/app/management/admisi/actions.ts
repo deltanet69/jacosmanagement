@@ -8,6 +8,7 @@ import { isValidEmail, getFirstValidEmail } from "@/lib/utils";
 import {
   sendInitialGreetingEmail,
   sendPublicAdmissionReceivedEmail,
+  sendPaymentReminderEmail,
   sendFormWaitingApprovalEmail,
   sendApprovalEmail,
   sendRejectionEmail,
@@ -145,10 +146,15 @@ export const getApplicantDetail = cache(async function getApplicantDetail(id: st
       filePath = mergedData.payment_note.split("Bukti: ")[1]?.trim();
     }
     if (filePath) {
-      const { data: urlData } = await supabase.storage
-        .from("admission-documents")
-        .createSignedUrl(filePath, 3600);
-      if (urlData) signedUrls[`${field}_signed`] = urlData.signedUrl;
+      if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+        signedUrls[`${field}_signed`] = filePath;
+      } else {
+        const cleanPath = filePath.replace(/^admission-documents\//, "").replace(/^\/+/, "");
+        const { data: urlData } = await supabase.storage
+          .from("admission-documents")
+          .createSignedUrl(cleanPath, 3600);
+        if (urlData) signedUrls[`${field}_signed`] = urlData.signedUrl;
+      }
     }
   }
 
@@ -317,7 +323,7 @@ export async function createNewAdmission(formData: {
         payment_status: "PAID",
         payment_amount: formData.paymentAmount,
         payment_method: formData.paymentMethod,
-        payment_note: formData.paymentNote,
+        payment_note: `[DIRECT_ADMIN] ${formData.paymentNote}`.trim(),
         form_submitted: false,
         submitted_at: new Date().toISOString(),
       })
@@ -922,7 +928,13 @@ export const getPublicAdmissionApplicants = cache(async function getPublicAdmiss
 export async function getPaymentProofSignedUrl(proofPathOrApplicantId: string): Promise<string | null> {
   const supabase = createAdminClient();
   try {
-    let filePath = proofPathOrApplicantId;
+    let filePath = proofPathOrApplicantId?.trim();
+    if (!filePath) return null;
+
+    if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
+      return filePath;
+    }
+
     if (!filePath.includes("/")) {
       // It might be an applicantId
       const { data: applicant } = await supabase
@@ -940,9 +952,11 @@ export async function getPaymentProofSignedUrl(proofPathOrApplicantId: string): 
 
     if (!filePath) return null;
 
+    const cleanPath = filePath.replace(/^admission-documents\//, "").replace(/^\/+/, "");
+
     const { data: urlData, error } = await supabase.storage
       .from("admission-documents")
-      .createSignedUrl(filePath, 3600);
+      .createSignedUrl(cleanPath, 3600);
 
     if (error || !urlData) {
       console.error("Error creating signed URL:", error);
@@ -1072,6 +1086,142 @@ export async function rejectPublicPayment(applicantId: string, reason: string) {
     return { success: true };
   } catch (err: any) {
     return { success: false, message: err.message || "Gagal menolak pembayaran." };
+  }
+}
+
+// ============================================================
+// PUBLIC ADMISSION — Upload Bukti Transfer Manual oleh Admin
+// ============================================================
+
+export async function uploadPaymentProofByAdmin(applicantId: string, formData: FormData) {
+  const supabase = createAdminClient();
+  try {
+    const { data: applicant, error: findError } = await supabase
+      .from("applicants")
+      .select("id, registration_no, payment_note")
+      .eq("id", applicantId)
+      .single();
+
+    if (findError || !applicant) {
+      return { success: false, message: "Data pendaftar tidak ditemukan." };
+    }
+
+    const file = formData.get("paymentProof") as File | null;
+    if (!file || file.size === 0) {
+      return { success: false, message: "Harap pilih berkas foto atau dokumen bukti transfer." };
+    }
+
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const filePath = `payment-proofs/${applicant.registration_no}_${Date.now()}_admin_${safeFileName}`;
+    const fileBuffer = await file.arrayBuffer();
+
+    const { error: uploadErr } = await supabase.storage
+      .from("admission-documents")
+      .upload(filePath, fileBuffer, {
+        contentType: file.type || "image/jpeg",
+        upsert: true,
+      });
+
+    if (uploadErr) {
+      console.error("[uploadPaymentProofByAdmin] Error uploading proof:", uploadErr);
+      return { success: false, message: "Gagal mengunggah berkas ke storage." };
+    }
+
+    let updatedNote = applicant.payment_note || "[PUBLIC_ADMISSION]";
+    if (updatedNote.includes("Bukti: ")) {
+      updatedNote = updatedNote.replace(/Bukti:\s*[^\s]+/, `Bukti: ${filePath}`);
+    } else {
+      updatedNote = `${updatedNote} Bukti: ${filePath}`;
+    }
+
+    const updatePayload: Record<string, any> = {
+      doc_payment_proof: filePath,
+      payment_status: "PENDING_VERIFICATION",
+      payment_note: updatedNote,
+      rejection_reason: null,
+      updated_at: new Date().toISOString(),
+    };
+
+    let { error: updateError } = await supabase
+      .from("applicants")
+      .update(updatePayload)
+      .eq("id", applicantId);
+
+    if (updateError && (updateError.message?.toLowerCase().includes("doc_payment_proof") || updateError.code === "PGRST204")) {
+      delete updatePayload.doc_payment_proof;
+      const retry = await supabase.from("applicants").update(updatePayload).eq("id", applicantId);
+      updateError = retry.error;
+    }
+
+    if (updateError) {
+      return { success: false, message: updateError.message };
+    }
+
+    // Generate signed URL immediately for response
+    const { data: urlData } = await supabase.storage
+      .from("admission-documents")
+      .createSignedUrl(filePath, 3600);
+
+    revalidatePath("/management/admisi");
+    revalidatePath(`/management/admisi/${applicantId}`);
+
+    return {
+      success: true,
+      filePath,
+      signedUrl: urlData?.signedUrl || null,
+      message: "Bukti transfer berhasil diunggah oleh Admin.",
+    };
+  } catch (err: any) {
+    console.error("[uploadPaymentProofByAdmin] Exception:", err);
+    return { success: false, message: err.message || "Gagal mengunggah bukti pembayaran." };
+  }
+}
+
+// ============================================================
+// PUBLIC ADMISSION — Kirim Email Tagihan & Link Follow-Up Pembayaran
+// ============================================================
+
+export async function sendPaymentFollowUpEmail(applicantId: string) {
+  const supabase = createAdminClient();
+  try {
+    const applicant = await getApplicantWithGuardians(supabase, applicantId);
+    if (!applicant) return { success: false, message: "Data pendaftar tidak ditemukan." };
+
+    const guardiansList = applicant.guardians || [];
+    const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
+    const targetEmail = guardian?.email;
+    const parentName = guardian?.full_name || "Bapak/Ibu";
+
+    if (!targetEmail || !isValidEmail(targetEmail)) {
+      return { success: false, message: "Email orang tua tidak ditemukan atau tidak valid pada data pendaftar ini." };
+    }
+
+    const token = applicant.registration_token || generateToken();
+    if (!applicant.registration_token) {
+      await supabase.from("applicants").update({ registration_token: token }).eq("id", applicantId);
+    }
+
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jacosmanagement.vercel.app";
+    const paymentLink = `${baseUrl}/reg/${token}`;
+
+    const res = await sendPaymentReminderEmail({
+      parentName,
+      parentEmail: targetEmail,
+      studentName: applicant.student_name,
+      registrationNo: applicant.registration_no,
+      program: applicant.program,
+      paymentLink,
+      amount: applicant.payment_amount || 1000000,
+    });
+
+    if (res.success) {
+      return { success: true, message: `Email pengingat tagihan & link pembayaran berhasil dikirim ke ${targetEmail}.` };
+    } else {
+      return { success: false, message: "Gagal mengirim email: " + ((res as any).error?.message || (res as any).message || "Kesalahan Resend API") };
+    }
+  } catch (err: any) {
+    console.error("[sendPaymentFollowUpEmail] Exception:", err);
+    return { success: false, message: err.message || "Gagal mengirim email follow up." };
   }
 }
 

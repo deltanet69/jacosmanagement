@@ -163,12 +163,29 @@ export default function PenjemputanAdminPage() {
     fetchLiveData();
     getAllClassesList().then((res) => setClassList(res || []));
 
-    // Polling live queue when tab is active
-    const interval = setInterval(() => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      fetchLiveData();
-    }, 4500);
-    return () => clearInterval(interval);
+    // Realtime queue updates
+    let channel: any;
+    import("@/lib/supabase/client").then(({ createClient }) => {
+      const supabase = createClient();
+      channel = supabase
+        .channel("pickup_queue_admin")
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "pickup_queue" },
+          () => {
+            fetchLiveData();
+          }
+        )
+        .subscribe();
+    });
+
+    return () => {
+      if (channel) {
+        import("@/lib/supabase/client").then(({ createClient }) => {
+          createClient().removeChannel(channel);
+        });
+      }
+    };
   }, []);
 
   // Update history whenever filters change
