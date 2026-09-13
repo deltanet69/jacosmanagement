@@ -21,7 +21,11 @@ import {
   Clock,
   Sparkles,
   ExternalLink,
-  XCircle
+  XCircle,
+  PiggyBank,
+  User,
+  ChevronRight,
+  Baby
 } from 'lucide-react';
 import { uploadJacosAgreement, getParentDashboardData, getParentAnnouncements } from '@/app/parent-portal/actions';
 
@@ -401,112 +405,158 @@ export default function ParentDashboardPage() {
       {!isAgreementApproved && renderAgreementOverlay()}
       
       <div className={`space-y-8 pb-12 ${!isAgreementApproved ? 'pointer-events-none opacity-50 blur-sm h-[calc(100vh-80px)] overflow-hidden' : ''}`}>
-        {/* Header Banner */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        {/* Header Title */}
         <div>
-          <h1 className="font-display text-3xl font-bold text-ink">Ringkasan Aktivitas</h1>
-          <p className="text-ink-400 mt-1">Selamat datang di Parent Portal JACOS Islamic School.</p>
+          <h1 className="font-display text-2xl sm:text-3xl font-bold text-ink tracking-tight">Ringkasan Aktivitas</h1>
+          <p className="text-xs sm:text-sm text-ink-400 mt-1">Pantau absensi, penjemputan, dan kegiatan harian siswa.</p>
         </div>
-        <Link href="/parent-portal/penjemputan">
-          <Button variant="outline" className="rounded-2xl border-ink/10 font-bold text-xs gap-2 hover:bg-cloud">
-            <Car size={16} className="text-purple-600" />
-            Fitur Penjemputan Lengkap
-            <ArrowRight size={14} />
-          </Button>
-        </Link>
-      </div>
 
-      {/* Quick Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* Attendance Card */}
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-ink/5 flex items-center justify-between hover:shadow-md transition-all">
-          <div>
-            <div className="flex items-center gap-2 text-ink-400 text-xs font-bold uppercase tracking-wider mb-2">
-              <CalendarCheck size={16} className="text-sky" /> Kehadiran Siswa
+        {/* Featured Card: Siap Menjemput Siswa Hari Ini? */}
+        <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 p-6 sm:p-7 text-white shadow-xl shadow-purple-600/15">
+          {/* Decorative ambient lighting */}
+          <div className="absolute top-0 right-0 -translate-y-1/3 translate-x-1/3 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute bottom-0 left-1/3 translate-y-1/2 w-48 h-48 bg-indigo-400/20 rounded-full blur-2xl pointer-events-none" />
+
+          <div className="relative z-10">
+            {/* Badge */}
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md text-white text-[10px] sm:text-[11px] font-bold uppercase tracking-wider mb-3 border border-white/10 shadow-xs">
+              <ShieldCheck size={14} className="text-purple-200" />
+              <span>PENJEMPUTAN DIGITAL JACOS</span>
             </div>
-            <p className="font-display text-4xl font-extrabold text-sky">98%</p>
-            <p className="text-xs font-semibold text-leaf-600 mt-1 flex items-center gap-1">
-              <CheckCircle2 size={13} /> Hadir Tepat Waktu Bulan Ini
+
+            {/* Title & Description */}
+            <h2 className="font-display text-xl sm:text-2xl md:text-3xl font-bold text-white tracking-tight mb-2">
+              Siap Menjemput Siswa Hari Ini?
+            </h2>
+            <p className="text-xs sm:text-sm text-purple-100/90 leading-relaxed max-w-xl mb-6">
+              Tampilkan QR Code kepada petugas security saat tiba di gerbang penjemputan.
             </p>
-          </div>
-          <div className="w-14 h-14 rounded-2xl bg-sky-50 flex items-center justify-center text-sky-600">
-            <CalendarCheck size={28} />
-          </div>
-        </div>
 
-        {/* Integrated Pickup QR Card (Direct Action) */}
-        <div className="bg-gradient-to-br from-purple-600 to-indigo-700 p-6 rounded-[2rem] text-white shadow-md shadow-purple-600/10 flex flex-col justify-between hover:shadow-lg transition-all relative overflow-hidden group">
-          <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-32 h-32 bg-white/10 rounded-full blur-2xl pointer-events-none" />
-          
-          <div className="relative z-10 flex justify-between items-start mb-4">
-            <div>
-              <span className="text-[11px] font-bold text-purple-200 uppercase tracking-widest block mb-1 flex items-center gap-1">
-                <ShieldCheck size={14} /> QR Penjemputan
-              </span>
-              <h3 className="font-display text-xl font-bold">Jemput {studentName.split(' ')[0]}</h3>
-            </div>
-            <div className="w-10 h-10 rounded-xl bg-white/15 backdrop-blur-md flex items-center justify-center">
-              <Car size={20} className="text-white" />
-            </div>
-          </div>
-
-          <div className="relative z-10 flex gap-2 pt-2">
-            <Button 
-              onClick={handleOpenQRModal}
-              className="flex-1 h-11 bg-white text-purple-900 hover:bg-purple-50 rounded-xl font-bold text-sm shadow-sm transition-transform active:scale-95"
-            >
-              <Sparkles size={16} className="mr-1.5 text-purple-600" />
-              Generate QR Code
-            </Button>
-            <Link href="/parent-portal/penjemputan">
+            {/* Buttons */}
+            <div className="flex items-center gap-3">
               <Button 
-                size="icon"
-                variant="secondary"
-                className="w-11 h-11 bg-white/20 hover:bg-white/30 text-white rounded-xl border-none backdrop-blur-sm"
-                title="Buka Halaman Penjemputan"
+                onClick={handleOpenQRModal}
+                className="h-12 px-6 bg-white text-purple-950 hover:bg-purple-50 rounded-2xl font-bold text-sm shadow-md flex items-center justify-center gap-2 flex-1 sm:flex-initial transition active:scale-95 border-none"
               >
-                <ExternalLink size={18} />
+                <Sparkles size={16} className="text-purple-600" />
+                Generate QR Code
               </Button>
-            </Link>
+              <Link href="/parent-portal/penjemputan">
+                <Button 
+                  size="icon"
+                  variant="secondary"
+                  className="w-12 h-12 rounded-2xl bg-white/15 hover:bg-white/25 text-white flex items-center justify-center backdrop-blur-md border border-white/20 transition active:scale-95 shrink-0"
+                  title="Buka Halaman Penjemputan"
+                >
+                  <ExternalLink size={18} />
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
 
-        {/* Finance Overview Card */}
-        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-ink/5 flex items-center justify-between hover:shadow-md transition-all">
-          <div>
-            <div className="flex items-center gap-2 text-ink-400 text-xs font-bold uppercase tracking-wider mb-2">
-              <Receipt size={16} className="text-gold-600" /> Tagihan SPP
+        {/* 2x2 Quick Metrics Grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 sm:gap-4">
+          {/* 1. KEHADIRAN */}
+          <Link 
+            href="/parent-portal/classroom"
+            className="bg-white rounded-3xl p-4 sm:p-5 border border-ink/5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-ink-400 uppercase tracking-wider">KEHADIRAN</span>
+              <div className="w-8 h-8 rounded-xl bg-sky-50 flex items-center justify-center text-sky">
+                <CalendarCheck size={18} />
+              </div>
             </div>
-            <p className="font-display text-2xl font-extrabold text-ink">Lunas</p>
-            <p className="text-xs font-semibold text-ink-400 mt-1">Periode September 2026</p>
-          </div>
-          <Link href="/parent-portal/finance">
-            <Button variant="ghost" size="sm" className="rounded-xl font-bold text-xs text-sky hover:bg-sky-50">
-              Rincian <ArrowRight size={14} className="ml-1" />
-            </Button>
+            <div className="my-2 sm:my-3">
+              <p className="font-display text-2xl sm:text-3xl font-extrabold text-sky tracking-tight">98%</p>
+            </div>
+            <div className="flex items-center gap-1 text-[11px] sm:text-xs font-semibold text-leaf-600">
+              <CheckCircle2 size={13} className="shrink-0" />
+              <span>Tepat Waktu</span>
+            </div>
+          </Link>
+
+          {/* 2. SPP BULANAN */}
+          <Link 
+            href="/parent-portal/finance"
+            className="bg-white rounded-3xl p-4 sm:p-5 border border-ink/5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-ink-400 uppercase tracking-wider">SPP BULANAN</span>
+              <div className="w-8 h-8 rounded-xl bg-amber-50 flex items-center justify-center text-amber-500">
+                <Receipt size={18} />
+              </div>
+            </div>
+            <div className="my-2 sm:my-3">
+              <p className="font-display text-2xl sm:text-3xl font-extrabold text-leaf-600 tracking-tight">Lunas</p>
+            </div>
+            <p className="text-[11px] sm:text-xs font-medium text-ink-400">
+              Bulan September
+            </p>
+          </Link>
+
+          {/* 3. TABUNGAN */}
+          <Link 
+            href="/parent-portal/tabungan"
+            className="bg-white rounded-3xl p-4 sm:p-5 border border-ink/5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-ink-400 uppercase tracking-wider">TABUNGAN</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <PiggyBank size={18} />
+              </div>
+            </div>
+            <div className="my-2 sm:my-3">
+              <p className="font-display text-base sm:text-xl font-extrabold text-ink tracking-tight">Rp 1.450.000</p>
+            </div>
+            <div className="flex items-center gap-0.5 text-[11px] sm:text-xs font-bold text-emerald-600 group-hover:underline">
+              <span>Tabungan Aktif</span>
+              <ChevronRight size={13} />
+            </div>
+          </Link>
+
+          {/* 4. PROFIL SISWA */}
+          <Link 
+            href="/parent-portal/profil-siswa"
+            className="bg-white rounded-3xl p-4 sm:p-5 border border-ink/5 shadow-xs hover:shadow-md transition-all flex flex-col justify-between group"
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] sm:text-[11px] font-extrabold text-ink-400 uppercase tracking-wider">PROFIL SISWA</span>
+              <div className="w-8 h-8 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600">
+                <User size={18} />
+              </div>
+            </div>
+            <div className="my-2 sm:my-3">
+              <p className="font-display text-base sm:text-xl font-extrabold text-ink tracking-tight truncate" title={studentName}>
+                {studentName}
+              </p>
+            </div>
+            <div className="flex items-center gap-0.5 text-[11px] sm:text-xs font-bold text-sky group-hover:underline">
+              <span>{className}</span>
+              <ChevronRight size={13} />
+            </div>
           </Link>
         </div>
-      </div>
 
-      {/* Main Grid: Information Feed & Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Information Section */}
-        <div className="lg:col-span-2 bg-white rounded-[2rem] shadow-sm border border-ink/5 p-6 sm:p-8">
-          <div className="flex items-center justify-between mb-6 pb-4 border-b border-ink/5">
+        {/* Informasi Sekolah Section */}
+        <div className="bg-white rounded-[2rem] shadow-xs border border-ink/5 p-5 sm:p-7 space-y-4">
+          <div className="flex items-center justify-between pb-3 border-b border-ink/5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-sky-50 flex items-center justify-center">
-                <Megaphone size={20} className="text-sky-600" />
+              <div className="w-9 h-9 rounded-xl bg-sky-50 flex items-center justify-center text-sky">
+                <Megaphone size={18} />
               </div>
-              <h2 className="font-display text-xl font-bold text-ink">Informasi & Pengumuman</h2>
+              <h2 className="font-display text-lg sm:text-xl font-bold text-ink">Informasi Sekolah</h2>
             </div>
-            <Link href="/parent-portal/informasi">
-              <span className="text-xs font-bold text-sky hover:underline flex items-center gap-1">
-                Semua <ArrowRight size={12} />
-              </span>
+            <Link 
+              href="/parent-portal/informasi" 
+              className="text-xs font-bold text-sky hover:underline flex items-center gap-1"
+            >
+              Lihat Semua <ArrowRight size={13} />
             </Link>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {announcements.length === 0 ? (
               <div className="p-8 text-center bg-cloud/50 rounded-2xl border border-ink/5">
                 <p className="text-xs text-ink-400 font-semibold">Belum ada informasi terbaru dari sekolah.</p>
@@ -527,19 +577,19 @@ export default function ParentDashboardPage() {
                   <Link
                     key={item.id}
                     href="/parent-portal/informasi"
-                    className={`block p-5 rounded-2xl border transition-all hover:-translate-y-0.5 hover:shadow-xs ${
+                    className={`block p-4 sm:p-5 rounded-2xl border transition-all hover:-translate-y-0.5 hover:shadow-xs ${
                       idx === 0
                         ? 'bg-sky-50/60 border-sky/20 hover:border-sky/40'
                         : 'bg-cloud/40 border-ink/5 hover:bg-white hover:border-ink/15'
                     }`}
                   >
-                    <div className="flex flex-col sm:flex-row gap-4 items-start">
+                    <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start">
                       <div
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold ${
+                        className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 font-bold ${
                           idx === 0 ? 'bg-sky-100 text-sky-700' : 'bg-white text-ink-500 border border-ink/10'
                         }`}
                       >
-                        <Megaphone size={18} />
+                        <Megaphone size={16} />
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap justify-between items-start gap-2">
@@ -561,7 +611,7 @@ export default function ParentDashboardPage() {
                             {excerpt}
                           </p>
                         )}
-                        <span className="text-[11px] font-semibold text-ink-400 mt-2.5 block">
+                        <span className="text-[11px] font-semibold text-ink-400 mt-2 block">
                           {formattedDate} • {item.category}
                         </span>
                       </div>
@@ -572,45 +622,6 @@ export default function ParentDashboardPage() {
             )}
           </div>
         </div>
-
-        {/* Quick Student Identity */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-[2rem] shadow-sm border border-ink/5 p-6 sm:p-8">
-            <div className="flex items-center gap-3 mb-6 pb-4 border-b border-ink/5">
-              <div className="w-10 h-10 rounded-xl bg-leaf-50 flex items-center justify-center text-leaf-600 font-bold">
-                🎓
-              </div>
-              <div>
-                <h3 className="font-display text-lg font-bold text-ink">Profil Siswa</h3>
-                <p className="text-xs text-ink-400 font-medium">{className}</p>
-              </div>
-            </div>
-
-            <div className="space-y-3 text-xs">
-              <div className="flex justify-between py-2 border-b border-ink/5">
-                <span className="text-ink-400 font-medium">Nama Lengkap:</span>
-                <span className="font-bold text-ink text-right">{studentName}</span>
-              </div>
-              <div className="flex justify-between py-2 border-b border-ink/5">
-                <span className="text-ink-400 font-medium">NIS:</span>
-                <span className="font-bold text-ink">{student?.nis || '202601001'}</span>
-              </div>
-              <div className="flex justify-between py-2">
-                <span className="text-ink-400 font-medium">Status Penjemputan:</span>
-                <span className="font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md">
-                  Siap Dijemput
-                </span>
-              </div>
-            </div>
-
-            <Link href="/parent-portal/profil-siswa" className="block mt-6">
-              <Button variant="outline" className="w-full rounded-xl border-ink/10 font-bold text-xs text-ink-500 hover:text-ink">
-                Lihat Profil & Kartu Pelajar
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div>
 
       {/* Interactive Full QR Code Modal Overlay */}
       {showQR && (

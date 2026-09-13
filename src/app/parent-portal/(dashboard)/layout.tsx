@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createParentClient } from "@/lib/supabase/client";
 import { ParentSidebar } from "@/components/parent-portal/ParentSidebar";
 import { ParentTopNav } from "@/components/parent-portal/ParentTopNav";
+import { ParentBottomNav } from "@/components/parent-portal/ParentBottomNav";
 
 export default function DashboardLayout({
   children,
@@ -99,9 +100,10 @@ export default function DashboardLayout({
       <ParentSidebar onLogout={handleLogout} />
       <div className="flex-1 flex flex-col min-w-0">
         <ParentTopNav />
-        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-cloud p-6 lg:p-10">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto bg-cloud p-4 sm:p-6 lg:p-10 pb-28 lg:pb-10">
           {children}
         </main>
+        <ParentBottomNav />
       </div>
     </div>
   );

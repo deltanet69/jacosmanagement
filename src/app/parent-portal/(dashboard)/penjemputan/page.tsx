@@ -234,20 +234,21 @@ export default function PenjemputanPage() {
       </div>
 
       {/* Student Info Banner */}
-      <div className="bg-gradient-to-r from-violet-500 to-purple-600 rounded-3xl p-5 text-white flex items-center gap-4 shadow-lg shadow-purple-200">
-        <div className="w-14 h-14 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center shrink-0 backdrop-blur-sm">
-          <Baby size={26} className="text-white" />
+      <div className="bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 rounded-[2rem] p-5 sm:p-6 text-white flex items-center gap-4 shadow-xl shadow-purple-500/15 relative overflow-hidden">
+        <div className="absolute top-0 right-0 -translate-y-1/2 translate-x-1/2 w-40 h-40 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+        <div className="w-14 h-14 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center shrink-0 backdrop-blur-sm relative z-10">
+          <Baby size={28} className="text-white" />
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="font-bold text-base truncate">{student.full_name}</p>
-          <p className="text-purple-100 text-sm font-medium">
-            {className ? `${className} · ` : ""}{programLabel[student.program || ""] || student.program || "JACOS"}
+        <div className="min-w-0 flex-1 relative z-10">
+          <p className="font-bold text-lg truncate tracking-tight">{student.full_name}</p>
+          <p className="text-purple-100 text-xs sm:text-sm font-medium">
+            {className ? `${className} · ` : ""}{programLabel[student.program || ""] || student.program || "Primary School (SD)"}
           </p>
           {student.nis && (
             <p className="text-purple-200 text-xs font-mono mt-0.5">NIS: {student.nis}</p>
           )}
         </div>
-        <div className="shrink-0 text-right hidden sm:block">
+        <div className="shrink-0 text-right hidden sm:block relative z-10">
           <p className="text-xs text-purple-200 font-medium">Penjemput Terdaftar</p>
           <p className="text-sm font-bold text-white">
             {student.authorized_pickup_name || parentName}

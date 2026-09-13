@@ -54,6 +54,9 @@ export function ParentBottomNav() {
     if (href === "/parent-portal") {
       return pathname === "/parent-portal";
     }
+    if (href === "/parent-portal/finance") {
+      return pathname.startsWith("/parent-portal/finance") || pathname.startsWith("/parent-portal/tabungan");
+    }
     return pathname.startsWith(href);
   };
 
