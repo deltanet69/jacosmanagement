@@ -18,6 +18,7 @@ import {
   embedEventTag,
   memoryEvents,
 } from './event-store';
+import { getOpenHouseEvents } from './event-actions';
 
 export type { OpenHouseLead, OpenHouseSetting };
 
@@ -52,18 +53,8 @@ export const getOpenHouseRegistrations = cache(async function getOpenHouseRegist
 
     const { data, error } = await query;
 
-    // Kumpulkan semua event yang ada (DB + Memory) untuk resolusi event lead
-    let currentEvents = [...memoryEvents];
-    try {
-      const { data: dbEvents } = await supabase.from('open_house_events').select('*');
-      if (dbEvents && dbEvents.length > 0) {
-        for (const evt of dbEvents) {
-          if (!currentEvents.find((e) => e.id === evt.id || e.slug === evt.slug)) {
-            currentEvents.push(evt as any);
-          }
-        }
-      }
-    } catch {}
+    // Kumpulkan semua event yang ada (Unified Multi-Layer Store)
+    const currentEvents = await getOpenHouseEvents();
 
     // Resolusi leads dari Supabase (termasuk deteksi event tag & jadwal tanggal)
     const resolvedDbLeads: OpenHouseLead[] = (data || []).map((row: any) => {

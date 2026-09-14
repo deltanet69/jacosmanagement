@@ -38,12 +38,12 @@ export const DEFAULT_JACOS_EVENT: OpenHouseEvent = {
     'Temukan pengalaman belajar trilingual dan pembentukan karakter islami berstandar internasional di Jakarta Cosmopolite Islamic School. Ikuti School Tour, Trial Class, dan sesi konsultasi bersama pimpinan akademik.',
   banner_url: null,
   event_dates: [
-    { date: 'Sabtu, 29 Agustus 2026', start_time: '08:30', end_time: '10:00' },
-    { date: 'Ahad, 30 Agustus 2026', start_time: '10:30', end_time: '12:00' },
+    { date: '2026-08-29', start_time: '08:30', end_time: '10:00' },
+    { date: '2026-08-30', start_time: '10:30', end_time: '12:00' },
   ],
   is_active: true,
   created_at: '2026-01-01T00:00:00.000Z',
-  updated_at: new Date().toISOString(),
+  updated_at: '2026-09-14T00:00:00.000Z',
 };
 
 const store = globalThis as unknown as { openHouseEvents?: OpenHouseEvent[] };
@@ -53,16 +53,94 @@ if (!store.openHouseEvents || store.openHouseEvents.length === 0) {
 
 export const memoryEvents = store.openHouseEvents;
 
-export const formatIndoDate = (dateStr: string): string => {
+const INDO_MONTHS_MAP: Record<string, string> = {
+  januari: '01',
+  februari: '02',
+  maret: '03',
+  april: '04',
+  mei: '05',
+  juni: '06',
+  juli: '07',
+  agustus: '08',
+  september: '09',
+  oktober: '10',
+  november: '11',
+  desember: '12',
+  jan: '01',
+  feb: '02',
+  mar: '03',
+  apr: '04',
+  may: '05',
+  jun: '06',
+  jul: '07',
+  aug: '08',
+  agu: '08',
+  sep: '09',
+  oct: '10',
+  okt: '10',
+  nov: '11',
+  dec: '12',
+  des: '12',
+};
+
+/**
+ * Converts date from either text ("Sabtu, 29 Agustus 2026") or ISO into "YYYY-MM-DD"
+ */
+export function toIsoDateString(val?: string | null): string {
+  if (!val) return '';
+  const trimmed = val.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+    return trimmed;
+  }
+  // Try extracting day, month, year from "Sabtu, 29 Agustus 2026"
+  const match = trimmed.match(/(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})/);
+  if (match) {
+    const day = match[1].padStart(2, '0');
+    const monthKey = match[2].toLowerCase();
+    const month = INDO_MONTHS_MAP[monthKey] || '01';
+    const year = match[3];
+    return `${year}-${month}-${day}`;
+  }
+  // Try native date parsing
   try {
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    }
+  } catch {}
+  return trimmed;
+}
+
+/**
+ * Formats "YYYY-MM-DD" or standard date into "Hari, DD Bulan YYYY"
+ */
+export const formatIndoDate = (dateStr?: string | null): string => {
+  if (!dateStr) return '';
+  try {
+    const iso = toIsoDateString(dateStr);
+    if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
+      const [y, m, d] = iso.split('-').map(Number);
+      const dateObj = new Date(y, m - 1, d);
+      const days = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const months = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      return `${days[dateObj.getDay()]}, ${d} ${months[m - 1]} ${y}`;
+    }
     const d = new Date(dateStr);
-    if (isNaN(d.getTime())) return dateStr;
-    const days = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    const months = [
-      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-    ];
-    return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    if (!isNaN(d.getTime())) {
+      const days = ['Ahad', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const months = [
+        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+      ];
+      return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+    }
+    return dateStr;
   } catch {
     return dateStr;
   }
@@ -112,6 +190,7 @@ export function matchEventBySchedule(
 ): OpenHouseEvent | null {
   if (!attendanceDate) return null;
   const target = attendanceDate.toLowerCase().trim();
+  const targetIso = toIsoDateString(target);
 
   // 1. Custom events first
   const customEvents = events.filter((e) => e.id !== DEFAULT_JACOS_EVENT_ID && e.slug !== DEFAULT_JACOS_EVENT_SLUG);
@@ -119,9 +198,11 @@ export function matchEventBySchedule(
     for (const sch of evt.event_dates) {
       if (!sch.date) continue;
       const rawDate = sch.date.toLowerCase().trim();
+      const schIso = toIsoDateString(sch.date);
       const formatted = formatIndoDate(sch.date).toLowerCase().trim();
       const formattedWithoutDay = formatted.replace(/^[a-z]+,\s*/i, '');
       if (
+        (targetIso && schIso && targetIso === schIso) ||
         rawDate === target ||
         formatted === target ||
         target.includes(rawDate) ||
@@ -137,8 +218,15 @@ export function matchEventBySchedule(
   for (const sch of defaultEvt.event_dates) {
     if (!sch.date) continue;
     const rawDate = sch.date.toLowerCase().trim();
+    const schIso = toIsoDateString(sch.date);
     const formatted = formatIndoDate(sch.date).toLowerCase().trim();
-    if (rawDate === target || formatted === target || target.includes('29 agustus') || target.includes('30 agustus')) {
+    if (
+      (targetIso && schIso && targetIso === schIso) ||
+      rawDate === target ||
+      formatted === target ||
+      target.includes('29 agustus') ||
+      target.includes('30 agustus')
+    ) {
       return defaultEvt;
     }
   }
@@ -199,4 +287,3 @@ export function resolveLeadEvent(
     cleanNotes: parsed.cleanNotes,
   };
 }
-

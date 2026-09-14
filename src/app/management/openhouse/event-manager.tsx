@@ -38,10 +38,10 @@ import {
   updateOpenHouseEvent,
   uploadOpenHouseBanner,
 } from './event-actions';
-import { slugify, type OpenHouseEvent, type OpenHouseSchedule } from './event-store';
+import { slugify, formatIndoDate, toIsoDateString, type OpenHouseEvent, type OpenHouseSchedule } from './event-store';
 
 const emptySchedule: OpenHouseSchedule = {
-  date: 'Sabtu, 29 Agustus 2026',
+  date: '2026-08-29',
   start_time: '08:30',
   end_time: '10:00',
 };
@@ -55,6 +55,13 @@ export default function OpenHouseEventManager({
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'INACTIVE'>('ALL');
   const [origin, setOrigin] = useState('');
+
+  // Sync state if initialEvents changes from server revalidation
+  useEffect(() => {
+    if (initialEvents && initialEvents.length > 0) {
+      setEvents(initialEvents);
+    }
+  }, [initialEvents]);
 
   // Modals
   const [formOpen, setFormOpen] = useState(false);
@@ -112,8 +119,8 @@ export default function OpenHouseEventManager({
       'Temukan lingkungan belajar islami terpadu dan trilingual bertaraf internasional. Ikuti School Tour, Kids Trial Class, serta konsultasi program bersama tim pimpinan akademik JACOS.'
     );
     setSchedules([
-      { date: 'Sabtu, 29 Agustus 2026', start_time: '08:30', end_time: '10:00' },
-      { date: 'Ahad, 30 Agustus 2026', start_time: '10:30', end_time: '12:00' },
+      { date: '2026-08-29', start_time: '08:30', end_time: '10:00' },
+      { date: '2026-08-30', start_time: '10:30', end_time: '12:00' },
     ]);
     setBannerUrl(null);
     setIsActive(true);
@@ -129,7 +136,10 @@ export default function OpenHouseEventManager({
     setDescription(evt.description);
     setSchedules(
       evt.event_dates && evt.event_dates.length > 0
-        ? evt.event_dates.map((s) => ({ ...s }))
+        ? evt.event_dates.map((s) => ({
+            ...s,
+            date: toIsoDateString(s.date) || s.date,
+          }))
         : [{ ...emptySchedule }]
     );
     setBannerUrl(evt.banner_url || null);
@@ -268,7 +278,7 @@ export default function OpenHouseEventManager({
   const addScheduleRow = () => {
     setSchedules((prev) => [
       ...prev,
-      { date: 'Sabtu, 29 Agustus 2026', start_time: '08:30', end_time: '10:00' },
+      { date: '2026-08-29', start_time: '08:30', end_time: '10:00' },
     ]);
   };
 
@@ -588,7 +598,7 @@ export default function OpenHouseEventManager({
                               className="inline-flex items-center gap-1.5 bg-cloud px-3 py-1.5 rounded-xl text-xs font-medium text-ink border border-ink/5"
                             >
                               <Calendar className="w-3.5 h-3.5 text-gold-600 shrink-0" />
-                              <span>{sch.date}</span>
+                              <span>{formatIndoDate(sch.date)}</span>
                               <span className="text-ink-300">({sch.start_time} - {sch.end_time} WIB)</span>
                             </span>
                           ))
@@ -856,13 +866,20 @@ export default function OpenHouseEventManager({
                     >
                       {/* Date */}
                       <div>
-                        <span className="text-[10px] font-bold text-ink-300 uppercase block mb-1">
-                          Hari & Tanggal #{idx + 1}
-                        </span>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] font-bold text-ink-300 uppercase">
+                            Hari & Tanggal #{idx + 1}
+                          </span>
+                          {sch.date && (
+                            <span className="text-[10px] font-bold text-sky truncate max-w-[130px]">
+                              {formatIndoDate(sch.date)}
+                            </span>
+                          )}
+                        </div>
                         <input
                           type="date"
                           required
-                          value={sch.date}
+                          value={toIsoDateString(sch.date)}
                           onChange={(e) => updateSchedule(idx, 'date', e.target.value)}
                           className="w-full h-10 px-3 rounded-xl bg-white border border-slate-200 text-xs font-bold text-ink outline-none focus:border-sky"
                         />

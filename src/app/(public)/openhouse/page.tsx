@@ -3,6 +3,7 @@ import Link from 'next/link';
 import type { Metadata } from 'next';
 import { ArrowRight, CalendarDays, Sparkles, Calendar, Clock, MapPin } from 'lucide-react';
 import { getOpenHouseEvents } from '@/app/management/openhouse/event-actions';
+import { formatIndoDate } from '@/app/management/openhouse/event-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,7 +119,7 @@ export default async function OpenHouseCatalogPage() {
                             className="flex items-center gap-2 text-xs sm:text-sm font-semibold text-ink"
                           >
                             <Calendar className="w-4 h-4 text-gold-600 shrink-0" />
-                            <span>{sch.date}</span>
+                            <span>{formatIndoDate(sch.date)}</span>
                             <span className="text-ink-300 font-normal">
                               ({sch.start_time} - {sch.end_time} WIB)
                             </span>

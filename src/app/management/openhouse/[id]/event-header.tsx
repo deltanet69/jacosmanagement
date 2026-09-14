@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Button } from '@/components/ui/button';
-import type { OpenHouseEvent } from '../event-store';
+import { formatIndoDate, type OpenHouseEvent } from '../event-store';
 
 export default function OpenHouseEventHeader({ event }: { event: OpenHouseEvent }) {
   const [copied, setCopied] = useState(false);
@@ -113,7 +113,7 @@ export default function OpenHouseEventHeader({ event }: { event: OpenHouseEvent 
                       className="inline-flex items-center gap-1.5 bg-cloud px-3 py-1.5 rounded-xl text-xs font-semibold text-ink border border-ink/5"
                     >
                       <Calendar className="w-3.5 h-3.5 text-gold-600 shrink-0" />
-                      <span>{sch.date}</span>
+                      <span>{formatIndoDate(sch.date)}</span>
                       <span className="text-ink-300">({sch.start_time} - {sch.end_time} WIB)</span>
                     </span>
                   ))

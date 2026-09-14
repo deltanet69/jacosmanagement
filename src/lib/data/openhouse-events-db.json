@@ -1,0 +1,25 @@
+[
+  {
+    "id": "jacos-open-house-2026-default",
+    "slug": "jacos-open-house-2026",
+    "name": "JACOS Open House 2026",
+    "description": "Temukan pengalaman belajar trilingual dan pembentukan karakter islami berstandar internasional di Jakarta Cosmopolite Islamic School. Ikuti School Tour, Trial Class, dan sesi konsultasi bersama pimpinan akademik.",
+    "banner_url": null,
+    "event_dates": [
+      {
+        "date": "2026-08-29",
+        "start_time": "08:30",
+        "end_time": "10:00"
+      },
+      {
+        "date": "2026-08-30",
+        "start_time": "10:30",
+        "end_time": "12:00"
+      }
+    ],
+    "is_active": true,
+    "audience_count": 0,
+    "created_at": "2026-01-01T00:00:00.000Z",
+    "updated_at": "2026-09-14T03:30:00.000Z"
+  }
+]
