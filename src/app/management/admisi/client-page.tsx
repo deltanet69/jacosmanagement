@@ -236,7 +236,9 @@ export default function AdmisiClient({
         app.student_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         app.registration_no?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         app.guardians?.some?.((g: any) =>
-          g.full_name?.toLowerCase().includes(searchQuery.toLowerCase())
+          g.full_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          g.phone?.includes(searchQuery) ||
+          g.email?.toLowerCase().includes(searchQuery.toLowerCase())
         );
 
       let matchStatus = true;
@@ -255,7 +257,9 @@ export default function AdmisiClient({
       }
 
       const isPublic =
-        app.status === "WAITING_REVIEW" ||
+        (app.status === "WAITING_REVIEW" &&
+          app.payment_note &&
+          app.payment_note.includes("[PUBLIC_ADMISSION]")) ||
         (app.payment_note && app.payment_note.includes("[PUBLIC_ADMISSION]"));
 
       if (isPublic) return false;
@@ -263,6 +267,33 @@ export default function AdmisiClient({
       return matchSearch && matchStatus;
     });
   }, [applicants, searchQuery, statusFilter]);
+
+  // Stats summary for Direct Admin
+  const privateStats = useMemo(() => {
+    const directList = applicants.filter((app) => {
+      const isPublic =
+        (app.status === "WAITING_REVIEW" &&
+          app.payment_note &&
+          app.payment_note.includes("[PUBLIC_ADMISSION]")) ||
+        (app.payment_note && app.payment_note.includes("[PUBLIC_ADMISSION]"));
+      return !isPublic;
+    });
+
+    const total = directList.length;
+    const waiting = directList.filter(
+      (a) =>
+        a.status === "PENDING" ||
+        a.status === "SUBMITTED" ||
+        a.status === "WAITING_REVIEW"
+    ).length;
+    const enrolled = directList.filter(
+      (a) => a.status === "ENROLLED" || a.status === "ACCEPTED" || a.status === "VERIFIED"
+    ).length;
+    const rejected = directList.filter((a) => a.status === "REJECTED").length;
+    const formFilled = directList.filter((a) => a.form_submitted).length;
+
+    return { total, waiting, enrolled, rejected, formFilled };
+  }, [applicants]);
 
   // Paginated Private Applicants
   const paginatedApplicants = useMemo(() => {
@@ -953,44 +984,177 @@ export default function AdmisiClient({
       </div>
 
       {/* ========================================================================= */}
-      {/* SUB-SECTION 1: PRIVATE ADMISSION (Halaman Utama Pendaftar) */}
+      {/* SUB-SECTION 1: PRIVATE ADMISSION (Halaman Utama Pendaftar Direct Admin) */}
       {/* ========================================================================= */}
       {activeTab === "private" && (
         <div className="space-y-5 animate-in fade-in duration-300">
-          {/* Filters & Search */}
-          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
-            <div className="relative w-full md:max-w-md group">
-              <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
-                <Search size={16} className="text-ink-300 group-focus-within:text-sky transition-colors" />
+          {/* Quick Stats Grid — Modern, Playful, and Informative (Not Flat) */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {/* Card 1: Total Direct Applicants */}
+            <div
+              onClick={() => setStatusFilter("ALL")}
+              className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                statusFilter === "ALL"
+                  ? "bg-gradient-to-br from-sky-500/15 via-sky-50 to-white border-sky-300 ring-2 ring-sky-500/20 shadow-sm"
+                  : "bg-gradient-to-br from-sky-50/50 via-white to-cloud/40 border-ink/10 hover:border-sky-200 shadow-2xs hover:shadow-xs"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-sky-800 uppercase tracking-wider block">
+                  Total Pendaftar Direct
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform">
+                  <Users size={16} />
+                </div>
               </div>
+              <p className="font-display text-2xl sm:text-3xl font-extrabold text-ink mt-2">
+                {privateStats.total}
+              </p>
+              <p className="text-[11px] text-ink-400 mt-1 font-medium flex items-center gap-1">
+                <Sparkles size={11} className="text-sky" /> {privateStats.formFilled} form terisi
+              </p>
+            </div>
+
+            {/* Card 2: Menunggu Review */}
+            <div
+              onClick={() => setStatusFilter("WAITING")}
+              className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                statusFilter === "WAITING"
+                  ? "bg-gradient-to-br from-amber-500/15 via-amber-50 to-white border-amber-300 ring-2 ring-amber-500/20 shadow-sm"
+                  : "bg-gradient-to-br from-amber-50/40 via-white to-cloud/40 border-ink/10 hover:border-amber-200 shadow-2xs hover:shadow-xs"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block">
+                  Menunggu Review
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform relative">
+                  <Clock size={16} />
+                  {privateStats.waiting > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+                  )}
+                </div>
+              </div>
+              <p className="font-display text-2xl sm:text-3xl font-extrabold text-amber-950 mt-2">
+                {privateStats.waiting}
+              </p>
+              <p className="text-[11px] text-amber-700/80 mt-1 font-semibold">
+                Perlu approval gelombang
+              </p>
+            </div>
+
+            {/* Card 3: Diterima / Enrolled */}
+            <div
+              onClick={() => setStatusFilter("ACCEPTED")}
+              className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                statusFilter === "ACCEPTED"
+                  ? "bg-gradient-to-br from-leaf-500/15 via-leaf-50 to-white border-leaf-300 ring-2 ring-leaf-500/20 shadow-sm"
+                  : "bg-gradient-to-br from-leaf-50/40 via-white to-cloud/40 border-ink/10 hover:border-leaf-200 shadow-2xs hover:shadow-xs"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-leaf-800 uppercase tracking-wider block">
+                  Diterima / Terdaftar
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-leaf-100 text-leaf-700 flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform">
+                  <CheckCircle2 size={16} />
+                </div>
+              </div>
+              <p className="font-display text-2xl sm:text-3xl font-extrabold text-leaf-950 mt-2">
+                {privateStats.enrolled}
+              </p>
+              <p className="text-[11px] text-leaf-700/80 mt-1 font-semibold">
+                Lolos &amp; masuk batch siswa
+              </p>
+            </div>
+
+            {/* Card 4: Ditolak */}
+            <div
+              onClick={() => setStatusFilter("REJECTED")}
+              className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                statusFilter === "REJECTED"
+                  ? "bg-gradient-to-br from-coral-500/15 via-coral-50 to-white border-coral-300 ring-2 ring-coral-500/20 shadow-sm"
+                  : "bg-gradient-to-br from-coral-50/30 via-white to-cloud/40 border-ink/10 hover:border-coral-200 shadow-2xs hover:shadow-xs"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-coral-800 uppercase tracking-wider block">
+                  Pendaftaran Ditolak
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-coral-100 text-coral flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform">
+                  <XCircle size={16} />
+                </div>
+              </div>
+              <p className="font-display text-2xl sm:text-3xl font-extrabold text-coral-950 mt-2">
+                {privateStats.rejected}
+              </p>
+              <p className="text-[11px] text-coral-700/80 mt-1 font-semibold">
+                Ditolak / tidak lolos
+              </p>
+            </div>
+          </div>
+
+          {/* Filters & Search Bar */}
+          <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 bg-white p-3.5 sm:p-4 rounded-2xl border border-ink/10 shadow-2xs">
+            <div className="relative flex-1">
+              <Search
+                size={16}
+                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-300"
+              />
               <Input
+                type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Cari nama siswa, no registrasi, atau orang tua..."
-                className="pl-10 h-11 rounded-2xl bg-white border border-ink/10 shadow-2xs focus-visible:ring-2 focus-visible:ring-sky/30 text-xs sm:text-sm font-medium"
+                placeholder="Cari siswa, no. registrasi, nama orang tua, nomor WA, email..."
+                className="pl-10 h-10 rounded-xl bg-cloud/60 border-ink/10 text-xs sm:text-sm font-medium w-full"
               />
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 hide-scrollbar">
-              {[
-                { id: "ALL", label: "Semua Status" },
-                { id: "WAITING", label: "Menunggu Review" },
-                { id: "ACCEPTED", label: "Diterima / Enrolled" },
-                { id: "REJECTED", label: "Ditolak" },
-              ].map((filter) => (
-                <Button
-                  key={filter.id}
-                  variant="ghost"
-                  onClick={() => setStatusFilter(filter.id)}
-                  className={`h-10 px-3.5 rounded-xl font-bold text-xs whitespace-nowrap shadow-2xs transition-all ${
-                    statusFilter === filter.id
-                      ? "bg-ink text-white hover:bg-ink/90"
-                      : "bg-white text-ink-400 hover:bg-sky-50 hover:text-sky border border-ink/5"
-                  }`}
-                >
-                  {filter.label}
-                </Button>
-              ))}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
+              <button
+                type="button"
+                onClick={() => setStatusFilter("ALL")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  statusFilter === "ALL"
+                    ? "bg-ink text-white shadow-xs"
+                    : "bg-cloud/60 text-ink-400 hover:text-ink hover:bg-cloud"
+                }`}
+              >
+                Semua ({privateStats.total})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("WAITING")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  statusFilter === "WAITING"
+                    ? "bg-amber-500 text-white shadow-xs"
+                    : "bg-amber-50 text-amber-800 hover:bg-amber-100"
+                }`}
+              >
+                Menunggu Review ({privateStats.waiting})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("ACCEPTED")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  statusFilter === "ACCEPTED"
+                    ? "bg-leaf-600 text-white shadow-xs"
+                    : "bg-leaf-50 text-leaf-800 hover:bg-leaf-100"
+                }`}
+              >
+                Diterima / Enrolled ({privateStats.enrolled})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("REJECTED")}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
+                  statusFilter === "REJECTED"
+                    ? "bg-coral text-white shadow-xs"
+                    : "bg-coral-50 text-coral hover:bg-coral-100"
+                }`}
+              >
+                Ditolak ({privateStats.rejected})
+              </button>
             </div>
           </div>
 
@@ -998,7 +1162,7 @@ export default function AdmisiClient({
           {isLoading ? (
             <div className="py-20 text-center text-ink-300 font-medium bg-white rounded-3xl border border-ink/5">
               <div className="w-8 h-8 border-3 border-sky border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-              Memuat data pendaftar Online Admission...
+              Memuat data pendaftar Direct Admission...
             </div>
           ) : filteredApplicants.length === 0 ? (
             <div className="py-16 text-center bg-white rounded-3xl border border-ink/5 p-6 sm:p-8">
@@ -1009,7 +1173,7 @@ export default function AdmisiClient({
               <p className="text-ink-400 text-xs mt-1 max-w-sm mx-auto">
                 {searchQuery || statusFilter !== "ALL"
                   ? "Tidak ada pendaftar yang sesuai dengan kriteria pencarian Anda."
-                  : "Belum ada calon siswa yang didaftarkan. Klik tombol Pendaftaran Baru untuk membuat slot pendaftaran."}
+                  : "Belum ada calon siswa yang didaftarkan secara direct admin. Klik tombol Pendaftaran Baru untuk membuat slot pendaftaran."}
               </p>
               {searchQuery && (
                 <Button
@@ -1027,7 +1191,7 @@ export default function AdmisiClient({
           ) : (
             <div className="space-y-4">
               {/* ========================================================= */}
-              {/* 2A. MOBILE VIEW: COMPACT, CLEAN & INFORMATIVE CARDS */}
+              {/* 1. MOBILE VIEW: COMPACT, CLEAN & INFORMATIVE CARDS */}
               {/* ========================================================= */}
               <div className="space-y-3 md:hidden">
                 {paginatedApplicants.map((app) => {
@@ -1037,7 +1201,10 @@ export default function AdmisiClient({
                       ? app.guardians[0]
                       : app.guardians
                     : null;
-                  const parentName = guardian ? guardian.full_name : "-";
+                  const parentName = guardian?.full_name || "-";
+                  const rawPhone = (guardian?.phone || "").replace(/[^0-9]/g, "");
+                  const waPhone = rawPhone.startsWith("0") ? `62${rawPhone.slice(1)}` : rawPhone;
+
                   const avatar = app.student_name ? app.student_name.substring(0, 2).toUpperCase() : "CS";
                   const formattedDate = new Date(app.submitted_at || app.created_at || new Date()).toLocaleDateString("id-ID", {
                     day: "numeric",
@@ -1047,86 +1214,127 @@ export default function AdmisiClient({
                   const paymentStatus = app.payment_status || "PAID";
 
                   return (
-                    <Link
+                    <div
                       key={app.id}
-                      href={`/management/admisi/${app.id}`}
-                      className="block p-4 rounded-2xl bg-white border border-ink/10 shadow-2xs hover:border-sky/40 transition-all space-y-3"
+                      className="p-4 rounded-2xl bg-white border border-ink/10 shadow-2xs space-y-3"
                     >
-                      {/* Top Row: Avatar + Name + Reg No + Arrow */}
-                      <div className="flex items-start justify-between gap-2.5">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div
-                            className={`w-10 h-10 shrink-0 rounded-2xl bg-gradient-to-br ${style.gradient} flex items-center justify-center font-display font-black text-white text-xs shadow-sm`}
-                          >
-                            {avatar}
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="font-bold text-sm text-ink truncate leading-tight">
-                              {app.student_name}
-                            </h4>
-                            <p className="text-[11px] font-mono text-ink-400 mt-0.5">
-                              {app.registration_no || app.id.substring(0, 8)}
-                            </p>
-                          </div>
-                        </div>
+                      {/* Top Row: Reg No + Date + Status */}
+                      <div className="flex items-start justify-between gap-2.5 pb-2 border-b border-ink/5">
+                        <Link
+                          href={`/management/admisi/${app.id}`}
+                          className="group/reg inline-block"
+                        >
+                          <span className="font-mono font-bold text-sky text-xs block group-hover/reg:underline">
+                            {app.registration_no || app.id.substring(0, 8)}
+                          </span>
+                          <span className="text-[10px] text-ink-300">
+                            {formattedDate}
+                          </span>
+                        </Link>
 
-                        <span className="w-7 h-7 rounded-xl bg-cloud flex items-center justify-center text-ink-300 text-xs shrink-0">
-                          →
-                        </span>
-                      </div>
-
-                      {/* Middle Row: Program & Category & Parent */}
-                      <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
-                        <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 font-semibold border border-sky-100">
-                          {getProgramLabel(app.program)}
-                        </span>
-                        <span className="px-2 py-0.5 rounded-md bg-cloud text-ink-400 font-medium">
-                          Wali: {parentName}
-                        </span>
-                        <span className="text-ink-300 ml-auto font-mono text-[10px]">
-                          {formattedDate}
-                        </span>
-                      </div>
-
-                      {/* Bottom Row: Status Badge & Payment Badge */}
-                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-ink/5">
                         <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${style.bg} ${style.color}`}>
                           {style.icon}
                           <span>{style.label}</span>
                         </span>
-
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            paymentStatus === "PAID"
-                              ? "bg-leaf-50 text-leaf-600 border-leaf-200"
-                              : "bg-coral-50 text-coral-600 border-coral-200"
-                          }`}
-                        >
-                          {paymentStatus === "PAID" ? "Form Lunas" : "Belum Bayar"}
-                        </span>
                       </div>
-                    </Link>
+
+                      {/* Middle Row: Student Name & Program */}
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`w-10 h-10 shrink-0 rounded-2xl bg-gradient-to-br ${style.gradient} flex items-center justify-center font-display font-black text-white text-xs shadow-sm`}
+                        >
+                          {avatar}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <Link
+                            href={`/management/admisi/${app.id}`}
+                            className="font-bold text-sm text-ink hover:text-sky transition-colors block truncate"
+                          >
+                            {app.student_name}
+                          </Link>
+                          <div className="flex flex-wrap items-center gap-1.5 mt-1 text-[11px]">
+                            <span className="px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 font-semibold border border-sky-100">
+                              {getProgramLabel(app.program)}
+                            </span>
+                            <span className="px-1.5 py-0.5 rounded bg-cloud text-ink-400 font-bold text-[10px]">
+                              {app.gender === "MALE" ? "L" : "P"}
+                            </span>
+                            <span className="px-2 py-0.5 rounded-md bg-cloud text-ink-400 font-medium text-[10px]">
+                              {app.category === "TRANSFER_STUDENT" ? "Pindahan" : "Siswa Baru"}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Contacts Row */}
+                      <div className="p-2.5 rounded-xl bg-cloud/40 border border-ink/5 space-y-1 text-xs">
+                        <p className="text-ink-400 text-[11px]">
+                          Orang Tua / Wali: <strong className="text-ink">{parentName}</strong>
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          {guardian?.phone && guardian.phone !== "-" && (
+                            <a
+                              href={`https://wa.me/${waPhone}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="text-green-600 hover:underline inline-flex items-center gap-1 font-mono font-bold text-xs"
+                            >
+                              <Phone size={11} /> {guardian.phone}
+                            </a>
+                          )}
+                          {guardian?.email && guardian.email !== "-" && (
+                            <span className="text-slate-400 text-[11px] truncate max-w-[180px]">
+                              {guardian.email}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Bottom Row: Form status & Action Button */}
+                      <div className="flex items-center justify-between gap-2 pt-2 border-t border-ink/5">
+                        <div className="flex items-center gap-1.5">
+                          {app.form_submitted ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-leaf-50 text-leaf-700 border border-leaf-200 text-[10px] font-bold">
+                              <CheckCircle2 size={10} /> Form Lengkap
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gold-50 text-gold-700 border border-gold-200 text-[10px] font-semibold">
+                              <Clock size={10} /> Belum Isi Form
+                            </span>
+                          )}
+                          <span className="text-[10px] font-bold text-leaf-600 bg-leaf-50 px-2 py-0.5 rounded-full border border-leaf-200">
+                            Rp 1Jt Lunas
+                          </span>
+                        </div>
+
+                        <Link href={`/management/admisi/${app.id}`}>
+                          <Button size="sm" variant="outline" className="h-8 px-3 rounded-xl border-ink/15 font-bold text-xs hover:bg-sky-50 hover:text-sky">
+                            Detail →
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
                   );
                 })}
               </div>
 
               {/* ========================================================= */}
-              {/* 2B. DESKTOP VIEW: FULL RICH DATA TABLE */}
+              {/* 2. DESKTOP VIEW: FULL RICH DATA TABLE */}
               {/* ========================================================= */}
-              <div className="hidden md:block bg-white rounded-3xl border border-ink/5 shadow-sm overflow-hidden">
+              <div className="hidden md:block bg-white rounded-3xl border border-ink/10 shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full text-left border-collapse">
                     <thead>
-                      <tr className="border-b border-ink/5 bg-cloud/50">
-                        <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider">No. Registrasi</th>
-                        <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider">Calon Siswa &amp; Orang Tua</th>
-                        <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider">Jenjang Pendidikan</th>
-                        <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider">Biaya &amp; Pembayaran</th>
-                        <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider">Status Admisi</th>
-                        <th className="px-6 py-4 text-xs font-bold text-ink-300 uppercase tracking-wider text-right">Aksi</th>
+                      <tr className="border-b border-ink/10 bg-cloud/40 text-[11px] font-bold text-ink-400 uppercase tracking-wider">
+                        <th className="py-3.5 px-4 sm:px-6">No. Registrasi &amp; Tanggal</th>
+                        <th className="py-3.5 px-4">Calon Siswa</th>
+                        <th className="py-3.5 px-4">Orang Tua / Kontak</th>
+                        <th className="py-3.5 px-4">Status Form &amp; Biaya</th>
+                        <th className="py-3.5 px-4">Status Admisi</th>
+                        <th className="py-3.5 px-4 sm:px-6 text-right">Aksi</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-ink/5">
+                    <tbody className="divide-y divide-ink/5 text-xs sm:text-sm">
                       {paginatedApplicants.map((app) => {
                         const style = getStatusStyle(app.status);
                         const guardian = app.guardians
@@ -1134,7 +1342,10 @@ export default function AdmisiClient({
                             ? app.guardians[0]
                             : app.guardians
                           : null;
-                        const parentName = guardian ? guardian.full_name : "-";
+                        const parentName = guardian?.full_name || "-";
+                        const rawPhone = (guardian?.phone || "").replace(/[^0-9]/g, "");
+                        const waPhone = rawPhone.startsWith("0") ? `62${rawPhone.slice(1)}` : rawPhone;
+
                         const avatar = app.student_name ? app.student_name.substring(0, 2).toUpperCase() : "CS";
                         const formattedDate = new Date(app.submitted_at || app.created_at || new Date()).toLocaleDateString("id-ID", {
                           day: "numeric",
@@ -1142,54 +1353,110 @@ export default function AdmisiClient({
                           year: "numeric",
                         });
 
-                        const paymentStatus = app.payment_status || "PAID";
-                        const paymentStyle =
-                          paymentStatus === "PAID"
-                            ? "bg-leaf-50 text-leaf-600 border-leaf-200"
-                            : "bg-coral-50 text-coral-600 border-coral-200";
-
                         return (
                           <tr key={app.id} className="hover:bg-sky-50/40 transition-colors group">
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <p className="text-sm font-bold font-mono text-ink mb-0.5">{app.registration_no || app.id.substring(0, 8)}</p>
-                              <p className="text-xs font-medium text-ink-400">{formattedDate}</p>
+                            {/* 1. Reg No & Date (Clickable to Detail) */}
+                            <td className="py-4 px-4 sm:px-6 whitespace-nowrap">
+                              <Link
+                                href={`/management/admisi/${app.id}`}
+                                className="group/reg inline-block"
+                                title="Lihat Detail Pendaftaran"
+                              >
+                                <span className="font-mono font-bold text-sky text-sm block group-hover/reg:text-sky-700 group-hover/reg:underline transition-colors">
+                                  {app.registration_no || app.id.substring(0, 8)}
+                                </span>
+                                <span className="text-[11px] font-medium text-ink-300">
+                                  {formattedDate}
+                                </span>
+                              </Link>
                             </td>
-                            <td className="px-6 py-4">
+
+                            {/* 2. Student Info */}
+                            <td className="py-4 px-4">
                               <div className="flex items-center gap-3">
-                                <div className={`w-10 h-10 shrink-0 rounded-full bg-gradient-to-br ${style.gradient} flex items-center justify-center font-display font-bold text-white text-sm shadow-sm`}>
+                                {/* <div className={`w-10 h-10 shrink-0 rounded-full bg-gradient-to-br ${style.gradient} flex items-center justify-center font-display font-bold text-white text-sm shadow-sm`}>
                                   {avatar}
-                                </div>
+                                </div> */}
                                 <div>
-                                  <p className="font-bold text-sm text-ink group-hover:text-sky transition-colors">{app.student_name}</p>
-                                  <p className="text-xs text-ink-400">Wali: {parentName}</p>
+                                  <Link
+                                    href={`/management/admisi/${app.id}`}
+                                    className="font-bold text-sm text-ink group-hover:text-sky group-hover:underline transition-colors block"
+                                  >
+                                    {app.student_name}
+                                  </Link>
+                                  <div className="flex items-center gap-1.5 mt-0.5">
+                                    <span className="text-[11px] font-semibold text-sky-700 bg-sky-50 px-2 py-0.5 rounded-md border border-sky-100">
+                                      {getProgramLabel(app.program)}
+                                    </span>
+                                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-cloud text-ink-400 font-bold">
+                                      {app.gender === "MALE" ? "L" : "P"}
+                                    </span>
+                                    <span className="text-[10px] text-ink-300">
+                                      {app.category === "TRANSFER_STUDENT" ? "Pindahan" : "Siswa Baru"}
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <div className="flex flex-col gap-1 items-start">
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-sky-50 text-sky-700 font-semibold text-[11px] border border-sky-100">
-                                  {getProgramLabel(app.program)}
-                                </span>
-                                <span className="inline-flex items-center px-2.5 py-0.5 rounded-md bg-cloud text-ink-400 font-semibold text-[11px] border border-ink/10">
-                                  {app.category === "TRANSFER_STUDENT" ? "Pindahan" : "Siswa Baru"}
+
+                            {/* 3. Guardian & Contacts */}
+                            <td className="py-4 px-4">
+                              <p className="font-semibold text-ink text-sm">{parentName}</p>
+                              <div className="flex flex-col gap-0.5 text-[11px] text-ink-400 mt-0.5">
+                                {guardian?.phone && guardian.phone !== "-" && (
+                                  <a
+                                    href={`https://wa.me/${waPhone}`}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="text-green-600 hover:underline inline-flex items-center gap-1 font-mono font-bold"
+                                  >
+                                    <Phone size={11} /> {guardian.phone}
+                                  </a>
+                                )}
+                                {guardian?.email && guardian.email !== "-" && (
+                                  <span className="text-slate-400 truncate max-w-[170px]" title={guardian.email}>
+                                    {guardian.email}
+                                  </span>
+                                )}
+                              </div>
+                            </td>
+
+                            {/* 4. Form Status & Payment */}
+                            <td className="py-4 px-4 whitespace-nowrap">
+                              <div className="space-y-1">
+                                <div>
+                                  {app.form_submitted ? (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-leaf-50 text-leaf-700 border border-leaf-200 text-xs font-bold">
+                                      <CheckCircle2 size={11} /> Form Lengkap
+                                    </span>
+                                  ) : (
+                                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-gold-50 text-gold-700 border border-gold-200 text-xs font-semibold">
+                                      <Clock size={11} /> Menunggu Form
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-leaf-600">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-leaf-500" /> Rp 1.000.000 (Lunas)
                                 </span>
                               </div>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
-                              <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${paymentStyle}`}>
-                                <div className={`w-1.5 h-1.5 rounded-full ${paymentStatus === "PAID" ? "bg-leaf-500" : "bg-coral-500"}`} />
-                                {paymentStatus === "PAID" ? "Rp 1.000.000 (Lunas)" : "Belum Bayar"}
-                              </span>
-                            </td>
-                            <td className="px-6 py-4 whitespace-nowrap">
+
+                            {/* 5. Admission Status */}
+                            <td className="py-4 px-4 whitespace-nowrap">
                               <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold ${style.bg} ${style.color} border`}>
                                 {style.icon}
                                 {style.label}
                               </span>
                             </td>
-                            <td className="px-6 py-4 whitespace-nowrap text-right">
+
+                            {/* 6. Actions */}
+                            <td className="py-4 px-4 sm:px-6 whitespace-nowrap text-right">
                               <Link href={`/management/admisi/${app.id}`}>
-                                <Button variant="ghost" size="sm" className="h-9 px-4 text-sky hover:bg-sky-50 hover:text-sky-700 font-bold rounded-full">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 px-3.5 rounded-xl border-ink/15 font-bold text-xs hover:bg-sky-50 hover:text-sky inline-flex items-center gap-1"
+                                >
                                   Detail →
                                 </Button>
                               </Link>
@@ -1289,6 +1556,7 @@ export default function AdmisiClient({
           )}
         </div>
       )}
+
 
       {/* ========================================================================= */}
       {/* SUB-SECTION 2: BATCH APPROVAL & CLASSROOM ASSIGNMENT */}
@@ -1630,46 +1898,108 @@ export default function AdmisiClient({
       {/* ========================================================================= */}
       {activeTab === "public" && (
         <div className="space-y-5 animate-in fade-in duration-300">
-          {/* Quick Stats Grid */}
+          {/* Quick Stats Grid — Modern, Playful, and Informative (Not Flat) */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <div className="p-4 sm:p-5 rounded-2xl bg-white border border-ink/10 shadow-2xs">
-              <span className="text-[11px] font-bold text-ink-300 uppercase tracking-wider block">
-                Total Pendaftar Publik
-              </span>
-              <p className="font-display text-2xl sm:text-3xl font-bold text-ink mt-1">
+            {/* Card 1: Total Public Applicants */}
+            <div
+              onClick={() => setPublicStatusFilter("ALL")}
+              className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                publicStatusFilter === "ALL"
+                  ? "bg-gradient-to-br from-sky-500/15 via-sky-50 to-white border-sky-300 ring-2 ring-sky-500/20 shadow-sm"
+                  : "bg-gradient-to-br from-sky-50/50 via-white to-cloud/40 border-ink/10 hover:border-sky-200 shadow-2xs hover:shadow-xs"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-sky-800 uppercase tracking-wider block">
+                  Total Pendaftar Publik
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform">
+                  <Globe size={16} />
+                </div>
+              </div>
+              <p className="font-display text-2xl sm:text-3xl font-extrabold text-ink mt-2">
                 {publicStats.total}
               </p>
+              <p className="text-[11px] text-ink-400 mt-1 font-medium flex items-center gap-1">
+                <Sparkles size={11} className="text-sky" /> {publicStats.paid} pembayaran lunas
+              </p>
             </div>
 
-            <div className="p-4 sm:p-5 rounded-2xl bg-amber-50/70 border border-amber-200/80 shadow-2xs">
+            {/* Card 2: Perlu Verifikasi Transfer */}
+            <div
+              onClick={() => setPublicStatusFilter("WAITING_PAYMENT")}
+              className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                publicStatusFilter === "WAITING_PAYMENT"
+                  ? "bg-gradient-to-br from-amber-500/15 via-amber-50 to-white border-amber-300 ring-2 ring-amber-500/20 shadow-sm"
+                  : "bg-gradient-to-br from-amber-50/40 via-white to-cloud/40 border-ink/10 hover:border-amber-200 shadow-2xs hover:shadow-xs"
+              }`}
+            >
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-amber-700 uppercase tracking-wider block">
-                  Perlu Verifikasi Transfer
+                <span className="text-[11px] font-bold text-amber-800 uppercase tracking-wider block">
+                  Perlu Cek Transfer
                 </span>
-                {publicStats.waitingPayment > 0 && (
-                  <span className="w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
-                )}
+                <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform relative">
+                  <Clock size={16} />
+                  {publicStats.waitingPayment > 0 && (
+                    <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-amber-500 animate-ping" />
+                  )}
+                </div>
               </div>
-              <p className="font-display text-2xl sm:text-3xl font-bold text-amber-900 mt-1">
+              <p className="font-display text-2xl sm:text-3xl font-extrabold text-amber-950 mt-2">
                 {publicStats.waitingPayment}
               </p>
-            </div>
-
-            <div className="p-4 sm:p-5 rounded-2xl bg-leaf-50/70 border border-leaf-200/80 shadow-2xs">
-              <span className="text-[11px] font-bold text-leaf-700 uppercase tracking-wider block">
-                Lunas &amp; Link Terkirim
-              </span>
-              <p className="font-display text-2xl sm:text-3xl font-bold text-leaf-900 mt-1">
-                {publicStats.paid}
+              <p className="text-[11px] text-amber-700/80 mt-1 font-semibold">
+                Perlu approval bukti transfer
               </p>
             </div>
 
-            <div className="p-4 sm:p-5 rounded-2xl bg-coral-50/60 border border-coral-200/70 shadow-2xs">
-              <span className="text-[11px] font-bold text-coral-700 uppercase tracking-wider block">
-                Pembayaran Ditolak
-              </span>
-              <p className="font-display text-2xl sm:text-3xl font-bold text-coral-900 mt-1">
+            {/* Card 3: Lunas & Link Terkirim */}
+            <div
+              onClick={() => setPublicStatusFilter("PAID")}
+              className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                publicStatusFilter === "PAID"
+                  ? "bg-gradient-to-br from-leaf-500/15 via-leaf-50 to-white border-leaf-300 ring-2 ring-leaf-500/20 shadow-sm"
+                  : "bg-gradient-to-br from-leaf-50/40 via-white to-cloud/40 border-ink/10 hover:border-leaf-200 shadow-2xs hover:shadow-xs"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-leaf-800 uppercase tracking-wider block">
+                  Lunas &amp; Link Terkirim
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-leaf-100 text-leaf-700 flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform">
+                  <CheckCircle2 size={16} />
+                </div>
+              </div>
+              <p className="font-display text-2xl sm:text-3xl font-extrabold text-leaf-950 mt-2">
+                {publicStats.paid}
+              </p>
+              <p className="text-[11px] text-leaf-700/80 mt-1 font-semibold">
+                Link form aktif &amp; dikirim
+              </p>
+            </div>
+
+            {/* Card 4: Pembayaran Ditolak */}
+            <div
+              onClick={() => setPublicStatusFilter("REJECTED")}
+              className={`p-4 sm:p-5 rounded-2xl border transition-all cursor-pointer relative overflow-hidden group ${
+                publicStatusFilter === "REJECTED"
+                  ? "bg-gradient-to-br from-coral-500/15 via-coral-50 to-white border-coral-300 ring-2 ring-coral-500/20 shadow-sm"
+                  : "bg-gradient-to-br from-coral-50/30 via-white to-cloud/40 border-ink/10 hover:border-coral-200 shadow-2xs hover:shadow-xs"
+              }`}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-coral-800 uppercase tracking-wider block">
+                  Pembayaran Ditolak
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-coral-100 text-coral flex items-center justify-center shadow-2xs group-hover:scale-110 transition-transform">
+                  <XCircle size={16} />
+                </div>
+              </div>
+              <p className="font-display text-2xl sm:text-3xl font-extrabold text-coral-950 mt-2">
                 {publicStats.rejected}
+              </p>
+              <p className="text-[11px] text-coral-700/80 mt-1 font-semibold">
+                Bukti transfer tidak valid
               </p>
             </div>
           </div>
@@ -1690,20 +2020,22 @@ export default function AdmisiClient({
               />
             </div>
 
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 hide-scrollbar">
               <button
+                type="button"
                 onClick={() => setPublicStatusFilter("ALL")}
-                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                   publicStatusFilter === "ALL"
-                    ? "bg-ink text-white"
-                    : "bg-cloud/60 text-ink-400 hover:text-ink"
+                    ? "bg-ink text-white shadow-xs"
+                    : "bg-cloud/60 text-ink-400 hover:text-ink hover:bg-cloud"
                 }`}
               >
                 Semua ({publicApplicants.length})
               </button>
               <button
+                type="button"
                 onClick={() => setPublicStatusFilter("WAITING_PAYMENT")}
-                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                   publicStatusFilter === "WAITING_PAYMENT"
                     ? "bg-amber-500 text-white shadow-xs"
                     : "bg-amber-50 text-amber-800 hover:bg-amber-100"
@@ -1712,8 +2044,9 @@ export default function AdmisiClient({
                 Perlu Cek ({publicStats.waitingPayment})
               </button>
               <button
+                type="button"
                 onClick={() => setPublicStatusFilter("PAID")}
-                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                   publicStatusFilter === "PAID"
                     ? "bg-leaf-600 text-white shadow-xs"
                     : "bg-leaf-50 text-leaf-800 hover:bg-leaf-100"
@@ -1722,8 +2055,9 @@ export default function AdmisiClient({
                 Lunas ({publicStats.paid})
               </button>
               <button
+                type="button"
                 onClick={() => setPublicStatusFilter("REJECTED")}
-                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap ${
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                   publicStatusFilter === "REJECTED"
                     ? "bg-coral text-white shadow-xs"
                     : "bg-coral-50 text-coral hover:bg-coral-100"
