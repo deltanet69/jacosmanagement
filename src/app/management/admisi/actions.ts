@@ -1266,17 +1266,16 @@ export async function upsertGuardians(
 ) {
   const supabase = createAdminClient();
   try {
-    // Build base payload without optional columns
     const buildPayload = (g: (typeof guardians)[0]) => ({
       applicant_id: applicantId,
-      full_name: g.full_name,
-      nik: g.nik || "-",
-      relation: g.relation,
-      phone: g.phone || "-",
-      email: g.email || "-",
-      occupation: g.occupation || "-",
-      education_level: g.education_level || "S1",
-      address: g.address || "-",
+      full_name: g.full_name?.trim() || "-",
+      nik: g.nik?.trim() || "-",
+      relation: g.relation?.trim() || "GUARDIAN",
+      phone: g.phone?.trim() || "-",
+      email: g.email?.trim() || "-",
+      occupation: g.occupation?.trim() || "-",
+      education_level: g.education_level?.trim() || "S1",
+      address: g.address?.trim() || "-",
       birth_place: "-",
       birth_date: new Date().toISOString(),
     });
@@ -1288,21 +1287,24 @@ export async function upsertGuardians(
       .filter((g) => g.full_name?.trim())
       .map((g) => {
         const base = buildPayload(g);
-        // Try to include monthly_income — will be stripped on fallback if column missing
-        return { ...base, monthly_income: g.monthly_income || null };
+        return { ...base, monthly_income: g.monthly_income?.trim() || null };
       });
 
     if (payloads.length === 0) {
-      return { success: false, message: "Tidak ada data orang tua untuk disimpan." };
+      return { success: false, message: "Harap isi minimal nama salah satu orang tua / wali." };
     }
 
-    let { error } = await supabase.from("guardians").insert(payloads);
+    let { data: insertedData, error } = await supabase
+      .from("guardians")
+      .insert(payloads)
+      .select("*");
 
     // Fallback: remove monthly_income if column doesn't exist
     if (error && error.message?.toLowerCase().includes("monthly_income")) {
       const fallback = payloads.map(({ monthly_income, ...rest }: any) => rest);
-      const retry = await supabase.from("guardians").insert(fallback);
+      const retry = await supabase.from("guardians").insert(fallback).select("*");
       error = retry.error;
+      insertedData = retry.data;
     }
 
     if (error) {
@@ -1310,10 +1312,150 @@ export async function upsertGuardians(
       return { success: false, message: error.message };
     }
 
+    // Sync to student_parents if student record already exists
+    try {
+      const { data: student } = await supabase
+        .from("students")
+        .select("id")
+        .eq("applicant_id", applicantId)
+        .maybeSingle();
+
+      if (student) {
+        const father = payloads.find((p) => p.relation === "FATHER");
+        const mother = payloads.find((p) => p.relation === "MOTHER");
+        const primary = father || mother || payloads[0];
+
+        await supabase
+          .from("student_parents")
+          .update({
+            father_name: father?.full_name || null,
+            mother_name: mother?.full_name || null,
+            father_occupation: father?.occupation || null,
+            mother_occupation: mother?.occupation || null,
+            phone_number: primary?.phone || "-",
+          })
+          .eq("student_id", student.id);
+      }
+    } catch (syncErr) {
+      console.warn("[upsertGuardians] Non-fatal student_parents sync warning:", syncErr);
+    }
+
+    revalidatePath("/management/admisi");
     revalidatePath(`/management/admisi/${applicantId}`);
-    return { success: true };
+    revalidatePath("/management/siswa");
+
+    return {
+      success: true,
+      data: insertedData || payloads,
+      message: "Data orang tua / wali berhasil diperbarui.",
+    };
   } catch (err: any) {
     console.error("Exception in upsertGuardians:", err);
     return { success: false, message: err.message || "Gagal menyimpan data orang tua." };
+  }
+}
+
+// ============================================================
+// UPLOAD ADMISSION DOCUMENT BY ADMIN
+// ============================================================
+export async function uploadAdmissionDocumentByAdmin(
+  applicantId: string,
+  docKey: string,
+  formData: FormData
+) {
+  const supabase = createAdminClient();
+  try {
+    const { data: applicant, error: findError } = await supabase
+      .from("applicants")
+      .select("id, registration_no, payment_note, payment_status")
+      .eq("id", applicantId)
+      .single();
+
+    if (findError || !applicant) {
+      return { success: false, message: "Data pendaftar tidak ditemukan." };
+    }
+
+    const file = formData.get("file") as File | null;
+    if (!file || file.size === 0) {
+      return { success: false, message: "Harap pilih berkas foto atau dokumen yang ingin diunggah." };
+    }
+
+    if (file.size > 10 * 1024 * 1024) {
+      return { success: false, message: "Ukuran berkas maksimal adalah 10MB." };
+    }
+
+    const safeFileName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+    const ext = safeFileName.split(".").pop() || "pdf";
+    const filePath = `${applicant.id}/${docKey}_${Date.now()}_${safeFileName}`;
+    const fileBuffer = await file.arrayBuffer();
+
+    const { error: uploadErr } = await supabase.storage
+      .from("admission-documents")
+      .upload(filePath, fileBuffer, {
+        contentType: file.type || "application/octet-stream",
+        upsert: true,
+      });
+
+    if (uploadErr) {
+      console.error("[uploadAdmissionDocumentByAdmin] Storage upload error:", uploadErr);
+      return { success: false, message: "Gagal mengunggah berkas ke storage: " + uploadErr.message };
+    }
+
+    const updatePayload: Record<string, any> = {
+      [docKey]: filePath,
+      updated_at: new Date().toISOString(),
+    };
+
+    if (docKey === "doc_payment_proof") {
+      let updatedNote = applicant.payment_note || "[PUBLIC_ADMISSION]";
+      if (updatedNote.includes("Bukti: ")) {
+        updatedNote = updatedNote.replace(/Bukti:\s*[^\s]+/, `Bukti: ${filePath}`);
+      } else {
+        updatedNote = `${updatedNote} Bukti: ${filePath}`;
+      }
+      updatePayload.payment_note = updatedNote;
+      if (applicant.payment_status !== "PAID") {
+        updatePayload.payment_status = "PENDING_VERIFICATION";
+      }
+      updatePayload.rejection_reason = null;
+    }
+
+    if (docKey === "doc_jacos_agreement") {
+      updatePayload.doc_jacos_agreement_status = "PENDING";
+    }
+
+    let { error: updateError } = await supabase
+      .from("applicants")
+      .update(updatePayload)
+      .eq("id", applicantId);
+
+    if (updateError && (updateError.message?.toLowerCase().includes(docKey) || updateError.code === "PGRST204")) {
+      delete updatePayload[docKey];
+      const retry = await supabase.from("applicants").update(updatePayload).eq("id", applicantId);
+      updateError = retry.error;
+    }
+
+    if (updateError) {
+      return { success: false, message: "Gagal menyimpan data dokumen: " + updateError.message };
+    }
+
+    // Generate signed URL
+    const { data: urlData } = await supabase.storage
+      .from("admission-documents")
+      .createSignedUrl(filePath, 3600);
+
+    revalidatePath("/management/admisi");
+    revalidatePath(`/management/admisi/${applicantId}`);
+
+    return {
+      success: true,
+      docKey,
+      filePath,
+      signedUrl: urlData?.signedUrl || null,
+      message: "Dokumen berhasil diunggah!",
+    };
+  } catch (err: any) {
+    console.error("[uploadAdmissionDocumentByAdmin] Exception:", err);
+    return { success: false, message: err.message || "Terjadi kesalahan sistem saat mengunggah dokumen." };
   }
 }

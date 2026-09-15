@@ -41,6 +41,8 @@ import {
   rejectPublicPayment,
   uploadPaymentProofByAdmin,
   sendPaymentFollowUpEmail,
+  upsertGuardians,
+  uploadAdmissionDocumentByAdmin,
 } from "../actions";
 import {
   BATCH_LIST,
@@ -128,8 +130,28 @@ export default function ApplicantDetailClient({
   // Guardian Edit Modal
   const [showGuardianModal, setShowGuardianModal] = useState(false);
   const [isSavingGuardians, setIsSavingGuardians] = useState(false);
-  const EMPTY_GUARDIAN = { relation: "FATHER", full_name: "", phone: "", email: "", occupation: "", nik: "" };
+  const EMPTY_GUARDIAN = {
+    relation: "FATHER",
+    full_name: "",
+    phone: "",
+    email: "",
+    occupation: "",
+    nik: "",
+    monthly_income: "",
+    education_level: "S1",
+    address: "",
+  };
   const [guardianDraft, setGuardianDraft] = useState<any[]>([{ ...EMPTY_GUARDIAN }]);
+
+  // Document Upload Modal (by Admin)
+  const [docUploadModal, setDocUploadModal] = useState<{
+    isOpen: boolean;
+    docKey: string;
+    docLabel: string;
+    currentSignedUrl?: string | null;
+  } | null>(null);
+  const [uploadDocFile, setUploadDocFile] = useState<File | null>(null);
+  const [isUploadingDoc, setIsUploadingDoc] = useState(false);
 
   if (!data) {
     return (
@@ -345,7 +367,130 @@ export default function ApplicantDetailClient({
     }
   };
 
-  // Save Guardians from Admin Modal (REMOVED)
+  // Guardian Management Handlers
+  const handleOpenGuardianModal = () => {
+    if (guardians && guardians.length > 0) {
+      setGuardianDraft(
+        guardians.map((g: any) => ({
+          id: g.id,
+          relation: g.relation || "FATHER",
+          full_name: g.full_name || "",
+          phone: g.phone && g.phone !== "-" ? g.phone : "",
+          email: g.email && g.email !== "-" ? g.email : "",
+          occupation: g.occupation && g.occupation !== "-" ? g.occupation : "",
+          nik: g.nik && g.nik !== "-" ? g.nik : "",
+          monthly_income: g.monthly_income && g.monthly_income !== "-" ? g.monthly_income : "",
+          education_level: g.education_level && g.education_level !== "-" ? g.education_level : "S1",
+          address: g.address && g.address !== "-" ? g.address : "",
+        }))
+      );
+    } else {
+      setGuardianDraft([
+        { ...EMPTY_GUARDIAN, relation: "FATHER" },
+        { ...EMPTY_GUARDIAN, relation: "MOTHER" },
+      ]);
+    }
+    setShowGuardianModal(true);
+  };
+
+  const handleAddGuardianRow = () => {
+    if (guardianDraft.length >= 3) {
+      alert("Maksimal 3 data orang tua / wali (Ayah, Ibu, Wali).");
+      return;
+    }
+    const hasFather = guardianDraft.some((g) => (g.relation || "").toUpperCase() === "FATHER");
+    const hasMother = guardianDraft.some((g) => (g.relation || "").toUpperCase() === "MOTHER");
+    const nextRelation = !hasFather ? "FATHER" : !hasMother ? "MOTHER" : "GUARDIAN";
+    setGuardianDraft([...guardianDraft, { ...EMPTY_GUARDIAN, relation: nextRelation }]);
+  };
+
+  const handleRemoveGuardianRow = (idx: number) => {
+    if (guardianDraft.length <= 1) {
+      alert("Minimal harus ada 1 data orang tua / wali.");
+      return;
+    }
+    setGuardianDraft(guardianDraft.filter((_, i) => i !== idx));
+  };
+
+  const handleUpdateGuardianDraftField = (idx: number, field: string, value: any) => {
+    setGuardianDraft((prev) =>
+      prev.map((item, i) => (i === idx ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const handleSaveGuardians = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const validGuardians = guardianDraft.filter((g) => g.full_name?.trim());
+    if (validGuardians.length === 0) {
+      alert("Harap isi nama lengkap minimal satu orang tua / wali.");
+      return;
+    }
+
+    setIsSavingGuardians(true);
+    const res = await upsertGuardians(applicantId, validGuardians);
+    setIsSavingGuardians(false);
+
+    if (res.success) {
+      setData((prev: any) => ({
+        ...prev,
+        guardians: res.data || validGuardians,
+      }));
+      setShowGuardianModal(false);
+      alert("Data orang tua / wali berhasil diperbarui!");
+      router.refresh();
+    } else {
+      alert(res.message || "Gagal menyimpan data orang tua.");
+    }
+  };
+
+  // Document Upload Handlers (Admin)
+  const handleOpenDocModal = (docKey: string, docLabel: string, currentSignedUrl?: string | null) => {
+    setUploadDocFile(null);
+    setDocUploadModal({
+      isOpen: true,
+      docKey,
+      docLabel,
+      currentSignedUrl: currentSignedUrl || null,
+    });
+  };
+
+  const handleUploadDocSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!docUploadModal || !uploadDocFile) {
+      alert("Harap pilih berkas dokumen yang ingin diunggah.");
+      return;
+    }
+
+    setIsUploadingDoc(true);
+    const formData = new FormData();
+    formData.append("file", uploadDocFile);
+
+    const res = await uploadAdmissionDocumentByAdmin(applicantId, docUploadModal.docKey, formData);
+    setIsUploadingDoc(false);
+
+    if (res.success && res.docKey) {
+      const targetDocKey = res.docKey;
+      const targetFilePath = res.filePath;
+      const targetSignedUrl = res.signedUrl;
+      setData((prev: any) => ({
+        ...prev,
+        [targetDocKey]: targetFilePath,
+        [`${targetDocKey}_signed`]: targetSignedUrl,
+        ...(targetDocKey === "doc_payment_proof" && prev.payment_status !== "PAID"
+          ? { payment_status: "PENDING_VERIFICATION" }
+          : {}),
+        ...(targetDocKey === "doc_jacos_agreement"
+          ? { doc_jacos_agreement_status: "PENDING", doc_jacos_agreement_signed: targetSignedUrl }
+          : {}),
+      }));
+      setDocUploadModal(null);
+      setUploadDocFile(null);
+      alert(`Dokumen "${docUploadModal.docLabel}" berhasil diunggah!`);
+      router.refresh();
+    } else {
+      alert(res.message || "Gagal mengunggah dokumen.");
+    }
+  };
 
   // Reset Password
   const handleResetPassword = async () => {
@@ -740,6 +885,373 @@ export default function ApplicantDetailClient({
         </div>
       )}
 
+      {/* ========================================================================= */}
+      {/* GUARDIAN EDIT MODAL (ADMIN) */}
+      {/* ========================================================================= */}
+      {showGuardianModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-sm p-4 overflow-y-auto animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-3xl w-full shadow-2xl border border-ink/5 space-y-6 my-8 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between pb-4 border-b border-ink/5 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-sky-50 text-sky flex items-center justify-center">
+                  <Pencil size={20} />
+                </div>
+                <div>
+                  <h3 className="font-display text-xl sm:text-2xl font-bold text-ink">
+                    Edit Data Orang Tua / Wali
+                  </h3>
+                  <p className="text-ink-400 text-xs mt-0.5">
+                    Perbarui kontak (Email &amp; No. WhatsApp) dan informasi identitas orang tua calon siswa.
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => setShowGuardianModal(false)}
+                className="w-9 h-9 p-0 rounded-xl text-ink-400 hover:text-ink hover:bg-cloud"
+              >
+                <X size={18} />
+              </Button>
+            </div>
+
+            <form onSubmit={handleSaveGuardians} className="space-y-6 overflow-y-auto pr-1 flex-1">
+              <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-2.5">
+                <AlertCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                <p className="leading-relaxed">
+                  <strong>PENTING:</strong> Email utama orang tua digunakan untuk pembuatan akun dan login ke <strong>Portal Orang Tua</strong> serta pengiriman informasi penting (link pendaftaran, tagihan, &amp; hasil seleksi).
+                </p>
+              </div>
+
+              <div className="space-y-6">
+                {guardianDraft.map((g, idx) => {
+                  const relUpper = (g.relation || "").toUpperCase();
+                  const isFather = relUpper === "FATHER";
+                  const isMother = relUpper === "MOTHER";
+
+                  return (
+                    <div
+                      key={idx}
+                      className={`p-5 rounded-2xl border transition-all ${
+                        isFather
+                          ? "bg-sky-50/40 border-sky-100"
+                          : isMother
+                          ? "bg-rose-50/40 border-rose-100"
+                          : "bg-amber-50/40 border-amber-100"
+                      } space-y-4`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-black text-ink uppercase tracking-wider">
+                            Orang Tua / Wali #{idx + 1}
+                          </span>
+                          <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-white border border-ink/10 text-ink-500">
+                            {relationLabel(g.relation)}
+                          </span>
+                        </div>
+
+                        {guardianDraft.length > 1 && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={() => handleRemoveGuardianRow(idx)}
+                            className="h-8 px-2.5 rounded-xl text-coral hover:bg-coral-50 text-xs font-bold"
+                          >
+                            <Trash size={13} className="mr-1" /> Hapus
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-4">
+                        {/* Hubungan */}
+                        <div>
+                          <Label className="block text-xs font-bold text-ink-400 mb-1.5">
+                            Hubungan Keluarga <span className="text-coral">*</span>
+                          </Label>
+                          <select
+                            value={g.relation || "FATHER"}
+                            onChange={(e) => handleUpdateGuardianDraftField(idx, "relation", e.target.value)}
+                            className="w-full h-11 px-3.5 rounded-xl border border-ink/15 bg-white text-xs font-semibold focus:ring-2 focus:ring-sky/30 focus:border-sky outline-none"
+                          >
+                            <option value="FATHER">Ayah / Daddy (FATHER)</option>
+                            <option value="MOTHER">Ibu / Mommy (MOTHER)</option>
+                            <option value="GUARDIAN">Wali Murid (GUARDIAN)</option>
+                          </select>
+                        </div>
+
+                        {/* Nama Lengkap */}
+                        <div>
+                          <Label className="block text-xs font-bold text-ink-400 mb-1.5">
+                            Nama Lengkap <span className="text-coral">*</span>
+                          </Label>
+                          <Input
+                            required
+                            placeholder="Contoh: Budi Santoso"
+                            value={g.full_name || ""}
+                            onChange={(e) => handleUpdateGuardianDraftField(idx, "full_name", e.target.value)}
+                            className="h-11 rounded-xl text-xs bg-white font-medium"
+                          />
+                        </div>
+
+                        {/* Alamat Email */}
+                        <div>
+                          <Label className="block text-xs font-bold text-ink-400 mb-1.5">
+                            Alamat Email (Login Portal Orang Tua)
+                          </Label>
+                          <Input
+                            type="email"
+                            placeholder="contoh: budi@gmail.com"
+                            value={g.email || ""}
+                            onChange={(e) => handleUpdateGuardianDraftField(idx, "email", e.target.value)}
+                            className="h-11 rounded-xl text-xs bg-white font-medium"
+                          />
+                        </div>
+
+                        {/* No. Telepon / WhatsApp */}
+                        <div>
+                          <Label className="block text-xs font-bold text-ink-400 mb-1.5">
+                            No. Telepon / WhatsApp
+                          </Label>
+                          <Input
+                            type="tel"
+                            placeholder="contoh: 08123456789"
+                            value={g.phone || ""}
+                            onChange={(e) => handleUpdateGuardianDraftField(idx, "phone", e.target.value)}
+                            className="h-11 rounded-xl text-xs bg-white font-medium font-mono"
+                          />
+                        </div>
+
+                        {/* NIK */}
+                        <div>
+                          <Label className="block text-xs font-bold text-ink-400 mb-1.5">
+                            NIK (Kependudukan)
+                          </Label>
+                          <Input
+                            placeholder="16 digit NIK"
+                            value={g.nik || ""}
+                            onChange={(e) => handleUpdateGuardianDraftField(idx, "nik", e.target.value)}
+                            className="h-11 rounded-xl text-xs bg-white font-medium font-mono"
+                          />
+                        </div>
+
+                        {/* Pekerjaan */}
+                        <div>
+                          <Label className="block text-xs font-bold text-ink-400 mb-1.5">
+                            Pekerjaan / Jabatan
+                          </Label>
+                          <Input
+                            placeholder="Contoh: Karyawan Swasta / Wiraswasta"
+                            value={g.occupation || ""}
+                            onChange={(e) => handleUpdateGuardianDraftField(idx, "occupation", e.target.value)}
+                            className="h-11 rounded-xl text-xs bg-white font-medium"
+                          />
+                        </div>
+
+                        {/* Penghasilan Bulanan */}
+                        <div>
+                          <Label className="block text-xs font-bold text-ink-400 mb-1.5">
+                            Penghasilan Bulanan
+                          </Label>
+                          <Input
+                            placeholder="Contoh: Rp. 10.000.000 - Rp. 20.000.000"
+                            value={g.monthly_income || ""}
+                            onChange={(e) => handleUpdateGuardianDraftField(idx, "monthly_income", e.target.value)}
+                            className="h-11 rounded-xl text-xs bg-white font-medium"
+                          />
+                        </div>
+
+                        {/* Pendidikan Terakhir */}
+                        <div>
+                          <Label className="block text-xs font-bold text-ink-400 mb-1.5">
+                            Pendidikan Terakhir
+                          </Label>
+                          <select
+                            value={g.education_level || "S1"}
+                            onChange={(e) => handleUpdateGuardianDraftField(idx, "education_level", e.target.value)}
+                            className="w-full h-11 px-3.5 rounded-xl border border-ink/15 bg-white text-xs font-semibold focus:ring-2 focus:ring-sky/30 focus:border-sky outline-none"
+                          >
+                            <option value="SMA">SMA / SMK / Sederajat</option>
+                            <option value="D3">Diploma (D3)</option>
+                            <option value="S1">Sarjana (S1)</option>
+                            <option value="S2">Magister (S2)</option>
+                            <option value="S3">Doktor (S3)</option>
+                            <option value="Lainnya">Lainnya</option>
+                          </select>
+                        </div>
+
+                        {/* Alamat Domisili */}
+                        <div className="sm:col-span-2">
+                          <Label className="block text-xs font-bold text-ink-400 mb-1.5">
+                            Alamat Domisili
+                          </Label>
+                          <Input
+                            placeholder="Alamat tempat tinggal lengkap..."
+                            value={g.address || ""}
+                            onChange={(e) => handleUpdateGuardianDraftField(idx, "address", e.target.value)}
+                            className="h-11 rounded-xl text-xs bg-white font-medium"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {guardianDraft.length < 3 && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleAddGuardianRow}
+                  className="w-full h-11 border-dashed border-sky-300 text-sky-700 bg-sky-50/50 hover:bg-sky-50 font-bold text-xs rounded-2xl"
+                >
+                  <Plus size={15} className="mr-1.5" /> + Tambah Orang Tua / Wali Lainnya
+                </Button>
+              )}
+
+              <div className="flex gap-3 pt-3 border-t border-ink/5 shrink-0">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setShowGuardianModal(false)}
+                  className="flex-1 h-12 rounded-xl border-ink/15 font-bold text-sm"
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isSavingGuardians}
+                  className="flex-1 h-12 rounded-xl bg-sky hover:bg-sky-600 text-white font-bold text-sm shadow-md"
+                >
+                  {isSavingGuardians ? "Menyimpan..." : "Simpan Perubahan"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================================= */}
+      {/* DOCUMENT UPLOAD / EDIT MODAL (ADMIN) */}
+      {/* ========================================================================= */}
+      {docUploadModal?.isOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-ink/5 space-y-6">
+            <div className="flex items-center justify-between pb-3 border-b border-ink/5">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl bg-sky-50 text-sky flex items-center justify-center">
+                  <UploadCloud size={22} />
+                </div>
+                <div>
+                  <h3 className="font-display text-lg sm:text-xl font-bold text-ink">
+                    Upload / Ganti Dokumen
+                  </h3>
+                  <p className="text-ink-400 text-xs mt-0.5">
+                    Berkas untuk: <strong className="text-ink">{data.student_name}</strong>
+                  </p>
+                </div>
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setDocUploadModal(null);
+                  setUploadDocFile(null);
+                }}
+                className="w-8 h-8 p-0 rounded-xl text-ink-400 hover:text-ink hover:bg-cloud"
+              >
+                <X size={16} />
+              </Button>
+            </div>
+
+            <form onSubmit={handleUploadDocSubmit} className="space-y-4">
+              <div>
+                <Label className="block text-xs font-bold text-ink-400 uppercase tracking-wider mb-1">
+                  Jenis Dokumen
+                </Label>
+                <p className="font-bold text-sm text-ink bg-cloud/70 px-3.5 py-2.5 rounded-xl border border-ink/5">
+                  {docUploadModal.docLabel}
+                </p>
+              </div>
+
+              {docUploadModal.currentSignedUrl && (
+                <div className="p-3 rounded-xl bg-sky-50/60 border border-sky-200 flex items-center justify-between">
+                  <span className="text-xs font-semibold text-sky-800">
+                    Dokumen lama sudah terunggah
+                  </span>
+                  <a
+                    href={docUploadModal.currentSignedUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-bold text-sky-700 hover:underline inline-flex items-center gap-1"
+                  >
+                    <Eye size={12} /> Buka Berkas
+                  </a>
+                </div>
+              )}
+
+              <div className="p-4 rounded-2xl border-2 border-dashed border-sky-300 bg-sky-50/40 text-center space-y-2">
+                <input
+                  type="file"
+                  id="adminDocFileInput"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  className="hidden"
+                  onChange={(e) => {
+                    if (e.target.files && e.target.files[0]) {
+                      setUploadDocFile(e.target.files[0]);
+                    }
+                  }}
+                />
+                <label htmlFor="adminDocFileInput" className="cursor-pointer block">
+                  <div className="w-10 h-10 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center mx-auto mb-2">
+                    <Upload size={20} />
+                  </div>
+                  {uploadDocFile ? (
+                    <div>
+                      <p className="font-bold text-xs text-ink truncate max-w-[240px] mx-auto">
+                        {uploadDocFile.name}
+                      </p>
+                      <p className="text-[10px] text-ink-400 mt-0.5">
+                        {((uploadDocFile.size || 0) / 1024 / 1024).toFixed(2)} MB • Klik untuk ganti file
+                      </p>
+                    </div>
+                  ) : (
+                    <div>
+                      <p className="font-bold text-xs text-sky-800">
+                        Klik untuk memilih berkas dokumen
+                      </p>
+                      <p className="text-[11px] text-ink-400 mt-0.5">
+                        Format: JPG, PNG, WEBP, atau PDF (Maks. 10MB)
+                      </p>
+                    </div>
+                  )}
+                </label>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setDocUploadModal(null);
+                    setUploadDocFile(null);
+                  }}
+                  className="flex-1 h-12 rounded-xl border-ink/15 font-bold text-sm"
+                >
+                  Batal
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={isUploadingDoc || !uploadDocFile}
+                  className="flex-1 h-12 rounded-xl bg-sky hover:bg-sky-600 text-white font-bold text-sm shadow-md"
+                >
+                  {isUploadingDoc ? "Mengunggah..." : "Simpan & Upload"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* Header Navigation */}
       <div className="flex items-center gap-4">
         <Link href="/management/admisi">
@@ -1072,7 +1584,7 @@ export default function ApplicantDetailClient({
 
           {/* Parents Info Card */}
           <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-ink/5 space-y-6">
-            <div className="flex items-center justify-between pb-3 border-b border-ink/5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-ink/5 gap-3">
               <div>
                 <h3 className="text-xs font-black text-sky uppercase tracking-wider">
                   Data Orang Tua / Wali Siswa
@@ -1081,9 +1593,20 @@ export default function ApplicantDetailClient({
                   Informasi lengkap Ayah, Ibu, dan Wali murid yang didaftarkan.
                 </p>
               </div>
-              <span className="text-xs font-bold text-ink-400 bg-cloud px-3 py-1 rounded-full">
-                {guardians.length} Orang Tua/Wali
-              </span>
+              <div className="flex items-center gap-2.5">
+                <span className="text-xs font-bold text-ink-400 bg-cloud px-3 py-1.5 rounded-full">
+                  {guardians.length} Orang Tua/Wali
+                </span>
+                <Button
+                  type="button"
+                  onClick={handleOpenGuardianModal}
+                  variant="outline"
+                  size="sm"
+                  className="h-9 px-3.5 rounded-xl border-sky-300 bg-sky-50/80 text-sky-700 hover:bg-sky-100 font-bold text-xs shadow-2xs inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Pencil size={13} /> Edit Data Orang Tua
+                </Button>
+              </div>
             </div>
 
             <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-5">
@@ -1123,22 +1646,51 @@ export default function ApplicantDetailClient({
                         <span className={`text-[11px] font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${theme.badge} shadow-2xs`}>
                           {relationLabel(g.relation)}
                         </span>
-                        {g.phone && g.phone !== "-" && (
-                          <a
-                            href={`https://wa.me/${waPhone}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1 text-[11px] font-bold text-green-600 bg-green-50 hover:bg-green-100 px-2.5 py-1 rounded-xl border border-green-200 transition"
+                        <div className="flex items-center gap-1.5">
+                          {g.phone && g.phone !== "-" && (
+                            <a
+                              href={`https://wa.me/${waPhone}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-[11px] font-bold text-green-600 bg-green-50 hover:bg-green-100 px-2 py-0.5 rounded-lg border border-green-200 transition"
+                            >
+                              <Phone size={11} /> WA
+                            </a>
+                          )}
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            onClick={handleOpenGuardianModal}
+                            className="h-6 px-1.5 rounded-lg text-ink-400 hover:text-sky text-xs font-bold"
                           >
-                            <Phone size={12} /> WhatsApp
-                          </a>
-                        )}
+                            <Pencil size={11} />
+                          </Button>
+                        </div>
                       </div>
 
                       <div className="space-y-3">
                         <div>
                           <p className="text-[11px] font-bold text-ink-300 uppercase tracking-wider mb-0.5">Nama Lengkap</p>
                           <p className="font-bold text-ink text-base">{g.full_name || "-"}</p>
+                        </div>
+
+                        <div>
+                          <p className="text-[11px] font-bold text-ink-300 uppercase tracking-wider mb-0.5">Alamat Email (Login Portal)</p>
+                          {g.email && g.email !== "-" ? (
+                            <a
+                              href={`mailto:${g.email}`}
+                              className="font-bold text-sky hover:underline break-all text-xs inline-block bg-sky-50 px-2 py-0.5 rounded-lg border border-sky-200/60"
+                            >
+                              {g.email}
+                            </a>
+                          ) : (
+                            <p className="font-medium text-ink-300 text-xs">Belum diisi</p>
+                          )}
+                        </div>
+
+                        <div>
+                          <p className="text-[11px] font-bold text-ink-300 uppercase tracking-wider mb-0.5">No. Telepon / WhatsApp</p>
+                          <p className="font-bold text-ink font-mono text-xs">{g.phone || "-"}</p>
                         </div>
 
                         {g.nik && g.nik !== "-" && (
@@ -1149,25 +1701,6 @@ export default function ApplicantDetailClient({
                             </p>
                           </div>
                         )}
-
-                        <div>
-                          <p className="text-[11px] font-bold text-ink-300 uppercase tracking-wider mb-0.5">No. Telepon / WhatsApp</p>
-                          <p className="font-bold text-ink font-mono text-xs">{g.phone || "-"}</p>
-                        </div>
-
-                        <div>
-                          <p className="text-[11px] font-bold text-ink-300 uppercase tracking-wider mb-0.5">Alamat Email</p>
-                          {g.email && g.email !== "-" ? (
-                            <a
-                              href={`mailto:${g.email}`}
-                              className="font-bold text-sky hover:underline break-all text-xs"
-                            >
-                              {g.email}
-                            </a>
-                          ) : (
-                            <p className="font-medium text-ink-300 text-xs">-</p>
-                          )}
-                        </div>
 
                         <div>
                           <p className="text-[11px] font-bold text-ink-300 uppercase tracking-wider mb-0.5">Pekerjaan</p>
@@ -1201,8 +1734,17 @@ export default function ApplicantDetailClient({
                   );
                 })
               ) : (
-                <div className="col-span-3 py-8 text-center bg-cloud/30 rounded-2xl border border-dashed border-ink/15">
+                <div className="col-span-3 py-8 text-center bg-cloud/30 rounded-2xl border border-dashed border-ink/15 space-y-3">
                   <p className="text-sm font-medium text-ink-400">Data orang tua belum tersedia untuk calon siswa ini.</p>
+                  <Button
+                    type="button"
+                    onClick={handleOpenGuardianModal}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl border-sky-300 text-sky-700 bg-sky-50 hover:bg-sky-100 font-bold text-xs"
+                  >
+                    <Plus size={13} className="mr-1" /> Tambah Data Orang Tua
+                  </Button>
                 </div>
               )}
             </div>
@@ -1210,13 +1752,20 @@ export default function ApplicantDetailClient({
 
           {/* Uploaded Documents Card */}
           <div className="bg-white p-8 rounded-[2.5rem] shadow-sm border border-ink/5 space-y-6">
-            <h3 className="text-xs font-black text-sky uppercase tracking-wider pb-2 border-b border-ink/5">
-              Dokumen &amp; Berkas Pendaftaran
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-ink/5 gap-2">
+              <div>
+                <h3 className="text-xs font-black text-sky uppercase tracking-wider">
+                  Dokumen &amp; Berkas Pendaftaran
+                </h3>
+                <p className="text-xs text-ink-400 mt-0.5">
+                  Admin dapat melihat, mengunggah, atau mengganti dokumen jika orang tua belum sempat upload.
+                </p>
+              </div>
+            </div>
 
             {/* General Documents Grid */}
             {(() => {
-              const generalDocs = [
+              const allDocs = [
                 { key: "doc_payment_proof", label: "Bukti Transfer Biaya Pendaftaran (Rp 1.000.000)" },
                 { key: "doc_photo_4x3", label: "Pas Foto 3x4 / 4x3" },
                 { key: "doc_birth_certificate", label: "Akta Kelahiran" },
@@ -1224,43 +1773,77 @@ export default function ApplicantDetailClient({
                 { key: "doc_parent_id", label: "KTP Orang Tua" },
                 { key: "doc_immunization_card", label: "Kartu Imunisasi" },
                 { key: "doc_previous_report", label: "Rapor Sekolah Asal" },
+                { key: "doc_jacos_agreement", label: "Dokumen JACOS Agreement / Pernyataan" },
               ];
 
               return (
                 <div className="grid sm:grid-cols-2 gap-4">
-                  {generalDocs.map(({ key, label }) => {
+                  {allDocs.map(({ key, label }) => {
                     const filePath = (data as any)[key];
                     const signedUrl = (data as any)[`${key}_signed`];
+                    const isUploaded = !!filePath;
 
                     return (
                       <div
                         key={key}
-                        className="flex items-center justify-between p-4 rounded-2xl bg-cloud/40 border border-ink/5 hover:border-sky/20 transition-all"
+                        className={`flex flex-col sm:flex-row sm:items-center justify-between p-4 rounded-2xl border transition-all gap-3 ${
+                          isUploaded
+                            ? "bg-white border-leaf-200/80 hover:border-leaf-300 shadow-2xs"
+                            : "bg-cloud/30 border-ink/10 hover:border-sky/30"
+                        }`}
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-10 h-10 rounded-xl bg-ink/5 flex items-center justify-center shrink-0">
-                            <FileText size={18} className="text-ink-400" />
+                          <div
+                            className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                              isUploaded
+                                ? "bg-leaf-50 text-leaf-600"
+                                : "bg-ink/5 text-ink-400"
+                            }`}
+                          >
+                            <FileText size={18} />
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm font-bold text-ink truncate">{label}</p>
-                            {filePath ? (
-                              <p className="text-xs text-leaf-600 font-semibold mt-0.5">✓ Terunggah</p>
+                            <p className="text-sm font-bold text-ink truncate" title={label}>
+                              {label}
+                            </p>
+                            {isUploaded ? (
+                              <p className="text-xs text-leaf-600 font-bold mt-0.5 flex items-center gap-1">
+                                <CheckCircle2 size={12} /> Terunggah
+                              </p>
                             ) : (
-                              <p className="text-xs text-ink-300 mt-0.5">Belum diunggah</p>
+                              <p className="text-xs text-amber-600 font-semibold mt-0.5 flex items-center gap-1">
+                                <Clock size={12} /> Belum diunggah
+                              </p>
                             )}
                           </div>
                         </div>
 
-                        {signedUrl && (
-                          <a
-                            href={signedUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="inline-flex items-center gap-1.5 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-3.5 py-2 rounded-xl transition"
+                        <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                          {signedUrl && (
+                            <a
+                              href={signedUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs font-bold text-sky-700 bg-sky-50 hover:bg-sky-100 border border-sky-200 px-3 py-1.5 rounded-xl transition shadow-2xs"
+                            >
+                              <ExternalLink size={12} /> Lihat
+                            </a>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            onClick={() => handleOpenDocModal(key, label, signedUrl)}
+                            variant={isUploaded ? "outline" : "default"}
+                            className={`h-8 px-3 rounded-xl text-xs font-bold inline-flex items-center gap-1 cursor-pointer ${
+                              isUploaded
+                                ? "border-ink/15 text-ink hover:bg-cloud"
+                                : "bg-sky hover:bg-sky-600 text-white shadow-2xs"
+                            }`}
                           >
-                            <ExternalLink size={13} /> Buka Berkas
-                          </a>
-                        )}
+                            <UploadCloud size={13} />
+                            {isUploaded ? "Ganti" : "+ Upload"}
+                          </Button>
+                        </div>
                       </div>
                     );
                   })}
@@ -1268,10 +1851,10 @@ export default function ApplicantDetailClient({
               );
             })()}
 
-            {/* JACOS Agreement Verification */}
+            {/* JACOS Agreement Verification Status Detail */}
             {data.doc_jacos_agreement && (
               <div className="pt-4 border-t border-ink/5 space-y-3">
-                <p className="text-xs font-bold text-ink-400 uppercase tracking-wider">Dokumen Agreement Orang Tua</p>
+                <p className="text-xs font-bold text-ink-400 uppercase tracking-wider">Status Verifikasi Agreement Orang Tua</p>
                 <div className="p-5 rounded-2xl bg-sky-50/60 border border-sky-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   <div className="space-y-1">
                     <p className="font-bold text-sm text-ink">Dokumen JACOS Agreement</p>
