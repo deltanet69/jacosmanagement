@@ -53,6 +53,7 @@ type Prefill = {
   fullName: string;
   gender: string;
   program: string;
+  registeredEmail?: string;
   fatherName: string;
   fatherPhone: string;
   fatherEmail: string;
@@ -148,14 +149,14 @@ export default function RegFormClient({
     fatherJob: "",
     fatherIncome: "",
     fatherPhone: prefill.fatherPhone || "",
-    fatherEmail: prefill.fatherEmail || "",
+    fatherEmail: prefill.fatherEmail || prefill.registeredEmail || "",
 
     motherName: prefill.motherName || "",
     motherNik: "",
     motherJob: "",
     motherIncome: "",
     motherPhone: prefill.motherPhone || "",
-    motherEmail: prefill.motherEmail || "",
+    motherEmail: prefill.motherEmail || prefill.registeredEmail || "",
 
     guardianName: "",
     guardianRelation: "",
@@ -182,12 +183,17 @@ export default function RegFormClient({
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.formData && typeof parsed.formData === "object") {
+          const defaultFatherEmail = prefill.fatherEmail || prefill.registeredEmail || "";
+          const defaultMotherEmail = prefill.motherEmail || prefill.registeredEmail || "";
           setFormData((prev) => ({
             ...prev,
             ...parsed.formData,
             fullName: parsed.formData.fullName || prefill.fullName || prev.fullName,
             program: parsed.formData.program || prefill.program || prev.program,
             gender: parsed.formData.gender || prefill.gender || prev.gender,
+            // Pastikan email fixed tetap terisi nilai valid dari prefill / registeredEmail jika draft lama menyimpan nilai kosong
+            fatherEmail: defaultFatherEmail || parsed.formData.fatherEmail || prev.fatherEmail,
+            motherEmail: defaultMotherEmail || parsed.formData.motherEmail || prev.motherEmail,
           }));
           setIsDraftRestored(true);
         }
@@ -200,7 +206,7 @@ export default function RegFormClient({
     } finally {
       setIsHydrated(true);
     }
-  }, [STORAGE_KEY, prefill.fullName, prefill.program, prefill.gender]);
+  }, [STORAGE_KEY, prefill.fullName, prefill.program, prefill.gender, prefill.fatherEmail, prefill.motherEmail, prefill.registeredEmail]);
 
   // 2. Simpan draft otomatis ke localStorage setelah hydrated
   useEffect(() => {
@@ -239,13 +245,12 @@ export default function RegFormClient({
     formData.primaryLanguage?.trim()
   );
 
+  const fallbackEmail = prefill.registeredEmail || prefill.fatherEmail || prefill.motherEmail || "";
+
   const hasFatherData = Boolean(
     formData.fatherName?.trim() ||
     formData.fatherNik?.trim() ||
-    formData.fatherJob?.trim() ||
-    formData.fatherIncome?.trim() ||
-    formData.fatherPhone?.trim() ||
-    formData.fatherEmail?.trim()
+    formData.fatherJob?.trim()
   );
 
   const isFatherComplete = Boolean(
@@ -255,17 +260,16 @@ export default function RegFormClient({
     formData.fatherJob?.trim() &&
     formData.fatherPhone?.trim()?.length >= 9 &&
     digitRegex.test(formData.fatherPhone.trim()) &&
-    formData.fatherEmail?.trim() &&
-    emailRegex.test(formData.fatherEmail.trim())
+    (
+      (formData.fatherEmail?.trim() && emailRegex.test(formData.fatherEmail.trim())) ||
+      (fallbackEmail && emailRegex.test(fallbackEmail))
+    )
   );
 
   const hasMotherData = Boolean(
     formData.motherName?.trim() ||
     formData.motherNik?.trim() ||
-    formData.motherJob?.trim() ||
-    formData.motherIncome?.trim() ||
-    formData.motherPhone?.trim() ||
-    formData.motherEmail?.trim()
+    formData.motherJob?.trim()
   );
 
   const isMotherComplete = Boolean(
@@ -275,14 +279,17 @@ export default function RegFormClient({
     formData.motherJob?.trim() &&
     formData.motherPhone?.trim()?.length >= 9 &&
     digitRegex.test(formData.motherPhone.trim()) &&
-    formData.motherEmail?.trim() &&
-    emailRegex.test(formData.motherEmail.trim())
+    (
+      (formData.motherEmail?.trim() && emailRegex.test(formData.motherEmail.trim())) ||
+      (fallbackEmail && emailRegex.test(fallbackEmail))
+    )
   );
 
   const isStep2Valid = Boolean(
-    (hasFatherData || hasMotherData) &&
-    (!hasFatherData || isFatherComplete) &&
-    (!hasMotherData || isMotherComplete)
+    // Minimal salah satu (Ayah atau Ibu) wajib diisi lengkap
+    (isFatherComplete || isMotherComplete) &&
+    (!hasFatherData || isFatherComplete || isMotherComplete) &&
+    (!hasMotherData || isMotherComplete || isFatherComplete)
   );
 
   const isStep3Valid = Boolean(
@@ -353,15 +360,17 @@ export default function RegFormClient({
 
     // Validasi Step 2: Data Orang Tua & Wali
     if (currentStep === 2) {
-      const hasFather = formData.fatherName.trim() !== "";
-      const hasMother = formData.motherName.trim() !== "";
+      const hasFatherStarted = Boolean(formData.fatherName.trim() || formData.fatherNik.trim() || formData.fatherJob.trim());
+      const hasMotherStarted = Boolean(formData.motherName.trim() || formData.motherNik.trim() || formData.motherJob.trim());
 
-      if (!hasFather && !hasMother) {
-        newErrors.fatherName = "Data Ayah / Daddy atau Ibu / Mommy wajib diisi salah satu.";
-        newErrors.motherName = "Data Ayah / Daddy atau Ibu / Mommy wajib diisi salah satu.";
+      if (!hasFatherStarted && !hasMotherStarted) {
+        newErrors.fatherName = "Silakan lengkapi data Ayah atau Ibu minimal salah satu.";
+        newErrors.motherName = "Silakan lengkapi data Ayah atau Ibu minimal salah satu.";
       }
 
-      if (hasFather) {
+      // Validasi Ayah jika data Ayah diisi
+      if (hasFatherStarted) {
+        if (!formData.fatherName.trim()) newErrors.fatherName = "Nama lengkap Ayah wajib diisi.";
         if (!formData.fatherNik.trim() || formData.fatherNik.length !== 16 || !digitRegex.test(formData.fatherNik)) {
           newErrors.fatherNik = "NIK Ayah harus tepat 16 digit angka.";
         }
@@ -369,12 +378,15 @@ export default function RegFormClient({
         if (!formData.fatherPhone.trim() || formData.fatherPhone.length < 9 || !digitRegex.test(formData.fatherPhone)) {
           newErrors.fatherPhone = "No. HP Ayah minimal 9 digit angka.";
         }
-        if (!formData.fatherEmail.trim() || !emailRegex.test(formData.fatherEmail)) {
+        const activeFatherEmail = formData.fatherEmail?.trim() || fallbackEmail;
+        if (!activeFatherEmail || !emailRegex.test(activeFatherEmail)) {
           newErrors.fatherEmail = "Email Ayah wajib diisi dengan format yang valid.";
         }
       }
 
-      if (hasMother) {
+      // Validasi Ibu jika data Ibu diisi
+      if (hasMotherStarted) {
+        if (!formData.motherName.trim()) newErrors.motherName = "Nama lengkap Ibu wajib diisi.";
         if (!formData.motherNik.trim() || formData.motherNik.length !== 16 || !digitRegex.test(formData.motherNik)) {
           newErrors.motherNik = "NIK Ibu harus tepat 16 digit angka.";
         }
@@ -382,9 +394,26 @@ export default function RegFormClient({
         if (!formData.motherPhone.trim() || formData.motherPhone.length < 9 || !digitRegex.test(formData.motherPhone)) {
           newErrors.motherPhone = "No. HP Ibu minimal 9 digit angka.";
         }
-        if (!formData.motherEmail.trim() || !emailRegex.test(formData.motherEmail)) {
+        const activeMotherEmail = formData.motherEmail?.trim() || fallbackEmail;
+        if (!activeMotherEmail || !emailRegex.test(activeMotherEmail)) {
           newErrors.motherEmail = "Email Ibu wajib diisi dengan format yang valid.";
         }
+      }
+
+      // Jika salah satu dari Ayah / Ibu sudah lengkap 100%, jangan blokir karena orang tua kedua belum diisi
+      if (isFatherComplete && !hasMotherStarted) {
+        delete newErrors.motherName;
+        delete newErrors.motherNik;
+        delete newErrors.motherJob;
+        delete newErrors.motherPhone;
+        delete newErrors.motherEmail;
+      }
+      if (isMotherComplete && !hasFatherStarted) {
+        delete newErrors.fatherName;
+        delete newErrors.fatherNik;
+        delete newErrors.fatherJob;
+        delete newErrors.fatherPhone;
+        delete newErrors.fatherEmail;
       }
     }
 
@@ -1259,17 +1288,25 @@ export default function RegFormClient({
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Email Ayah (Untuk Akun Portal) <span className="text-coral">*</span>
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                          Email Ayah (Untuk Akun Portal) <span className="text-coral">*</span>
+                        </label>
+                        <span className="text-[10px] font-extrabold text-sky bg-sky/10 px-2 py-0.5 rounded-md">
+                          Email Terdaftar
+                        </span>
+                      </div>
                       <input
                         type="email"
-                        value={formData.fatherEmail}
-                        onChange={(e) => updateForm("fatherEmail", e.target.value)}
-                        placeholder="ayah@contoh.com"
-                        className="w-full h-12 px-4 rounded-2xl border border-slate-200/90 bg-slate-100 focus:border-sky focus:ring-4 focus:ring-sky/10 transition outline-none text-sm font-semibold text-ink placeholder:text-slate-400 cursor-not-allowed opacity-80"
+                        value={formData.fatherEmail || fallbackEmail}
+                        readOnly
                         disabled
+                        placeholder="ayah@contoh.com"
+                        className="w-full h-12 px-4 rounded-2xl border border-slate-200/90 bg-slate-100/90 text-slate-700 outline-none text-sm font-semibold cursor-not-allowed opacity-90"
                       />
+                      <p className="text-[11px] text-slate-400 font-medium">
+                        Email resmi pendaftaran (fixed &amp; otomatis digunakan untuk akun portal &amp; notifikasi resmi).
+                      </p>
                       {errors.fatherEmail && (
                         <p className="text-xs font-bold text-coral mt-1">{errors.fatherEmail}</p>
                       )}
@@ -1375,17 +1412,25 @@ export default function RegFormClient({
                     </div>
 
                     <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                        Email Ibu (Untuk Akun Portal) <span className="text-coral">*</span>
-                      </label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                          Email Ibu (Untuk Akun Portal) <span className="text-coral">*</span>
+                        </label>
+                        <span className="text-[10px] font-extrabold text-sky bg-sky/10 px-2 py-0.5 rounded-md">
+                          Email Terdaftar
+                        </span>
+                      </div>
                       <input
                         type="email"
-                        value={formData.motherEmail}
-                        onChange={(e) => updateForm("motherEmail", e.target.value)}
-                        placeholder="ibu@contoh.com"
-                        className="w-full h-12 px-4 rounded-2xl border border-slate-200/90 bg-slate-100 focus:border-sky focus:ring-4 focus:ring-sky/10 transition outline-none text-sm font-semibold text-ink placeholder:text-slate-400 cursor-not-allowed opacity-80"
+                        value={formData.motherEmail || fallbackEmail}
+                        readOnly
                         disabled
+                        placeholder="ibu@contoh.com"
+                        className="w-full h-12 px-4 rounded-2xl border border-slate-200/90 bg-slate-100/90 text-slate-700 outline-none text-sm font-semibold cursor-not-allowed opacity-90"
                       />
+                      <p className="text-[11px] text-slate-400 font-medium">
+                        Email resmi pendaftaran (fixed &amp; otomatis digunakan untuk akun portal &amp; notifikasi resmi).
+                      </p>
                       {errors.motherEmail && (
                         <p className="text-xs font-bold text-coral mt-1">{errors.motherEmail}</p>
                       )}

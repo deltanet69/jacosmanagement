@@ -4,6 +4,7 @@ import PaymentPendingClient from "./PaymentPendingClient";
 import Image from "next/image";
 import Link from "next/link";
 import { AlertCircle, CheckCircle2, Phone, ArrowLeft, ShieldCheck } from "lucide-react";
+import { isValidEmail } from "@/lib/utils";
 
 export default async function RegPage({
   params,
@@ -126,7 +127,7 @@ export default async function RegPage({
     );
   }
 
-  // Siapkan prefill data dari apa yang sudah diisi admin
+  // Siapkan prefill data dari apa yang sudah diisi admin / pendaftaran awal
   const rawGuardians = applicant.guardians || [];
   const guardiansList: any[] = Array.isArray(rawGuardians)
     ? rawGuardians
@@ -148,6 +149,26 @@ export default async function RegPage({
   const isFallbackFather = fallbackGuardian && ["FATHER", "AYAH"].includes((fallbackGuardian.relation || "").toUpperCase().trim());
   const isFallbackMother = fallbackGuardian && ["MOTHER", "IBU"].includes((fallbackGuardian.relation || "").toUpperCase().trim());
 
+  // Email terdaftar default dari pendaftaran awal
+  const registeredEmail = (
+    (isValidEmail(father?.email) ? father.email.trim() : "") ||
+    (isValidEmail(mother?.email) ? mother.email.trim() : "") ||
+    (isValidEmail(fallbackGuardian?.email) ? fallbackGuardian.email.trim() : "") ||
+    ""
+  );
+
+  const fatherEmail = (
+    (isValidEmail(father?.email) ? father.email.trim() : "") ||
+    (isFallbackFather && isValidEmail(fallbackGuardian?.email) ? fallbackGuardian.email.trim() : "") ||
+    registeredEmail
+  );
+
+  const motherEmail = (
+    (isValidEmail(mother?.email) ? mother.email.trim() : "") ||
+    (isFallbackMother && isValidEmail(fallbackGuardian?.email) ? fallbackGuardian.email.trim() : "") ||
+    registeredEmail
+  );
+
   const prefill = {
     fullName: applicant.student_name || "",
     gender: applicant.gender === "MALE" ? "Laki-laki" : "Perempuan",
@@ -157,12 +178,13 @@ export default async function RegPage({
         : applicant.program === "KINDERGARTEN"
         ? "Kindergarten"
         : "Primary",
-    fatherName: father?.full_name || (isFallbackFather ? fallbackGuardian.full_name : "") || "",
-    fatherPhone: father?.phone || (isFallbackFather ? fallbackGuardian.phone : "") || "",
-    fatherEmail: father?.email || (isFallbackFather ? fallbackGuardian.email : "") || "",
-    motherName: mother?.full_name || (isFallbackMother ? fallbackGuardian.full_name : "") || "",
-    motherPhone: mother?.phone || (isFallbackMother ? fallbackGuardian.phone : "") || "",
-    motherEmail: mother?.email || (isFallbackMother ? fallbackGuardian.email : "") || "",
+    registeredEmail,
+    fatherName: father?.full_name || (isFallbackFather ? fallbackGuardian?.full_name : "") || "",
+    fatherPhone: father?.phone || (isFallbackFather ? fallbackGuardian?.phone : "") || "",
+    fatherEmail,
+    motherName: mother?.full_name || (isFallbackMother ? fallbackGuardian?.full_name : "") || "",
+    motherPhone: mother?.phone || (isFallbackMother ? fallbackGuardian?.phone : "") || "",
+    motherEmail,
   };
 
   return (
