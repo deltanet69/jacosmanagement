@@ -187,8 +187,8 @@ export async function submitPublicAdmission(formData: FormData) {
     // 5. Kirim email respon bahwa pendaftaran diterima dan menunggu verifikasi pembayaran
     try {
       await sendPublicAdmissionReceivedEmail({
-        parentName,
-        parentEmail,
+        parentName: fatherName || motherName,
+        parentEmail: fatherEmail || motherEmail,
         studentName,
         registrationNo,
         program,
@@ -203,7 +203,7 @@ export async function submitPublicAdmission(formData: FormData) {
       success: true,
       registrationNo,
       studentName,
-      parentName,
+      parentName: fatherName || motherName,
       emailSent: true,
     };
   } catch (err: any) {

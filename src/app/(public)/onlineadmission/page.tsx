@@ -60,6 +60,7 @@ export default function PublicAdmissionPage() {
   const [submittedResult, setSubmittedResult] = useState<{
     registrationNo: string;
     studentName: string;
+    parentName: string;
   } | null>(null);
 
   useEffect(() => {
@@ -156,6 +157,7 @@ export default function PublicAdmissionPage() {
       setSubmittedResult({
         registrationNo: result.registrationNo,
         studentName: result.studentName,
+        parentName: result.parentName || fatherName || motherName,
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
