@@ -51,6 +51,75 @@ import {
   getBatchInfo,
 } from "@/lib/admission-config";
 
+export interface RejectionOptionConfig {
+  id: string;
+  label: string;
+  hasNotesInput: boolean;
+  placeholder?: string;
+}
+
+export const REJECTION_OPTIONS: RejectionOptionConfig[] = [
+  {
+    id: "child_data",
+    label: "1. Data Anak/siswa kurang lengkap",
+    hasNotesInput: false,
+  },
+  {
+    id: "parent_data",
+    label: "2. Data wali/orang tua kurang lengkap",
+    hasNotesInput: false,
+  },
+  {
+    id: "photo",
+    label: "3. Pas Foto 3x4 / 4x3",
+    hasNotesInput: true,
+    placeholder: "Notes untuk Pas Foto (mis. Foto buram, latar belakang harus polos, dsb)",
+  },
+  {
+    id: "birth_cert",
+    label: "4. Akta Kelahiran",
+    hasNotesInput: true,
+    placeholder: "Notes untuk Akta Kelahiran (mis. Foto terpotong, halaman 2 belum terupload, dsb)",
+  },
+  {
+    id: "family_card",
+    label: "5. Kartu Keluarga (KK)",
+    hasNotesInput: true,
+    placeholder: "Notes untuk KK (mis. Data NIK tidak terbaca, mohon upload KK versi terbaru, dsb)",
+  },
+  {
+    id: "parent_ktp",
+    label: "6. KTP Orang Tua",
+    hasNotesInput: true,
+    placeholder: "Notes untuk KTP (mis. KTP Ayah buram, KTP Ibu belum dilampirkan, dsb)",
+  },
+];
+
+export function buildCompiledRejectReason(
+  selectedIds: string[],
+  notesMap: Record<string, string>,
+  generalNote: string
+): string {
+  const lines: string[] = [];
+
+  REJECTION_OPTIONS.forEach((opt) => {
+    if (selectedIds.includes(opt.id)) {
+      const note = (notesMap[opt.id] || "").trim();
+      if (note) {
+        lines.push(`• ${opt.label} (Catatan: ${note})`);
+      } else {
+        lines.push(`• ${opt.label}`);
+      }
+    }
+  });
+
+  if (generalNote.trim()) {
+    lines.push(`Catatan Khusus Admin: ${generalNote.trim()}`);
+  }
+
+  return lines.join("\n");
+}
+
 export default function ApplicantDetailClient({
   initialApplicant,
   applicantId,
@@ -89,12 +158,16 @@ export default function ApplicantDetailClient({
   // Rejection Modal States
   const [showRejectModal, setShowRejectModal] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [selectedRejectOptions, setSelectedRejectOptions] = useState<string[]>([]);
+  const [rejectNotesMap, setRejectNotesMap] = useState<Record<string, string>>({});
   const [isRejecting, setIsRejecting] = useState(false);
 
   // Public Payment Approval / Reject States
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [showRejectPaymentModal, setShowRejectPaymentModal] = useState(false);
   const [rejectPaymentReason, setRejectPaymentReason] = useState("");
+  const [selectedRejectPaymentOptions, setSelectedRejectPaymentOptions] = useState<string[]>([]);
+  const [rejectPaymentNotesMap, setRejectPaymentNotesMap] = useState<Record<string, string>>({});
 
   // Manual Proof Upload & Follow-Up States
   const [showUploadProofModal, setShowUploadProofModal] = useState(false);
@@ -215,18 +288,19 @@ export default function ApplicantDetailClient({
 
   // Handle Reject
   const handleReject = async () => {
-    if (!rejectReason.trim()) {
-      alert("Harap isi keterangan alasan penolakan.");
+    const compiledReason = buildCompiledRejectReason(selectedRejectOptions, rejectNotesMap, rejectReason);
+    if (!compiledReason.trim()) {
+      alert("Harap pilih minimal 1 alasan perbaikan atau isi catatan penolakan.");
       return;
     }
     setIsRejecting(true);
-    const res = await rejectApplicant(applicantId, rejectReason);
+    const res = await rejectApplicant(applicantId, compiledReason);
     setIsRejecting(false);
 
     if (res.success) {
-      setData({ ...data, status: "REJECTED", rejection_reason: rejectReason });
+      setData({ ...data, status: "REJECTED", rejection_reason: compiledReason });
       setShowRejectModal(false);
-      alert("Pendaftaran telah ditolak. Email notifikasi penjelasan telah dikirim ke orang tua.");
+      alert("Pendaftaran telah ditolak/diminta perbaikan. Email notifikasi penjelasan telah dikirim ke orang tua.");
     } else {
       alert(res.message || "Gagal memproses penolakan.");
     }
@@ -252,23 +326,24 @@ export default function ApplicantDetailClient({
   };
 
   const handleConfirmRejectPaymentDetail = async () => {
-    if (!rejectPaymentReason.trim()) {
-      alert("Harap masukkan alasan penolakan pembayaran.");
+    const compiledReason = buildCompiledRejectReason(selectedRejectPaymentOptions, rejectPaymentNotesMap, rejectPaymentReason);
+    if (!compiledReason.trim()) {
+      alert("Harap pilih minimal 1 alasan penolakan pembayaran atau isi catatan.");
       return;
     }
     setIsProcessingPayment(true);
-    const res = await rejectPublicPayment(applicantId, rejectPaymentReason);
+    const res = await rejectPublicPayment(applicantId, compiledReason);
     setIsProcessingPayment(false);
     if (res.success) {
       setData((prev: any) => ({
         ...prev,
         payment_status: "REJECTED",
         status: "REJECTED",
-        rejection_reason: rejectPaymentReason,
+        rejection_reason: compiledReason,
       }));
       setShowRejectPaymentModal(false);
       router.refresh();
-      alert("Pembayaran pendaftaran ditolak.");
+      alert("Pembayaran pendaftaran ditolak. Email penjelasan telah dikirim ke orang tua.");
     } else {
       alert(res.message || "Gagal menolak pembayaran.");
     }
@@ -555,17 +630,37 @@ export default function ApplicantDetailClient({
           text: "text-coral-600",
           border: "border-coral-200",
           icon: <XCircle size={18} className="shrink-0 mt-0.5" />,
-          title: "Ditolak",
-          desc: data.rejection_reason || "Aplikasi pendaftaran ditolak oleh Admin.",
+          title: "Ditolak / Memerlukan Perbaikan",
+          desc: data.rejection_reason || "Aplikasi pendaftaran memerlukan perbaikan/penyesuaian data oleh orang tua.",
         };
       default:
+        if (data.payment_status !== "PAID") {
+          return {
+            bg: "bg-amber-50",
+            text: "text-amber-700",
+            border: "border-amber-200",
+            icon: <Clock size={18} className="shrink-0 mt-0.5" />,
+            title: "Menunggu Verifikasi Pembayaran",
+            desc: "Mohon verifikasi bukti pembayaran pendaftaran (Rp 1.000.000) terlebih dahulu.",
+          };
+        }
+        if (!data.form_submitted) {
+          return {
+            bg: "bg-sky-50",
+            text: "text-sky-700",
+            border: "border-sky-200",
+            icon: <Clock size={18} className="shrink-0 mt-0.5" />,
+            title: "Pembayaran Lunas (Menunggu Form Lengkap)",
+            desc: "Tautan pendaftaran telah dikirimkan. Menunggu orang tua mengisi dan mengirimkan formulir lengkap.",
+          };
+        }
         return {
           bg: "bg-gold-50",
           text: "text-gold-600",
           border: "border-gold-200",
           icon: <Clock size={18} className="shrink-0 mt-0.5" />,
-          title: "Menunggu Review Admin",
-          desc: "Mohon periksa isian data dan dokumen sebelum memberikan keputusan approval.",
+          title: "Form Lengkap Siap Diverifikasi",
+          desc: "Orang tua telah mengisi formulir lengkap. Mohon periksa isian data dan dokumen sebelum memberikan keputusan approval.",
         };
     }
   };
@@ -708,29 +803,81 @@ export default function ApplicantDetailClient({
       {/* ========================================================================= */}
       {showRejectModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-ink/5 space-y-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-ink/5 space-y-5 max-h-[90vh] overflow-y-auto">
             <div>
-              <div className="w-12 h-12 rounded-2xl bg-coral-50 text-coral flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-coral-50 text-coral flex items-center justify-center mb-3">
                 <XCircle size={24} />
               </div>
               <h3 className="font-display text-2xl font-bold text-ink">
-                Tolak Pendaftaran
+                Tolak &amp; Minta Perbaikan Pendaftaran
               </h3>
-              <p className="text-ink-400 text-sm mt-1">
-                Keterangan alasan ini akan dikirimkan ke email orang tua bersama dengan kontak bantuan admin.
+              <p className="text-ink-400 text-xs sm:text-sm mt-1">
+                Pilih satu atau beberapa poin yang perlu diperbaiki oleh orang tua. Keterangan ini akan dikirimkan ke email orang tua dan di-display di form pendaftaran.
               </p>
             </div>
 
-            <div>
-              <Label className="block text-sm font-bold mb-2">
-                Alasan Penolakan / Catatan untuk Orang Tua <span className="text-coral">*</span>
-              </Label>
-              <textarea
-                className="w-full h-32 px-4 py-3 rounded-2xl border border-ink/15 bg-white text-sm font-medium resize-none focus:ring-2 focus:ring-coral/30 focus:border-coral outline-none"
-                placeholder="Contoh: Dokumen akta kelahiran buram/tidak terbaca. Silakan hubungi admin via WhatsApp untuk mengunggah ulang dokumen."
-                value={rejectReason}
-                onChange={(e) => setRejectReason(e.target.value)}
-              />
+            <div className="space-y-4">
+              <div>
+                <Label className="block text-xs font-bold text-ink uppercase tracking-wider mb-2">
+                  Pilih Alasan Penolakan / Perbaikan:
+                </Label>
+                <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1">
+                  {REJECTION_OPTIONS.map((opt) => {
+                    const isChecked = selectedRejectOptions.includes(opt.id);
+                    return (
+                      <div
+                        key={opt.id}
+                        className={`p-3 rounded-2xl border transition-all ${
+                          isChecked
+                            ? "bg-coral-50/70 border-coral-300 text-coral-950 shadow-2xs"
+                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <label className="flex items-start gap-3 cursor-pointer text-xs font-bold">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setSelectedRejectOptions((prev) =>
+                                isChecked ? prev.filter((item) => item !== opt.id) : [...prev, opt.id]
+                              );
+                            }}
+                            className="mt-0.5 rounded border-slate-300 text-coral focus:ring-coral shrink-0"
+                          />
+                          <span className="leading-snug">{opt.label}</span>
+                        </label>
+
+                        {opt.hasNotesInput && isChecked && (
+                          <div className="mt-2.5 pl-7">
+                            <input
+                              type="text"
+                              value={rejectNotesMap[opt.id] || ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setRejectNotesMap((prev) => ({ ...prev, [opt.id]: val }));
+                              }}
+                              placeholder={opt.placeholder || "Catatan khusus untuk dokumen ini..."}
+                              className="w-full h-9 px-3 rounded-xl border border-coral-200 bg-white text-xs font-medium text-slate-800 focus:ring-2 focus:ring-coral/30 focus:border-coral outline-none shadow-2xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <Label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Catatan Khusus Utama dari Admin (Opsional):
+                </Label>
+                <textarea
+                  className="w-full h-24 px-3.5 py-2.5 rounded-2xl border border-slate-200 bg-white text-xs font-medium resize-none focus:ring-2 focus:ring-coral/30 focus:border-coral outline-none"
+                  placeholder="Contoh: Mohon unggah KK versi terbaru terbitan tahun 2024 secepatnya..."
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -743,10 +890,10 @@ export default function ApplicantDetailClient({
               </Button>
               <Button
                 onClick={handleReject}
-                disabled={isRejecting}
+                disabled={isRejecting || (selectedRejectOptions.length === 0 && !rejectReason.trim())}
                 className="flex-1 h-12 rounded-xl bg-coral hover:bg-coral-600 text-white font-bold text-sm shadow-md"
               >
-                {isRejecting ? "Memproses..." : "Konfirmasi Tolak"}
+                {isRejecting ? "Memproses..." : "Konfirmasi Tolak & Kirim Email"}
               </Button>
             </div>
           </div>
@@ -758,29 +905,81 @@ export default function ApplicantDetailClient({
       {/* ========================================================================= */}
       {showRejectPaymentModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-8 max-w-md w-full shadow-2xl border border-ink/5 space-y-6">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-ink/5 space-y-5 max-h-[90vh] overflow-y-auto">
             <div>
-              <div className="w-12 h-12 rounded-2xl bg-coral-50 text-coral flex items-center justify-center mb-4">
+              <div className="w-12 h-12 rounded-2xl bg-coral-50 text-coral flex items-center justify-center mb-3">
                 <XCircle size={24} />
               </div>
               <h3 className="font-display text-2xl font-bold text-ink">
                 Tolak Pembayaran Pendaftaran
               </h3>
-              <p className="text-ink-400 text-sm mt-1">
-                Berikan catatan alasan penolakan bukti pembayaran untuk ananda <strong className="text-ink">{data.student_name}</strong>.
+              <p className="text-ink-400 text-xs sm:text-sm mt-1">
+                Pilih alasan penolakan bukti pembayaran untuk ananda <strong className="text-ink">{data.student_name}</strong>.
               </p>
             </div>
 
-            <div>
-              <Label className="block text-sm font-bold mb-2">
-                Alasan Penolakan Pembayaran <span className="text-coral">*</span>
-              </Label>
-              <textarea
-                className="w-full h-32 px-4 py-3 rounded-2xl border border-ink/15 bg-white text-sm font-medium resize-none focus:ring-2 focus:ring-coral/30 focus:border-coral outline-none"
-                placeholder="Contoh: Bukti transfer tidak jelas / nominal transfer tidak sesuai (Rp 1.000.000). Harap transfer ulang atau hubungi admin."
-                value={rejectPaymentReason}
-                onChange={(e) => setRejectPaymentReason(e.target.value)}
-              />
+            <div className="space-y-4">
+              <div>
+                <Label className="block text-xs font-bold text-ink uppercase tracking-wider mb-2">
+                  Pilih Alasan Penolakan Pembayaran:
+                </Label>
+                <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                  {REJECTION_OPTIONS.map((opt) => {
+                    const isChecked = selectedRejectPaymentOptions.includes(opt.id);
+                    return (
+                      <div
+                        key={opt.id}
+                        className={`p-3 rounded-2xl border transition-all ${
+                          isChecked
+                            ? "bg-coral-50/70 border-coral-300 text-coral-950 shadow-2xs"
+                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <label className="flex items-start gap-3 cursor-pointer text-xs font-bold">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setSelectedRejectPaymentOptions((prev) =>
+                                isChecked ? prev.filter((item) => item !== opt.id) : [...prev, opt.id]
+                              );
+                            }}
+                            className="mt-0.5 rounded border-slate-300 text-coral focus:ring-coral shrink-0"
+                          />
+                          <span className="leading-snug">{opt.label}</span>
+                        </label>
+
+                        {opt.hasNotesInput && isChecked && (
+                          <div className="mt-2.5 pl-7">
+                            <input
+                              type="text"
+                              value={rejectPaymentNotesMap[opt.id] || ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setRejectPaymentNotesMap((prev) => ({ ...prev, [opt.id]: val }));
+                              }}
+                              placeholder={opt.placeholder || "Catatan khusus..."}
+                              className="w-full h-9 px-3 rounded-xl border border-coral-200 bg-white text-xs font-medium text-slate-800 focus:ring-2 focus:ring-coral/30 focus:border-coral outline-none shadow-2xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <Label className="block text-xs font-bold text-slate-700 mb-1.5">
+                  Catatan Khusus Tambahan Admin (Opsional):
+                </Label>
+                <textarea
+                  className="w-full h-24 px-3.5 py-2.5 rounded-2xl border border-slate-200 bg-white text-xs font-medium resize-none focus:ring-2 focus:ring-coral/30 focus:border-coral outline-none"
+                  placeholder="Contoh: Bukti transfer tidak jelas / nominal transfer tidak sesuai (Rp 1.000.000). Harap transfer ulang..."
+                  value={rejectPaymentReason}
+                  onChange={(e) => setRejectPaymentReason(e.target.value)}
+                />
+              </div>
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -793,7 +992,7 @@ export default function ApplicantDetailClient({
               </Button>
               <Button
                 onClick={handleConfirmRejectPaymentDetail}
-                disabled={isProcessingPayment || !rejectPaymentReason.trim()}
+                disabled={isProcessingPayment || (selectedRejectPaymentOptions.length === 0 && !rejectPaymentReason.trim())}
                 className="flex-1 h-12 rounded-xl bg-coral hover:bg-coral-600 text-white font-bold text-sm shadow-md"
               >
                 {isProcessingPayment ? "Memproses..." : "Kirim Penolakan"}
@@ -1779,9 +1978,12 @@ export default function ApplicantDetailClient({
               return (
                 <div className="grid sm:grid-cols-2 gap-4">
                   {allDocs.map(({ key, label }) => {
-                    const filePath = (data as any)[key];
-                    const signedUrl = (data as any)[`${key}_signed`];
-                    const isUploaded = !!filePath;
+                    const fallbackProofPath = key === "doc_payment_proof" && (data as any).payment_note?.includes("Bukti: ")
+                      ? (data as any).payment_note.split("Bukti: ")[1]?.trim()
+                      : null;
+                    const filePath = (data as any)[key] || fallbackProofPath;
+                    const signedUrl = (data as any)[`${key}_signed`] || (key === "doc_payment_proof" ? (data as any).doc_payment_proof_signed || (data as any).doc_payment_proof_signed_url : null);
+                    const isUploaded = !!filePath || !!signedUrl;
 
                     return (
                       <div
@@ -1924,37 +2126,53 @@ export default function ApplicantDetailClient({
             )}
 
             {/* Approval & Rejection Buttons */}
-            <div className="space-y-2.5 pt-2 border-t border-ink/5">
-              <Button
-                onClick={() => setShowApprovalModal(true)}
-                className="w-full bg-leaf-600 hover:bg-leaf-700 text-white font-bold h-12 rounded-2xl shadow-sm text-sm"
-                disabled={data.status === "ENROLLED" || data.status === "ACCEPTED"}
-              >
-                <CheckCircle2 size={16} className="mr-2" />
-                {data.status === "ENROLLED" ? "Sudah Diterima" : "Approve Pendaftaran"}
-              </Button>
+            {(() => {
+              const isPaid = data.payment_status === "PAID";
+              const isSubmitted = !!data.form_submitted;
+              const canApproveFinal = isPaid && isSubmitted;
 
-              <Button
-                onClick={() => setShowRejectModal(true)}
-                variant="outline"
-                className="w-full border-coral text-coral hover:bg-coral-50 font-bold h-12 rounded-2xl text-sm"
-                disabled={data.status === "REJECTED" || data.status === "ENROLLED"}
-              >
-                <XCircle size={16} className="mr-2" />
-                Tolak Pendaftaran
-              </Button>
+              return (
+                <div className="space-y-2.5 pt-2 border-t border-ink/5">
+                  <Button
+                    onClick={() => setShowApprovalModal(true)}
+                    className="w-full bg-leaf-600 hover:bg-leaf-700 text-white font-bold h-12 rounded-2xl shadow-sm text-sm disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                    disabled={data.status === "ENROLLED" || data.status === "ACCEPTED"}
+                  >
+                    <CheckCircle2 size={16} className="mr-2" />
+                    {data.status === "ENROLLED" ? "Sudah Diterima" : "Approve Pendaftaran"}
+                  </Button>
 
-              <div className="pt-2">
-                <Button
-                  onClick={() => setShowDeleteModal(true)}
-                  variant="ghost"
-                  className="w-full text-ink-300 hover:text-coral hover:bg-coral-50 font-bold h-10 rounded-xl text-xs"
-                >
-                  <Trash size={14} className="mr-2" />
-                  Hapus Data (Soft Delete)
-                </Button>
-              </div>
-            </div>
+                  {!canApproveFinal && data.status !== "ENROLLED" && data.status !== "ACCEPTED" && (
+                    <p className="text-[11px] font-semibold text-amber-800 bg-amber-50/90 p-2.5 rounded-xl border border-amber-200/80 leading-snug">
+                      {!isPaid
+                        ? "⚠️ Pembayaran pendaftaran belum lunas/diverifikasi."
+                        : "⚠️ Orang tua belum mengunggah/mengirimkan formulir pendaftaran lengkap."}
+                    </p>
+                  )}
+
+                  <Button
+                    onClick={() => setShowRejectModal(true)}
+                    variant="outline"
+                    className="w-full border-coral text-coral hover:bg-coral-50 font-bold h-12 rounded-2xl text-sm"
+                    disabled={data.status === "REJECTED" || data.status === "ENROLLED"}
+                  >
+                    <XCircle size={16} className="mr-2" />
+                    Tolak Pendaftaran
+                  </Button>
+
+                  <div className="pt-2">
+                    <Button
+                      onClick={() => setShowDeleteModal(true)}
+                      variant="ghost"
+                      className="w-full text-ink-300 hover:text-coral hover:bg-coral-50 font-bold h-10 rounded-xl text-xs"
+                    >
+                      <Trash size={14} className="mr-2" />
+                      Hapus Data (Soft Delete)
+                    </Button>
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Quick Details */}
             <div className="pt-4 border-t border-ink/5 space-y-3 text-xs">

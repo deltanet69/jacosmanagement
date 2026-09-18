@@ -53,6 +53,75 @@ import {
   getBatchInfo,
 } from "@/lib/admission-config";
 
+export interface RejectionOptionConfig {
+  id: string;
+  label: string;
+  hasNotesInput: boolean;
+  placeholder?: string;
+}
+
+export const REJECTION_OPTIONS: RejectionOptionConfig[] = [
+  {
+    id: "child_data",
+    label: "1. Data Anak/siswa kurang lengkap",
+    hasNotesInput: false,
+  },
+  {
+    id: "parent_data",
+    label: "2. Data wali/orang tua kurang lengkap",
+    hasNotesInput: false,
+  },
+  {
+    id: "photo",
+    label: "3. Pas Foto 3x4 / 4x3",
+    hasNotesInput: true,
+    placeholder: "Notes untuk Pas Foto (mis. Foto buram, latar belakang harus polos, dsb)",
+  },
+  {
+    id: "birth_cert",
+    label: "4. Akta Kelahiran",
+    hasNotesInput: true,
+    placeholder: "Notes untuk Akta Kelahiran (mis. Foto terpotong, halaman 2 belum terupload, dsb)",
+  },
+  {
+    id: "family_card",
+    label: "5. Kartu Keluarga (KK)",
+    hasNotesInput: true,
+    placeholder: "Notes untuk KK (mis. Data NIK tidak terbaca, mohon upload KK versi terbaru, dsb)",
+  },
+  {
+    id: "parent_ktp",
+    label: "6. KTP Orang Tua",
+    hasNotesInput: true,
+    placeholder: "Notes untuk KTP (mis. KTP Ayah buram, KTP Ibu belum dilampirkan, dsb)",
+  },
+];
+
+export function buildCompiledRejectReason(
+  selectedIds: string[],
+  notesMap: Record<string, string>,
+  generalNote: string
+): string {
+  const lines: string[] = [];
+
+  REJECTION_OPTIONS.forEach((opt) => {
+    if (selectedIds.includes(opt.id)) {
+      const note = (notesMap[opt.id] || "").trim();
+      if (note) {
+        lines.push(`• ${opt.label} (Catatan: ${note})`);
+      } else {
+        lines.push(`• ${opt.label}`);
+      }
+    }
+  });
+
+  if (generalNote.trim()) {
+    lines.push(`Catatan Khusus Admin: ${generalNote.trim()}`);
+  }
+
+  return lines.join("\n");
+}
+
 type TabMode = "private" | "public" | "batch";
 
 export default function AdmisiClient({
@@ -131,6 +200,8 @@ export default function AdmisiClient({
   const [isLoadingProofUrl, setIsLoadingProofUrl] = useState(false);
   const [rejectPaymentApplicant, setRejectPaymentApplicant] = useState<any | null>(null);
   const [rejectReasonInput, setRejectReasonInput] = useState("");
+  const [selectedRejectOptions, setSelectedRejectOptions] = useState<string[]>([]);
+  const [rejectNotesMap, setRejectNotesMap] = useState<Record<string, string>>({});
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
   const [approvedSuccessData, setApprovedSuccessData] = useState<{
     applicant: any;
@@ -446,12 +517,13 @@ export default function AdmisiClient({
 
   const handleConfirmRejectPayment = async () => {
     if (!rejectPaymentApplicant) return;
-    if (!rejectReasonInput.trim()) {
-      alert("Harap masukkan catatan alasan penolakan pembayaran.");
+    const compiledReason = buildCompiledRejectReason(selectedRejectOptions, rejectNotesMap, rejectReasonInput);
+    if (!compiledReason.trim()) {
+      alert("Harap pilih minimal 1 alasan penolakan atau isi catatan.");
       return;
     }
     setIsProcessingPayment(true);
-    const res = await rejectPublicPayment(rejectPaymentApplicant.id, rejectReasonInput);
+    const res = await rejectPublicPayment(rejectPaymentApplicant.id, compiledReason);
     setIsProcessingPayment(false);
 
     if (res.success) {
@@ -462,13 +534,15 @@ export default function AdmisiClient({
                 ...a,
                 payment_status: "REJECTED",
                 status: "REJECTED",
-                rejection_reason: rejectReasonInput,
+                rejection_reason: compiledReason,
               }
             : a
         )
       );
       setRejectPaymentApplicant(null);
       setRejectReasonInput("");
+      setSelectedRejectOptions([]);
+      setRejectNotesMap({});
     } else {
       alert(res.message || "Gagal menolak pembayaran.");
     }
@@ -750,42 +824,96 @@ export default function AdmisiClient({
       {/* Reject Payment Modal */}
       {rejectPaymentApplicant && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl border border-ink/10 space-y-5">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-lg w-full shadow-2xl border border-ink/10 space-y-5 max-h-[90vh] overflow-y-auto">
             <div>
               <div className="w-11 h-11 rounded-2xl bg-coral-50 text-coral flex items-center justify-center mb-3">
                 <XCircle size={22} />
               </div>
-              <h3 className="font-display text-xl font-bold text-ink">Tolak Pembayaran Pendaftaran</h3>
+              <h3 className="font-display text-xl font-bold text-ink">Tolak &amp; Minta Perbaikan Pembayaran</h3>
               <p className="text-xs text-ink-400 mt-1">
-                Berikan catatan alasan penolakan untuk pendaftar ananda{" "}
+                Pilih alasan penolakan untuk pendaftar ananda{" "}
                 <strong className="text-ink">{rejectPaymentApplicant.student_name}</strong>. Catatan ini akan dikirimkan langsung ke email orang tua.
               </p>
             </div>
 
-            <div>
-              <Label className="block text-xs font-bold mb-1.5 text-ink">
-                Catatan / Alasan Penolakan <span className="text-coral">*</span>
-              </Label>
-              <textarea
-                value={rejectReasonInput}
-                onChange={(e) => setRejectReasonInput(e.target.value)}
-                placeholder="Contoh: Bukti transfer tidak jelas / nominal transfer tidak sesuai (Rp 1.000.000). Harap transfer ulang atau hubungi admin."
-                className="w-full h-28 p-3.5 rounded-2xl border border-ink/15 bg-cloud/50 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-coral/20 focus:border-coral outline-none resize-none"
-                required
-              />
+            <div className="space-y-4">
+              <div>
+                <Label className="block text-xs font-bold text-ink uppercase tracking-wider mb-2">
+                  Pilih Alasan Perbaikan / Penolakan (Multi-Select):
+                </Label>
+                <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                  {REJECTION_OPTIONS.map((opt) => {
+                    const isChecked = selectedRejectOptions.includes(opt.id);
+                    return (
+                      <div
+                        key={opt.id}
+                        className={`p-3 rounded-2xl border transition-all ${
+                          isChecked
+                            ? "bg-coral-50/70 border-coral-300 text-coral-950 shadow-2xs"
+                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                        }`}
+                      >
+                        <label className="flex items-start gap-3 cursor-pointer text-xs font-bold">
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {
+                              setSelectedRejectOptions((prev) =>
+                                isChecked ? prev.filter((item) => item !== opt.id) : [...prev, opt.id]
+                              );
+                            }}
+                            className="mt-0.5 rounded border-slate-300 text-coral focus:ring-coral shrink-0"
+                          />
+                          <span className="leading-snug">{opt.label}</span>
+                        </label>
+
+                        {opt.hasNotesInput && isChecked && (
+                          <div className="mt-2.5 pl-7">
+                            <input
+                              type="text"
+                              value={rejectNotesMap[opt.id] || ""}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setRejectNotesMap((prev) => ({ ...prev, [opt.id]: val }));
+                              }}
+                              placeholder={opt.placeholder || "Catatan khusus..."}
+                              className="w-full h-9 px-3 rounded-xl border border-coral-200 bg-white text-xs font-medium text-slate-800 focus:ring-2 focus:ring-coral/30 focus:border-coral outline-none shadow-2xs"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <Label className="block text-xs font-bold mb-1.5 text-slate-700">
+                  Catatan Khusus Tambahan Admin (Opsional):
+                </Label>
+                <textarea
+                  value={rejectReasonInput}
+                  onChange={(e) => setRejectReasonInput(e.target.value)}
+                  placeholder="Contoh: Bukti transfer tidak jelas / nominal transfer tidak sesuai (Rp 1.000.000). Harap transfer ulang..."
+                  className="w-full h-24 p-3.5 rounded-2xl border border-ink/15 bg-cloud/50 text-xs sm:text-sm font-medium focus:ring-2 focus:ring-coral/20 focus:border-coral outline-none resize-none"
+                />
+              </div>
             </div>
 
             <div className="flex gap-2.5 pt-1">
               <Button
                 variant="outline"
-                onClick={() => setRejectPaymentApplicant(null)}
+                onClick={() => {
+                  setRejectPaymentApplicant(null);
+                  setSelectedRejectOptions([]);
+                }}
                 className="flex-1 h-11 rounded-xl border-ink/15 font-bold text-xs"
               >
                 Batal
               </Button>
               <Button
                 onClick={handleConfirmRejectPayment}
-                disabled={isProcessingPayment || !rejectReasonInput.trim()}
+                disabled={isProcessingPayment || (selectedRejectOptions.length === 0 && !rejectReasonInput.trim())}
                 className="flex-1 h-11 rounded-xl bg-coral hover:bg-coral-600 text-white font-bold text-xs shadow-md"
               >
                 {isProcessingPayment ? "Memproses..." : "Kirim Penolakan"}

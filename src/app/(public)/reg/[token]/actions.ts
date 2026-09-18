@@ -152,8 +152,8 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
       return { success: false, message: "Link pendaftaran tidak valid atau sudah kadaluarsa." };
     }
 
-    if (applicant.form_submitted) {
-      return { success: false, message: "Formulir ini sudah pernah dikirimkan." };
+    if (applicant.form_submitted && applicant.status !== "REJECTED") {
+      return { success: false, message: "Formulir ini sudah pernah dikirimkan dan sedang diproses tim admisi." };
     }
 
     const dataString = formData.get("data") as string;
@@ -186,6 +186,7 @@ export async function submitApplicantByToken(token: string, formData: FormData) 
       authorized_pickup_name: data.authorizedPickup || null,
       media_consent: data.mediaConsent,
       status: "SUBMITTED",
+      rejection_reason: null, // Bersihkan catatan penolakan jika ortu re-submit
       form_submitted: true,
       submitted_at: new Date().toISOString(),
     };

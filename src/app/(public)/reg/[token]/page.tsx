@@ -6,6 +6,9 @@ import Link from "next/link";
 import { AlertCircle, CheckCircle2, Phone, ArrowLeft, ShieldCheck } from "lucide-react";
 import { isValidEmail } from "@/lib/utils";
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function RegPage({
   params,
 }: {
@@ -70,8 +73,13 @@ export default async function RegPage({
     );
   }
 
-  // Form sudah pernah disubmit
-  if (applicant.form_submitted) {
+  // Form dikunci HANYA JIKA form sudah pernah disubmit DAN tidak ada status REJECTED atau catatan penolakan/perbaikan dari admin
+  const isRejectedOrNeedsUpdate =
+    applicant.status === "REJECTED" ||
+    applicant.payment_status === "REJECTED" ||
+    (applicant.rejection_reason && applicant.rejection_reason.trim() !== "");
+
+  if (applicant.form_submitted && !isRejectedOrNeedsUpdate) {
     return (
       <div className="min-h-[100dvh] bg-gradient-to-b from-[#f8faff] via-[#eef4ff] to-[#f8faff] flex items-center justify-center p-6 relative overflow-hidden font-sans">
         {/* Background ambient orbs */}
@@ -127,7 +135,7 @@ export default async function RegPage({
     );
   }
 
-  // Siapkan prefill data dari apa yang sudah diisi admin / pendaftaran awal
+  // Siapkan prefill data lengkap dari data yang tersimpan di DB
   const rawGuardians = applicant.guardians || [];
   const guardiansList: any[] = Array.isArray(rawGuardians)
     ? rawGuardians
@@ -145,6 +153,11 @@ export default async function RegPage({
     return rel === "MOTHER" || rel === "IBU";
   });
 
+  const guardian = guardiansList.find((g: any) => {
+    const rel = (g?.relation || "").toUpperCase().trim();
+    return rel === "GUARDIAN" || rel === "WALI";
+  });
+
   const fallbackGuardian = guardiansList[0];
   const isFallbackFather = fallbackGuardian && ["FATHER", "AYAH"].includes((fallbackGuardian.relation || "").toUpperCase().trim());
   const isFallbackMother = fallbackGuardian && ["MOTHER", "IBU"].includes((fallbackGuardian.relation || "").toUpperCase().trim());
@@ -159,18 +172,17 @@ export default async function RegPage({
 
   const fatherEmail = (
     (isValidEmail(father?.email) ? father.email.trim() : "") ||
-    (isFallbackFather && isValidEmail(fallbackGuardian?.email) ? fallbackGuardian.email.trim() : "") ||
-    registeredEmail
+    (isFallbackFather && isValidEmail(fallbackGuardian?.email) ? fallbackGuardian.email.trim() : "")
   );
 
   const motherEmail = (
     (isValidEmail(mother?.email) ? mother.email.trim() : "") ||
-    (isFallbackMother && isValidEmail(fallbackGuardian?.email) ? fallbackGuardian.email.trim() : "") ||
-    registeredEmail
+    (isFallbackMother && isValidEmail(fallbackGuardian?.email) ? fallbackGuardian.email.trim() : "")
   );
 
   const prefill = {
     fullName: applicant.student_name || "",
+    preferredName: applicant.preferred_name || "",
     gender: applicant.gender === "MALE" ? "Laki-laki" : "Perempuan",
     program:
       applicant.program === "PRESCHOOL"
@@ -178,13 +190,59 @@ export default async function RegPage({
         : applicant.program === "KINDERGARTEN"
         ? "Kindergarten"
         : "Primary",
+    birthPlace: applicant.birth_place !== "-" ? applicant.birth_place || "" : "",
+    birthDate: applicant.birth_date ? applicant.birth_date.split("T")[0] : "",
+    nik: applicant.nik !== "-" ? applicant.nik || "" : "",
+    nisn: applicant.nisn !== "-" ? applicant.nisn || "" : "",
+    religion: applicant.religion !== "-" ? applicant.religion || "Islam" : "Islam",
+    nationality: applicant.nationality !== "-" ? applicant.nationality || "WNI" : "WNI",
+    address: applicant.address !== "-" ? applicant.address || "" : "",
+    primaryLanguage: applicant.primary_language !== "-" ? applicant.primary_language || "Bahasa Indonesia" : "Bahasa Indonesia",
+    childOrder: applicant.child_order || "",
+    previousSchool: applicant.previous_school || "",
+    bloodType: applicant.blood_type !== "-" ? applicant.blood_type || "O" : "O",
+    height: applicant.height || "",
+    weight: applicant.weight || "",
+    allergiesSpecialNeeds: applicant.allergies_special_needs || "",
+    medicalHistory: applicant.medical_history || "",
+    category: applicant.category === "TRANSFER_STUDENT" ? "Pindahan" : "Siswa Baru",
+
     registeredEmail,
+
     fatherName: father?.full_name || (isFallbackFather ? fallbackGuardian?.full_name : "") || "",
-    fatherPhone: father?.phone || (isFallbackFather ? fallbackGuardian?.phone : "") || "",
+    fatherNik: father?.nik !== "-" ? father?.nik || "" : "",
+    fatherJob: father?.occupation !== "-" ? father?.occupation || "" : "",
+    fatherIncome: father?.monthly_income || "",
+    fatherPhone: father?.phone !== "-" ? father?.phone || "" : "",
     fatherEmail,
+
     motherName: mother?.full_name || (isFallbackMother ? fallbackGuardian?.full_name : "") || "",
-    motherPhone: mother?.phone || (isFallbackMother ? fallbackGuardian?.phone : "") || "",
+    motherNik: mother?.nik !== "-" ? mother?.nik || "" : "",
+    motherJob: mother?.occupation !== "-" ? mother?.occupation || "" : "",
+    motherIncome: mother?.monthly_income || "",
+    motherPhone: mother?.phone !== "-" ? mother?.phone || "" : "",
     motherEmail,
+
+    guardianName: guardian?.full_name || "",
+    guardianRelation: guardian?.relation || "",
+    guardianPhone: guardian?.phone !== "-" ? guardian?.phone || "" : "",
+    guardianIncome: guardian?.monthly_income || "",
+
+    emergencyContactName: applicant.emergency_contact_name || "",
+    emergencyContactRelation: applicant.emergency_contact_relation || "",
+    emergencyContactPhone: applicant.emergency_contact_phone || "",
+    dailyTransportation: applicant.daily_transportation || "Antar-jemput sekolah",
+    authorizedPickup: applicant.authorized_pickup_name || "",
+    mediaConsent: applicant.media_consent ?? false,
+
+    docUploaded: {
+      ...(applicant.doc_photo_4x3 ? { foto4x3: "Pas Foto 3x4 / 4x3 (Terunggah)" } : {}),
+      ...(applicant.doc_birth_certificate ? { akte: "Akta Kelahiran (Terunggah)" } : {}),
+      ...(applicant.doc_family_card ? { kk: "Kartu Keluarga (Terunggah)" } : {}),
+      ...(applicant.doc_parent_id ? { ktp_orangtua: "KTP Orang Tua (Terunggah)" } : {}),
+      ...(applicant.doc_immunization_card ? { kartu_imunisasi: "Kartu Imunisasi (Terunggah)" } : {}),
+      ...(applicant.doc_previous_report ? { rapor: "Rapor Sekolah Asal (Terunggah)" } : {}),
+    }
   };
 
   return (
@@ -192,6 +250,8 @@ export default async function RegPage({
       token={token}
       registrationNo={applicant.registration_no}
       prefill={prefill}
+      status={applicant.status}
+      rejectionReason={applicant.rejection_reason}
     />
   );
 }

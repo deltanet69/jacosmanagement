@@ -49,27 +49,20 @@ export const INCOME_RANGES = [
   "Diatas 30.000.000",
 ] as const;
 
-type Prefill = {
-  fullName: string;
-  gender: string;
-  program: string;
-  registeredEmail?: string;
-  fatherName: string;
-  fatherPhone: string;
-  fatherEmail: string;
-  motherName: string;
-  motherPhone: string;
-  motherEmail: string;
-};
+type Prefill = Record<string, any>;
 
 export default function RegFormClient({
   token,
   registrationNo,
   prefill,
+  status,
+  rejectionReason,
 }: {
   token: string;
   registrationNo: string;
   prefill: Prefill;
+  status?: string;
+  rejectionReason?: string;
 }) {
   const STORAGE_KEY = `jacos_reg_draft_${token}`;
 
@@ -118,59 +111,61 @@ export default function RegFormClient({
     parentName: "",
   });
 
-  const [docUploaded, setDocUploaded] = useState<Record<string, string>>({});
+  const [docUploaded, setDocUploaded] = useState<Record<string, string>>(() => {
+    return prefill.docUploaded || {};
+  });
   const [docFiles, setDocFiles] = useState<Record<string, File>>({});
   const [compressingKeys, setCompressingKeys] = useState<Record<string, boolean>>({});
 
   const [formData, setFormData] = useState({
     program: prefill.program || "Primary",
     fullName: prefill.fullName || "",
-    preferredName: "",
+    preferredName: prefill.preferredName || "",
     gender: prefill.gender || "Laki-laki",
-    birthPlace: "",
-    birthDate: "",
-    nik: "",
-    nisn: "",
-    religion: "Islam",
-    nationality: "WNI",
-    address: "",
-    primaryLanguage: "Bahasa Indonesia",
-    childOrder: "",
-    previousSchool: "",
-    bloodType: "O",
-    height: "",
-    weight: "",
-    allergiesSpecialNeeds: "",
-    medicalHistory: "",
-    category: "Siswa Baru",
+    birthPlace: prefill.birthPlace || "",
+    birthDate: prefill.birthDate || "",
+    nik: prefill.nik || "",
+    nisn: prefill.nisn || "",
+    religion: prefill.religion || "Islam",
+    nationality: prefill.nationality || "WNI",
+    address: prefill.address || "",
+    primaryLanguage: prefill.primaryLanguage || "Bahasa Indonesia",
+    childOrder: prefill.childOrder || "",
+    previousSchool: prefill.previousSchool || "",
+    bloodType: prefill.bloodType || "O",
+    height: prefill.height || "",
+    weight: prefill.weight || "",
+    allergiesSpecialNeeds: prefill.allergiesSpecialNeeds || "",
+    medicalHistory: prefill.medicalHistory || "",
+    category: prefill.category || "Siswa Baru",
 
     fatherName: prefill.fatherName || "",
-    fatherNik: "",
-    fatherJob: "",
-    fatherIncome: "",
+    fatherNik: prefill.fatherNik || "",
+    fatherJob: prefill.fatherJob || "",
+    fatherIncome: prefill.fatherIncome || "",
     fatherPhone: prefill.fatherPhone || "",
-    fatherEmail: prefill.fatherEmail || prefill.registeredEmail || "",
+    fatherEmail: prefill.fatherEmail || "",
 
     motherName: prefill.motherName || "",
-    motherNik: "",
-    motherJob: "",
-    motherIncome: "",
+    motherNik: prefill.motherNik || "",
+    motherJob: prefill.motherJob || "",
+    motherIncome: prefill.motherIncome || "",
     motherPhone: prefill.motherPhone || "",
-    motherEmail: prefill.motherEmail || prefill.registeredEmail || "",
+    motherEmail: prefill.motherEmail || "",
 
-    guardianName: "",
-    guardianRelation: "",
-    guardianPhone: "",
-    guardianIncome: "",
+    guardianName: prefill.guardianName || "",
+    guardianRelation: prefill.guardianRelation || "",
+    guardianPhone: prefill.guardianPhone || "",
+    guardianIncome: prefill.guardianIncome || "",
 
-    emergencyContactName: "",
-    emergencyContactRelation: "",
-    emergencyContactPhone: "",
-    dailyTransportation: "Antar-jemput sekolah",
-    authorizedPickup: "",
+    emergencyContactName: prefill.emergencyContactName || "",
+    emergencyContactRelation: prefill.emergencyContactRelation || "",
+    emergencyContactPhone: prefill.emergencyContactPhone || "",
+    dailyTransportation: prefill.dailyTransportation || "Antar-jemput sekolah",
+    authorizedPickup: prefill.authorizedPickup || "",
 
     agreed: false,
-    mediaConsent: false,
+    mediaConsent: prefill.mediaConsent ?? false,
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -183,18 +178,34 @@ export default function RegFormClient({
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed.formData && typeof parsed.formData === "object") {
-          const defaultFatherEmail = prefill.fatherEmail || prefill.registeredEmail || "";
-          const defaultMotherEmail = prefill.motherEmail || prefill.registeredEmail || "";
-          setFormData((prev) => ({
-            ...prev,
-            ...parsed.formData,
-            fullName: parsed.formData.fullName || prefill.fullName || prev.fullName,
-            program: parsed.formData.program || prefill.program || prev.program,
-            gender: parsed.formData.gender || prefill.gender || prev.gender,
-            // Pastikan email fixed tetap terisi nilai valid dari prefill / registeredEmail jika draft lama menyimpan nilai kosong
-            fatherEmail: defaultFatherEmail || parsed.formData.fatherEmail || prev.fatherEmail,
-            motherEmail: defaultMotherEmail || parsed.formData.motherEmail || prev.motherEmail,
-          }));
+          const defaultFatherEmail = prefill.fatherEmail || "";
+          const defaultMotherEmail = prefill.motherEmail || "";
+
+          setFormData((prev) => {
+            const nextState: Record<string, any> = { ...prev };
+            // Utamakan data prefill dari database jika ada.
+            // Override dengan draft HANYA jika isi draft tidak kosong ("").
+            Object.keys(prev).forEach((key) => {
+              const draftVal = parsed.formData[key];
+              const prefillVal = prefill[key];
+
+              // 1. Selalu utamakan DB jika ada isinya
+              if (prefillVal !== undefined && prefillVal !== null && prefillVal !== "") {
+                nextState[key] = prefillVal;
+              } 
+              // 2. Jika DB kosong, baru cek draft (agar bisa lanjut ngisi jika refresh)
+              else if (draftVal !== undefined && draftVal !== null && draftVal !== "") {
+                nextState[key] = draftVal;
+              }
+            });
+
+            nextState.fullName = prefill.fullName || nextState.fullName || "";
+            nextState.program = prefill.program || nextState.program || "Primary";
+            nextState.gender = prefill.gender || nextState.gender || "Laki-laki";
+            nextState.fatherEmail = defaultFatherEmail || nextState.fatherEmail || "";
+            nextState.motherEmail = defaultMotherEmail || nextState.motherEmail || "";
+            return nextState as typeof prev;
+          });
           setIsDraftRestored(true);
         }
         if (parsed.currentStep && parsed.currentStep >= 1 && parsed.currentStep <= totalSteps) {
@@ -206,7 +217,7 @@ export default function RegFormClient({
     } finally {
       setIsHydrated(true);
     }
-  }, [STORAGE_KEY, prefill.fullName, prefill.program, prefill.gender, prefill.fatherEmail, prefill.motherEmail, prefill.registeredEmail]);
+  }, [STORAGE_KEY, prefill]);
 
   // 2. Simpan draft otomatis ke localStorage setelah hydrated
   useEffect(() => {
@@ -245,7 +256,7 @@ export default function RegFormClient({
     formData.primaryLanguage?.trim()
   );
 
-  const fallbackEmail = prefill.registeredEmail || prefill.fatherEmail || prefill.motherEmail || "";
+  const fallbackEmail = prefill.registeredEmail || "";
 
   const hasFatherData = Boolean(
     formData.fatherName?.trim() ||
@@ -378,7 +389,7 @@ export default function RegFormClient({
         if (!formData.fatherPhone.trim() || formData.fatherPhone.length < 9 || !digitRegex.test(formData.fatherPhone)) {
           newErrors.fatherPhone = "No. HP Ayah minimal 9 digit angka.";
         }
-        const activeFatherEmail = formData.fatherEmail?.trim() || fallbackEmail;
+        const activeFatherEmail = formData.fatherEmail?.trim();
         if (!activeFatherEmail || !emailRegex.test(activeFatherEmail)) {
           newErrors.fatherEmail = "Email Ayah wajib diisi dengan format yang valid.";
         }
@@ -394,7 +405,7 @@ export default function RegFormClient({
         if (!formData.motherPhone.trim() || formData.motherPhone.length < 9 || !digitRegex.test(formData.motherPhone)) {
           newErrors.motherPhone = "No. HP Ibu minimal 9 digit angka.";
         }
-        const activeMotherEmail = formData.motherEmail?.trim() || fallbackEmail;
+        const activeMotherEmail = formData.motherEmail?.trim();
         if (!activeMotherEmail || !emailRegex.test(activeMotherEmail)) {
           newErrors.motherEmail = "Email Ibu wajib diisi dengan format yang valid.";
         }
@@ -703,6 +714,33 @@ export default function RegFormClient({
             Silakan lengkapi data calon siswa dan orang tua di bawah ini. Isian Anda tersimpan secara otomatis sehingga tidak akan hilang saat halaman dimuat ulang.
           </p>
         </section>
+
+        {/* REJECTION ALERT BANNER (jika status === REJECTED) */}
+        {status === "REJECTED" && (
+          <div className="bg-gradient-to-r from-amber-500/10 via-amber-50 to-orange-50 rounded-3xl border border-amber-300 p-6 mb-8 shadow-sm animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-md shadow-amber-500/20">
+                <AlertCircle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-amber-800 uppercase tracking-wider bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200">
+                    Perhatian: Formulir Perlu Diperbaiki
+                  </span>
+                </div>
+                <h3 className="font-display text-lg font-bold text-ink">
+                  Catatan dari Tim Admisi JACOS:
+                </h3>
+                <p className="text-sm font-semibold text-amber-950 bg-white/90 p-3.5 rounded-xl border border-amber-200/80 leading-relaxed shadow-2xs">
+                  "{rejectionReason || "Mohon periksa dan perbarui data/berkas pendaftaran ananda sesuai arahan admin."}"
+                </p>
+                <p className="text-xs text-slate-500 pt-1">
+                  Silakan perbarui isian data atau berkas yang kurang sesuai di bawah ini, kemudian klik <strong>Kirim Formulir</strong> pada langkah terakhir.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* STEP PROGRESS BAR & STEP NAVIGATION */}
         <section className="bg-white rounded-3xl border border-slate-200/80 p-4 sm:p-6 shadow-sm mb-8">
@@ -1292,20 +1330,29 @@ export default function RegFormClient({
                         <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                           Email Ayah (Untuk Akun Portal) <span className="text-coral">*</span>
                         </label>
-                        <span className="text-[10px] font-extrabold text-sky bg-sky/10 px-2 py-0.5 rounded-md">
-                          Email Terdaftar
-                        </span>
+                        {!!prefill.fatherEmail && (
+                          <span className="text-[10px] font-extrabold text-sky bg-sky/10 px-2 py-0.5 rounded-md">
+                            Email Terdaftar
+                          </span>
+                        )}
                       </div>
                       <input
                         type="email"
-                        value={formData.fatherEmail || fallbackEmail}
-                        readOnly
-                        disabled
+                        value={formData.fatherEmail}
+                        onChange={(e) => updateForm("fatherEmail", e.target.value)}
+                        readOnly={!!prefill.fatherEmail}
+                        disabled={!!prefill.fatherEmail}
                         placeholder="ayah@contoh.com"
-                        className="w-full h-12 px-4 rounded-2xl border border-slate-200/90 bg-slate-100/90 text-slate-700 outline-none text-sm font-semibold cursor-not-allowed opacity-90"
+                        className={`w-full h-12 px-4 rounded-2xl border border-slate-200/90 text-sm font-semibold outline-none ${
+                          !!prefill.fatherEmail 
+                            ? "bg-slate-100/90 text-slate-700 cursor-not-allowed opacity-90"
+                            : "bg-white text-ink focus:border-sky focus:ring-4 focus:ring-sky/10 transition placeholder:text-slate-400"
+                        }`}
                       />
                       <p className="text-[11px] text-slate-400 font-medium">
-                        Email resmi pendaftaran (fixed &amp; otomatis digunakan untuk akun portal &amp; notifikasi resmi).
+                        {!!prefill.fatherEmail 
+                          ? "Email resmi pendaftaran (fixed & otomatis digunakan untuk akun portal & notifikasi resmi)."
+                          : "Email ini akan digunakan untuk notifikasi dan login ke Portal Orang Tua."}
                       </p>
                       {errors.fatherEmail && (
                         <p className="text-xs font-bold text-coral mt-1">{errors.fatherEmail}</p>
@@ -1416,20 +1463,29 @@ export default function RegFormClient({
                         <label className="text-xs font-bold uppercase tracking-wider text-slate-500">
                           Email Ibu (Untuk Akun Portal) <span className="text-coral">*</span>
                         </label>
-                        <span className="text-[10px] font-extrabold text-sky bg-sky/10 px-2 py-0.5 rounded-md">
-                          Email Terdaftar
-                        </span>
+                        {!!prefill.motherEmail && (
+                          <span className="text-[10px] font-extrabold text-sky bg-sky/10 px-2 py-0.5 rounded-md">
+                            Email Terdaftar
+                          </span>
+                        )}
                       </div>
                       <input
                         type="email"
-                        value={formData.motherEmail || fallbackEmail}
-                        readOnly
-                        disabled
+                        value={formData.motherEmail}
+                        onChange={(e) => updateForm("motherEmail", e.target.value)}
+                        readOnly={!!prefill.motherEmail}
+                        disabled={!!prefill.motherEmail}
                         placeholder="ibu@contoh.com"
-                        className="w-full h-12 px-4 rounded-2xl border border-slate-200/90 bg-slate-100/90 text-slate-700 outline-none text-sm font-semibold cursor-not-allowed opacity-90"
+                        className={`w-full h-12 px-4 rounded-2xl border border-slate-200/90 text-sm font-semibold outline-none ${
+                          !!prefill.motherEmail 
+                            ? "bg-slate-100/90 text-slate-700 cursor-not-allowed opacity-90"
+                            : "bg-white text-ink focus:border-sky focus:ring-4 focus:ring-sky/10 transition placeholder:text-slate-400"
+                        }`}
                       />
                       <p className="text-[11px] text-slate-400 font-medium">
-                        Email resmi pendaftaran (fixed &amp; otomatis digunakan untuk akun portal &amp; notifikasi resmi).
+                        {!!prefill.motherEmail 
+                          ? "Email resmi pendaftaran (fixed & otomatis digunakan untuk akun portal & notifikasi resmi)."
+                          : "Email ini akan digunakan untuk notifikasi dan login ke Portal Orang Tua."}
                       </p>
                       {errors.motherEmail && (
                         <p className="text-xs font-bold text-coral mt-1">{errors.motherEmail}</p>

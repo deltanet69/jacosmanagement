@@ -45,25 +45,27 @@ export async function submitPublicAdmission(formData: FormData) {
     const studentName = (formData.get("studentName") as string)?.trim();
     const programRaw = (formData.get("program") as string)?.trim();
     const genderRaw = (formData.get("gender") as string)?.trim();
-    const parentRelationRaw = (formData.get("parentRelation") as string)?.trim();
-    const parentName = (formData.get("parentName") as string)?.trim();
-    const parentPhone = (formData.get("parentPhone") as string)?.trim();
-    const parentEmail = (formData.get("parentEmail") as string)?.trim();
+    const fatherName = (formData.get("fatherName") as string)?.trim();
+    const fatherPhone = (formData.get("fatherPhone") as string)?.trim();
+    const fatherEmail = (formData.get("fatherEmail") as string)?.trim();
+    const motherName = (formData.get("motherName") as string)?.trim();
+    const motherPhone = (formData.get("motherPhone") as string)?.trim();
+    const motherEmail = (formData.get("motherEmail") as string)?.trim();
     const paymentMethod = (formData.get("paymentMethod") as string)?.trim() || "Transfer Bank BNI";
     const paymentProof = formData.get("paymentProof") as File | null;
 
     // Validasi
-    if (!studentName || !parentName || !parentPhone || !parentEmail) {
+    if (!studentName || !fatherName || !fatherPhone || !fatherEmail || !motherName || !motherPhone || !motherEmail) {
       return { success: false, message: "Harap lengkapi semua kolom data siswa dan orang tua." };
     }
 
     const digitRegex = /^\d+$/;
-    if (parentPhone.length < 9 || !digitRegex.test(parentPhone)) {
+    if (fatherPhone.length < 9 || !digitRegex.test(fatherPhone) || motherPhone.length < 9 || !digitRegex.test(motherPhone)) {
       return { success: false, message: "Nomor WhatsApp harus berupa angka minimal 9 digit." };
     }
 
-    if (!isValidEmail(parentEmail)) {
-      return { success: false, message: "Format email orang tua tidak valid." };
+    if (!isValidEmail(fatherEmail) || !isValidEmail(motherEmail)) {
+      return { success: false, message: "Format email ayah atau ibu tidak valid." };
     }
 
     if (!paymentProof || paymentProof.size === 0) {
@@ -82,7 +84,6 @@ export async function submitPublicAdmission(formData: FormData) {
     const program = programMap[programRaw] || "PRIMARY_SCHOOL";
 
     const gender = genderRaw === "Perempuan" || genderRaw === "FEMALE" ? "FEMALE" : "MALE";
-    const parentRelation = parentRelationRaw === "Ibu" || parentRelationRaw === "MOTHER" ? "MOTHER" : "FATHER";
 
     // 1. Generate Reg No & Token
     const registrationNo = await getNextRegistrationNo(supabase);
@@ -149,23 +150,38 @@ export async function submitPublicAdmission(formData: FormData) {
       return { success: false, message: insertError?.message || "Gagal memproses pendaftaran." };
     }
 
-    // 4. Insert Guardian
-    const { error: guardianError } = await supabase.from("guardians").insert({
-      applicant_id: newApplicant.id,
-      full_name: parentName,
-      nik: "-",
-      relation: parentRelation,
-      phone: parentPhone,
-      email: parentEmail,
-      occupation: "-",
-      birth_place: "-",
-      birth_date: new Date().toISOString(),
-      education_level: "S1",
-      address: "-",
-    });
+    // 4. Insert Guardians
+    const { error: guardianError } = await supabase.from("guardians").insert([
+      {
+        applicant_id: newApplicant.id,
+        full_name: fatherName,
+        nik: "-",
+        relation: "FATHER",
+        phone: fatherPhone,
+        email: fatherEmail,
+        occupation: "-",
+        birth_place: "-",
+        birth_date: new Date().toISOString(),
+        education_level: "S1",
+        address: "-",
+      },
+      {
+        applicant_id: newApplicant.id,
+        full_name: motherName,
+        nik: "-",
+        relation: "MOTHER",
+        phone: motherPhone,
+        email: motherEmail,
+        occupation: "-",
+        birth_place: "-",
+        birth_date: new Date().toISOString(),
+        education_level: "S1",
+        address: "-",
+      }
+    ]);
 
     if (guardianError) {
-      console.error("[submitPublicAdmission] Error creating guardian:", guardianError);
+      console.error("[submitPublicAdmission] Error creating guardians:", guardianError);
     }
 
     // 5. Kirim email respon bahwa pendaftaran diterima dan menunggu verifikasi pembayaran

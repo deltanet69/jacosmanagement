@@ -798,6 +798,7 @@ export async function sendRejectionEmail(params: {
   studentName: string;
   registrationNo: string;
   reason: string;
+  uniqueLink: string;
 }) {
   try {
     const cleanEmail = params.parentEmail?.trim();
@@ -842,7 +843,7 @@ export async function sendRejectionEmail(params: {
                 Terima kasih atas minat dan kepercayaan Anda mendaftarkan ananda <strong style="color:#0F172A;">${params.studentName}</strong> (No. Registrasi: <code style="font-family:monospace;background:#F1F5F9;padding:2px 6px;border-radius:4px;">${params.registrationNo}</code>) di JACOS.
               </p>
               <p style="margin:0 0 24px;color:#475569;font-size:15px;line-height:1.7;">
-                Setelah melalui proses peninjauan berkas dan kriteria seleksi admisi, kami menyampaikan bahwa untuk saat ini pendaftaran ananda <strong>belum dapat kami terima</strong>.
+                Setelah melalui proses peninjauan berkas dan kriteria seleksi admisi, kami menyampaikan bahwa saat ini status pendaftaran ananda <strong>memerlukan perbaikan / penyesuaian data</strong>.
               </p>
 
               <!-- Box Alasan Penolakan -->
@@ -850,9 +851,9 @@ export async function sendRejectionEmail(params: {
                 <tr>
                   <td style="padding:22px;">
                     <p style="margin:0 0 8px;color:#C2410C;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;">Catatan / Arahan dari Tim Admisi</p>
-                    <p style="margin:0;color:#9A3412;font-size:14px;font-weight:600;line-height:1.7;">
-                      ${params.reason || "Mohon maaf, berkas belum memenuhi kriteria atau bukti pembayaran belum terverifikasi."}
-                    </p>
+                    <div style="margin:0;color:#9A3412;font-size:14px;font-weight:600;line-height:1.7;white-space:pre-line;">
+                      ${(params.reason || "Mohon periksa kembali kelengkapan data atau kejelasan berkas yang telah diunggah.").replace(/\n/g, "<br />")}
+                    </div>
                   </td>
                 </tr>
               </table>
@@ -860,14 +861,14 @@ export async function sendRejectionEmail(params: {
               <!-- Panduan Selanjutnya -->
               <p style="margin:0 0 10px;color:#0F172A;font-size:14px;font-weight:700;">Langkah yang Dapat Anda Lakukan:</p>
               <ul style="margin:0 0 28px;padding-left:20px;color:#475569;font-size:14px;line-height:1.7;">
-                <li>Periksa kembali catatan admin di atas mengenai perbaikan data atau berkas yang diperlukan.</li>
-                <li>Anda dapat berkonsultasi langsung dengan Tim Admisi JACOS melalui tautan WhatsApp resmi kami.</li>
+                <li>Periksa catatan admin di atas dan siapkan data/berkas yang perlu diperbaiki.</li>
+                <li>Klik tombol di bawah untuk membuka dan memperbarui formulir pendaftaran ananda.</li>
               </ul>
 
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding-bottom:12px;">
-                    <a href="https://wa.me/6282140000477" style="display:inline-block;background:linear-gradient(135deg,#22C55E,#16A34A);color:#ffffff;font-weight:800;font-size:14px;text-decoration:none;padding:14px 34px;border-radius:100px;box-shadow:0 4px 14px rgba(22,163,74,0.3);">Hubungi Tim Admisi via WhatsApp &rarr;</a>
+                    <a href="${params.uniqueLink}" style="display:inline-block;background:linear-gradient(135deg,#0284C7,#0369A1);color:#ffffff;font-weight:800;font-size:15px;text-decoration:none;padding:16px 36px;border-radius:100px;box-shadow:0 4px 16px rgba(2,132,199,0.35);">Perbarui Data Pendaftaran Sekarang &rarr;</a>
                   </td>
                 </tr>
               </table>

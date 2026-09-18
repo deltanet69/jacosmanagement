@@ -146,6 +146,7 @@ export const getApplicantDetail = cache(async function getApplicantDetail(id: st
       filePath = mergedData.payment_note.split("Bukti: ")[1]?.trim();
     }
     if (filePath) {
+      (mergedData as any)[field] = filePath;
       if (filePath.startsWith("http://") || filePath.startsWith("https://")) {
         signedUrls[`${field}_signed`] = filePath;
       } else {
@@ -283,10 +284,12 @@ export async function createNewAdmission(formData: {
   studentName: string;
   program: string;
   gender: string;
-  parentRelation: string;
-  parentName: string;
-  parentPhone: string;
-  parentEmail: string;
+  fatherName: string;
+  fatherPhone: string;
+  fatherEmail: string;
+  motherName: string;
+  motherPhone: string;
+  motherEmail: string;
   paymentAmount: number;
   paymentMethod: string;
   paymentNote: string;
@@ -335,42 +338,66 @@ export async function createNewAdmission(formData: {
       return { success: false, message: insertError?.message || "Gagal membuat pendaftaran." };
     }
 
-    const { error: guardianError } = await supabase.from("guardians").insert({
-      applicant_id: newApplicant.id,
-      full_name: formData.parentName,
-      nik: "-",
-      relation: formData.parentRelation === "Ayah" ? "FATHER" : "MOTHER",
-      phone: formData.parentPhone,
-      email: formData.parentEmail,
-      occupation: "-",
-      birth_place: "-",
-      birth_date: new Date().toISOString(),
-      education_level: "S1",
-      address: "-",
-    });
+    const { error: guardianError } = await supabase.from("guardians").insert([
+      {
+        applicant_id: newApplicant.id,
+        full_name: formData.fatherName,
+        nik: "-",
+        relation: "FATHER",
+        phone: formData.fatherPhone,
+        email: formData.fatherEmail,
+        occupation: "-",
+        birth_place: "-",
+        birth_date: new Date().toISOString(),
+        education_level: "S1",
+        address: "-",
+      },
+      {
+        applicant_id: newApplicant.id,
+        full_name: formData.motherName,
+        nik: "-",
+        relation: "MOTHER",
+        phone: formData.motherPhone,
+        email: formData.motherEmail,
+        occupation: "-",
+        birth_place: "-",
+        birth_date: new Date().toISOString(),
+        education_level: "S1",
+        address: "-",
+      }
+    ]);
 
     if (guardianError) {
-      console.error("Error creating guardian:", guardianError);
+      console.error("Error creating guardians:", guardianError);
     }
 
     // Kirim email greetings awal pendaftaran lengkap dengan link unik ke orang tua
-    const cleanEmail = formData.parentEmail?.trim();
+    const cleanFatherEmail = formData.fatherEmail?.trim();
+    const cleanMotherEmail = formData.motherEmail?.trim();
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jacosmanagement.vercel.app";
     const uniqueLink = `${baseUrl}/reg/${registrationToken}`;
 
-    if (cleanEmail && isValidEmail(cleanEmail)) {
-      try {
-        await sendInitialGreetingEmail({
-          parentName: formData.parentName,
-          parentEmail: cleanEmail,
-          studentName: formData.studentName,
-          registrationNo,
-          program: formData.program,
-          uniqueLink,
-        });
-      } catch (emailErr) {
-        console.error("[createNewAdmission] Email error (non-fatal):", emailErr);
+    const sendEmail = async (email: string, parentName: string) => {
+      if (email && isValidEmail(email)) {
+        try {
+          await sendInitialGreetingEmail({
+            parentName,
+            parentEmail: email,
+            studentName: formData.studentName,
+            registrationNo,
+            program: formData.program,
+            uniqueLink,
+          });
+        } catch (emailErr) {
+          console.error("[createNewAdmission] Email error (non-fatal) for", email, ":", emailErr);
+        }
       }
+    };
+
+    await sendEmail(cleanFatherEmail, formData.fatherName);
+    // Hindari duplikasi email jika email ayah dan ibu sama
+    if (cleanMotherEmail !== cleanFatherEmail) {
+      await sendEmail(cleanMotherEmail, formData.motherName);
     }
 
     revalidatePath("/management/admisi");
@@ -648,29 +675,49 @@ export async function rejectApplicant(applicantId: string, reason?: string) {
   try {
     const applicant = await getApplicantWithGuardians(supabase, applicantId);
 
+    if (!applicant) {
+      return { success: false, message: "Pendaftar tidak ditemukan." };
+    }
+
+    let registrationToken = applicant.registration_token;
+    if (!registrationToken) {
+      registrationToken = generateToken();
+    }
+
     await supabase
       .from("applicants")
-      .update({ status: "REJECTED", rejection_reason: reason || null })
+      .update({
+        status: "REJECTED",
+        rejection_reason: reason || null,
+        form_submitted: false,
+        registration_token: registrationToken,
+      })
       .eq("id", applicantId);
 
-    if (applicant) {
-      const guardiansList = applicant.guardians || [];
-      const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
-      const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
+    const guardiansList = applicant.guardians || [];
+    const targetEmail = getFirstValidEmail(...guardiansList.map((g: any) => g?.email));
+    const guardian = guardiansList.find((g: any) => isValidEmail(g?.email)) || guardiansList[0];
 
-      if (targetEmail && guardian) {
-        resendResult = await sendRejectionEmail({
-          parentName: guardian.full_name,
-          parentEmail: targetEmail,
-          studentName: applicant.student_name,
-          registrationNo: applicant.registration_no,
-          reason: reason || "Belum ada keterangan khusus dari tim admisi.",
-        });
-      }
+    if (targetEmail && guardian) {
+      const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jacosmanagement.vercel.app";
+      const uniqueLink = `${baseUrl}/reg/${registrationToken}`;
+
+      resendResult = await sendRejectionEmail({
+        parentName: guardian.full_name,
+        parentEmail: targetEmail,
+        studentName: applicant.student_name,
+        registrationNo: applicant.registration_no,
+        reason: reason || "Belum ada keterangan khusus dari tim admisi.",
+        uniqueLink,
+      });
     }
 
     revalidatePath("/management/admisi");
     revalidatePath(`/management/admisi/${applicantId}`);
+    if (registrationToken) {
+      revalidatePath(`/reg/${registrationToken}`);
+      revalidatePath("/reg/[token]", "page");
+    }
     return { success: true, emailSent: resendResult?.success ?? false };
   } catch (err: any) {
     console.error("Exception in rejectApplicant:", err);
@@ -1054,12 +1101,19 @@ export async function rejectPublicPayment(applicantId: string, reason: string) {
 
     if (!applicant) return { success: false, message: "Data tidak ditemukan." };
 
+    let registrationToken = applicant.registration_token;
+    if (!registrationToken) {
+      registrationToken = generateToken();
+    }
+
     await supabase
       .from("applicants")
       .update({
         payment_status: "REJECTED",
         status: "REJECTED",
         rejection_reason: reason,
+        form_submitted: false,
+        registration_token: registrationToken,
       })
       .eq("id", applicantId);
 
@@ -1069,12 +1123,16 @@ export async function rejectPublicPayment(applicantId: string, reason: string) {
 
     if (targetEmail && isValidEmail(targetEmail)) {
       try {
+        const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://jacosmanagement.vercel.app";
+        const uniqueLink = `${baseUrl}/reg/${registrationToken}`;
+
         await sendRejectionEmail({
           parentName: guardian?.full_name || "Bapak/Ibu",
           parentEmail: targetEmail,
           studentName: applicant.student_name,
           registrationNo: applicant.registration_no,
           reason,
+          uniqueLink,
         });
       } catch (e) {
         console.error("Error sending rejection email:", e);
@@ -1083,6 +1141,10 @@ export async function rejectPublicPayment(applicantId: string, reason: string) {
 
     revalidatePath("/management/admisi");
     revalidatePath(`/management/admisi/${applicantId}`);
+    if (registrationToken) {
+      revalidatePath(`/reg/${registrationToken}`);
+      revalidatePath("/reg/[token]", "page");
+    }
     return { success: true };
   } catch (err: any) {
     return { success: false, message: err.message || "Gagal menolak pembayaran." };

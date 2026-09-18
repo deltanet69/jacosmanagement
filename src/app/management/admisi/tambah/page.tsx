@@ -37,10 +37,12 @@ export default function TambahAdmisiPage() {
     studentName: "",
     program: "Primary",
     gender: "Laki-laki",
-    parentRelation: "Ayah",
-    parentName: "",
-    parentPhone: "",
-    parentEmail: "",
+    fatherName: "",
+    fatherPhone: "",
+    fatherEmail: "",
+    motherName: "",
+    motherPhone: "",
+    motherEmail: "",
     paymentAmount: REGISTRATION_FEE.toString(),
     paymentMethod: "Transfer BNI",
     paymentNote: "",
@@ -57,16 +59,16 @@ export default function TambahAdmisiPage() {
     const digitRegex = /^\d+$/;
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-    if (!form.studentName.trim() || !form.parentName.trim() || !form.parentPhone.trim() || !form.parentEmail.trim()) {
+    if (!form.studentName.trim() || !form.fatherName.trim() || !form.fatherPhone.trim() || !form.fatherEmail.trim() || !form.motherName.trim() || !form.motherPhone.trim() || !form.motherEmail.trim()) {
       setError("Harap lengkapi semua kolom yang diperlukan.");
       return;
     }
-    if (form.parentPhone.length < 9 || !digitRegex.test(form.parentPhone.trim())) {
+    if (form.fatherPhone.length < 9 || !digitRegex.test(form.fatherPhone.trim()) || form.motherPhone.length < 9 || !digitRegex.test(form.motherPhone.trim())) {
       setError("No HP / WhatsApp harus minimal 9 digit angka.");
       return;
     }
-    if (!emailRegex.test(form.parentEmail.trim())) {
-      setError("Format email orang tua tidak valid.");
+    if (!emailRegex.test(form.fatherEmail.trim()) || !emailRegex.test(form.motherEmail.trim())) {
+      setError("Format email ayah atau ibu tidak valid.");
       return;
     }
 
@@ -183,64 +185,97 @@ export default function TambahAdmisiPage() {
             <div className="h-px bg-ink/5" />
 
             {/* Orang Tua */}
-            <div>
-              <Label className="block text-sm font-bold mb-2">
-                Orang Tua yang Mendaftarkan <span className="text-coral">*</span>
-              </Label>
-              <RadioGroup
-                value={form.parentRelation}
-                onValueChange={(v) => update("parentRelation", v)}
-                className="flex gap-4 mb-4"
-              >
-                <Label className="flex items-center gap-2 cursor-pointer">
-                  <RadioGroupItem value="Ayah" />
-                  <span className="text-sm font-semibold">Ayah</span>
-                </Label>
-                <Label className="flex items-center gap-2 cursor-pointer">
-                  <RadioGroupItem value="Ibu" />
-                  <span className="text-sm font-semibold">Ibu</span>
-                </Label>
-              </RadioGroup>
-            </div>
-
-            <div>
-              <Label className="block text-sm font-bold mb-2">
-                Nama {form.parentRelation} <span className="text-coral">*</span>
-              </Label>
-              <Input
-                value={form.parentName}
-                onChange={(e) => update("parentName", e.target.value)}
-                placeholder={`Nama lengkap ${form.parentRelation}`}
-                className="h-12 rounded-2xl bg-cloud border-transparent focus-visible:border-sky"
-                required
-              />
-            </div>
-
-            <div className="grid sm:grid-cols-2 gap-5">
-              <div>
-                <Label className="block text-sm font-bold mb-2">
-                  No. HP / WhatsApp <span className="text-coral">*</span>
-                </Label>
-                <Input
-                  value={form.parentPhone}
-                  onChange={(e) => update("parentPhone", e.target.value)}
-                  placeholder="08xx-xxxx-xxxx"
-                  className="h-12 rounded-2xl bg-cloud border-transparent focus-visible:border-sky"
-                  required
-                />
+            {/* Ayah */}
+            <div className="mb-4">
+              <h3 className="text-sm font-bold text-ink mb-4">Data Ayah</h3>
+              <div className="space-y-5">
+                <div>
+                  <Label className="block text-sm font-bold mb-2">
+                    Nama Ayah <span className="text-coral">*</span>
+                  </Label>
+                  <Input
+                    value={form.fatherName}
+                    onChange={(e) => update("fatherName", e.target.value)}
+                    placeholder="Nama lengkap Ayah"
+                    className="h-12 rounded-2xl bg-cloud border-transparent focus-visible:border-sky"
+                    required
+                  />
+                </div>
+                <div className="grid sm:grid-cols-2 gap-5">
+                  <div>
+                    <Label className="block text-sm font-bold mb-2">
+                      No. HP / WhatsApp <span className="text-coral">*</span>
+                    </Label>
+                    <Input
+                      value={form.fatherPhone}
+                      onChange={(e) => update("fatherPhone", e.target.value)}
+                      placeholder="08xx-xxxx-xxxx"
+                      className="h-12 rounded-2xl bg-cloud border-transparent focus-visible:border-sky"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label className="block text-sm font-bold mb-2">
+                      Email <span className="text-coral">*</span>
+                    </Label>
+                    <Input
+                      type="email"
+                      value={form.fatherEmail}
+                      onChange={(e) => update("fatherEmail", e.target.value)}
+                      placeholder="email@contoh.com"
+                      className="h-12 rounded-2xl bg-cloud border-transparent focus-visible:border-sky"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
-              <div>
-                <Label className="block text-sm font-bold mb-2">
-                  Email <span className="text-coral">*</span>
-                </Label>
-                <Input
-                  type="email"
-                  value={form.parentEmail}
-                  onChange={(e) => update("parentEmail", e.target.value)}
-                  placeholder="email@contoh.com"
-                  className="h-12 rounded-2xl bg-cloud border-transparent focus-visible:border-sky"
-                  required
-                />
+            </div>
+
+            <div className="h-px bg-ink/5 my-6" />
+
+            {/* Ibu */}
+            <div className="mb-2">
+              <h3 className="text-sm font-bold text-ink mb-4">Data Ibu</h3>
+              <div className="space-y-5">
+                <div>
+                  <Label className="block text-sm font-bold mb-2">
+                    Nama Ibu <span className="text-coral">*</span>
+                  </Label>
+                  <Input
+                    value={form.motherName}
+                    onChange={(e) => update("motherName", e.target.value)}
+                    placeholder="Nama lengkap Ibu"
+                    className="h-12 rounded-2xl bg-cloud border-transparent focus-visible:border-sky"
+                    required
+                  />
+                </div>
+                <div className="grid sm:grid-cols-2 gap-5">
+                  <div>
+                    <Label className="block text-sm font-bold mb-2">
+                      No. HP / WhatsApp <span className="text-coral">*</span>
+                    </Label>
+                    <Input
+                      value={form.motherPhone}
+                      onChange={(e) => update("motherPhone", e.target.value)}
+                      placeholder="08xx-xxxx-xxxx"
+                      className="h-12 rounded-2xl bg-cloud border-transparent focus-visible:border-sky"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <Label className="block text-sm font-bold mb-2">
+                      Email <span className="text-coral">*</span>
+                    </Label>
+                    <Input
+                      type="email"
+                      value={form.motherEmail}
+                      onChange={(e) => update("motherEmail", e.target.value)}
+                      placeholder="email@contoh.com"
+                      className="h-12 rounded-2xl bg-cloud border-transparent focus-visible:border-sky"
+                      required
+                    />
+                  </div>
+                </div>
               </div>
             </div>
           </div>

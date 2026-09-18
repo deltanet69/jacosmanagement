@@ -48,17 +48,18 @@ export default function PublicAdmissionPage() {
   const [studentName, setStudentName] = useState("");
   const [program, setProgram] = useState("PRIMARY_SCHOOL");
   const [gender, setGender] = useState("Laki-laki");
-  const [parentRelation, setParentRelation] = useState("Ayah");
-  const [parentName, setParentName] = useState("");
-  const [parentPhone, setParentPhone] = useState("");
-  const [parentEmail, setParentEmail] = useState("");
+  const [fatherName, setFatherName] = useState("");
+  const [fatherPhone, setFatherPhone] = useState("");
+  const [fatherEmail, setFatherEmail] = useState("");
+  const [motherName, setMotherName] = useState("");
+  const [motherPhone, setMotherPhone] = useState("");
+  const [motherEmail, setMotherEmail] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Transfer Bank BNI");
   const [paymentProofFile, setPaymentProofFile] = useState<File | null>(null);
   const [paymentProofPreview, setPaymentProofPreview] = useState<string | null>(null);
   const [submittedResult, setSubmittedResult] = useState<{
     registrationNo: string;
     studentName: string;
-    parentName: string;
   } | null>(null);
 
   useEffect(() => {
@@ -114,16 +115,16 @@ export default function PublicAdmissionPage() {
     event.preventDefault();
     clearError();
 
-    if (!studentName.trim() || !parentName.trim() || !parentPhone.trim() || !parentEmail.trim()) {
-      setError("Lengkapi data calon siswa dan kontak orang tua terlebih dahulu.");
+    if (!studentName.trim() || !fatherName.trim() || !fatherPhone.trim() || !fatherEmail.trim() || !motherName.trim() || !motherPhone.trim() || !motherEmail.trim()) {
+      setError("Lengkapi data calon siswa dan kontak kedua orang tua terlebih dahulu.");
       return;
     }
-    if (!/^\d{9,}$/.test(parentPhone.trim())) {
+    if (!/^\d{9,}$/.test(fatherPhone.trim()) || !/^\d{9,}$/.test(motherPhone.trim())) {
       setError("Nomor WhatsApp harus berupa angka, minimal 9 digit.");
       return;
     }
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(parentEmail.trim())) {
-      setError("Masukkan alamat email orang tua yang valid.");
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fatherEmail.trim()) || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(motherEmail.trim())) {
+      setError("Masukkan alamat email ayah dan ibu yang valid.");
       return;
     }
     if (!paymentProofFile) {
@@ -137,10 +138,12 @@ export default function PublicAdmissionPage() {
       formData.append("studentName", studentName);
       formData.append("program", program);
       formData.append("gender", gender);
-      formData.append("parentRelation", parentRelation);
-      formData.append("parentName", parentName);
-      formData.append("parentPhone", parentPhone);
-      formData.append("parentEmail", parentEmail);
+      formData.append("fatherName", fatherName);
+      formData.append("fatherPhone", fatherPhone);
+      formData.append("fatherEmail", fatherEmail);
+      formData.append("motherName", motherName);
+      formData.append("motherPhone", motherPhone);
+      formData.append("motherEmail", motherEmail);
       formData.append("paymentMethod", paymentMethod);
       formData.append("paymentProof", paymentProofFile);
 
@@ -153,7 +156,6 @@ export default function PublicAdmissionPage() {
       setSubmittedResult({
         registrationNo: result.registrationNo,
         studentName: result.studentName,
-        parentName: result.parentName,
       });
       window.scrollTo({ top: 0, behavior: "smooth" });
     } catch {
@@ -257,30 +259,52 @@ export default function PublicAdmissionPage() {
                   </div>
                 </FormSection>
 
-                <FormSection number="02" icon={<FileCheck2 className="size-4" />} title="Kontak orang tua / wali" description="Link formulir lengkap dikirim ke kontak ini.">
-                  <div className="grid gap-4 sm:grid-cols-[10rem_minmax(0,1fr)]">
+                <FormSection number="02" icon={<FileCheck2 className="size-4" />} title="Kontak orang tua" description="Link formulir lengkap dikirim ke email ini.">
+                  <div className="space-y-6">
+                    {/* Data Ayah */}
                     <div>
-                      <Label className="field-label">Hubungan <Required /></Label>
-                      <Select value={parentRelation} onValueChange={(value) => { setParentRelation(value || "Ayah"); clearError(); }}>
-                        <SelectTrigger className="field-input w-full"><SelectValue /></SelectTrigger>
-                        <SelectContent><SelectItem value="Ayah">Ayah</SelectItem><SelectItem value="Ibu">Ibu</SelectItem></SelectContent>
-                      </Select>
+                      <div className="mb-3 border-b border-slate-100 pb-2">
+                        <h3 className="text-sm font-bold text-slate-700">Data Ayah</h3>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-1 mb-4">
+                        <div>
+                          <Label htmlFor="father-name" className="field-label">Nama lengkap ayah <Required /></Label>
+                          <Input id="father-name" value={fatherName} onChange={(event) => { setFatherName(event.target.value); clearError(); }} placeholder="Nama lengkap ayah" autoComplete="name" required className="field-input" />
+                        </div>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <Label htmlFor="father-phone" className="field-label">Nomor WhatsApp Ayah <Required /></Label>
+                          <Input id="father-phone" type="tel" inputMode="numeric" autoComplete="tel" value={fatherPhone} onChange={(event) => { setFatherPhone(event.target.value.replace(/\D/g, "")); clearError(); }} placeholder="08123456789" required className="field-input" />
+                        </div>
+                        <div>
+                          <Label htmlFor="father-email" className="field-label">Email aktif Ayah <Required /></Label>
+                          <Input id="father-email" type="email" autoComplete="email" value={fatherEmail} onChange={(event) => { setFatherEmail(event.target.value); clearError(); }} placeholder="nama@email.com" required className="field-input" />
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Data Ibu */}
                     <div>
-                      <Label htmlFor="parent-name" className="field-label">Nama lengkap {parentRelation.toLowerCase()} <Required /></Label>
-                      <Input id="parent-name" value={parentName} onChange={(event) => { setParentName(event.target.value); clearError(); }} placeholder={`Nama lengkap ${parentRelation.toLowerCase()}`} autoComplete="name" required className="field-input" />
-                    </div>
-                  </div>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    <div>
-                      <Label htmlFor="parent-phone" className="field-label">Nomor WhatsApp <Required /></Label>
-                      <Input id="parent-phone" type="tel" inputMode="numeric" autoComplete="tel" value={parentPhone} onChange={(event) => { setParentPhone(event.target.value.replace(/\D/g, "")); clearError(); }} placeholder="08123456789" required className="field-input" />
-                      <p className="field-help">Untuk pengingat dan bantuan admisi.</p>
-                    </div>
-                    <div>
-                      <Label htmlFor="parent-email" className="field-label">Email aktif <Required /></Label>
-                      <Input id="parent-email" type="email" autoComplete="email" value={parentEmail} onChange={(event) => { setParentEmail(event.target.value); clearError(); }} placeholder="nama@email.com" required className="field-input" />
-                      <p className="field-help">Untuk link formulir pendaftaran lengkap. Email akan digunakan untuk akses parent portal, Harap masukkan email aktif.</p>
+                      <div className="mb-3 border-b border-slate-100 pb-2">
+                        <h3 className="text-sm font-bold text-slate-700">Data Ibu</h3>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-1 mb-4">
+                        <div>
+                          <Label htmlFor="mother-name" className="field-label">Nama lengkap ibu <Required /></Label>
+                          <Input id="mother-name" value={motherName} onChange={(event) => { setMotherName(event.target.value); clearError(); }} placeholder="Nama lengkap ibu" autoComplete="name" required className="field-input" />
+                        </div>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div>
+                          <Label htmlFor="mother-phone" className="field-label">Nomor WhatsApp Ibu <Required /></Label>
+                          <Input id="mother-phone" type="tel" inputMode="numeric" autoComplete="tel" value={motherPhone} onChange={(event) => { setMotherPhone(event.target.value.replace(/\D/g, "")); clearError(); }} placeholder="08123456789" required className="field-input" />
+                        </div>
+                        <div>
+                          <Label htmlFor="mother-email" className="field-label">Email aktif Ibu <Required /></Label>
+                          <Input id="mother-email" type="email" autoComplete="email" value={motherEmail} onChange={(event) => { setMotherEmail(event.target.value); clearError(); }} placeholder="nama@email.com" required className="field-input" />
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </FormSection>
